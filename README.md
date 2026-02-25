@@ -78,10 +78,14 @@ install.packages(c(
 
 All model parameters are sourced from published literature, preferencing Indian studies. Where Indian data is not available, the closest regional or global estimates are used with explicit disclaimers. Full references are provided in each module.
 
+## Development Process
+
+Initial drafts of these materials were generated with AI assistance (Claude, Anthropic), then reviewed, validated, and edited by the workshop team. The clinical reasoning, model structuring, parameter selection, and pedagogical design were guided by domain experts at RRC-HTA, AIIMS Bhopal. These materials are actively evolving — see the [About page](https://drpakhare.github.io/HTA-R-Workshop-2026/about.html) for full details.
+
 ## License
 
 This work is licensed under [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/). You are free to share and adapt these materials with attribution.
 
 ## Contact
 
-For questions about workshop content or collaboration, please open an issue on this repository.
+For questions about workshop content or collaboration, please open an [issue](https://github.com/drpakhare/HTA-R-Workshop-2026/issues) on this repository.

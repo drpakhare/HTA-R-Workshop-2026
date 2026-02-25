@@ -1,0 +1,51 @@
+---
+title: "About This Project"
+subtitle: "Development process, contributors, and how to contribute"
+---
+
+## Development Process
+
+These workshop materials were developed as a collaborative effort between domain experts in health technology assessment and AI-assisted content generation.
+
+**Initial drafts** of the annotated session modules, exercise files, reveal.js slides, Shiny app templates, and project infrastructure were generated with AI assistance (Claude, Anthropic). All content was then reviewed, validated, and edited by the workshop team to ensure clinical accuracy, pedagogical coherence, and alignment with Indian HTA practice.
+
+This approach allowed rapid prototyping of a comprehensive 3-day curriculum, while the substantive HTA expertise — model structuring, parameter selection, clinical interpretation, and pedagogical design — was guided throughout by the workshop team.
+
+## What This Means in Practice
+
+- **R code and model logic:** Generated with AI assistance, verified against published methods and standard HTA textbook approaches. All model parameters are sourced from published Indian and international literature, cited in each module.
+- **Clinical context and Indian data:** Guided by domain experts at RRC-HTA, AIIMS Bhopal. AI was used to structure and format, not to invent clinical claims.
+- **Slide decks:** AI-generated initial layouts based on session content, refined by the teaching team for classroom delivery.
+- **Shiny apps:** Functional templates generated with AI, tested and debugged iteratively.
+
+## Living Document
+
+These materials are actively evolving. The workshop team and resource persons will continue to edit, update, and improve the content based on:
+
+- Feedback from workshop participants
+- Updates to Indian HTA guidelines and data sources
+- New R packages and methods in the HTA ecosystem
+- Peer review and community input
+
+We welcome contributions, corrections, and suggestions through [GitHub Issues](https://github.com/drpakhare/HTA-R-Workshop-2026/issues) or pull requests.
+
+## Contributors
+
+**Workshop Team**
+
+- RRC-HTA, All India Institute of Medical Sciences, Bhopal
+- Under the aegis of Health Technology Assessment in India (HTAIn), Department of Health Research
+
+**AI Assistance**
+
+- Claude (Anthropic) — used for initial content generation, code drafting, and project scaffolding
+
+## Citation
+
+If you use or adapt these materials, please cite:
+
+> RRC-HTA, AIIMS Bhopal (2026). *R for HTA (Basics): Workshop Materials*. Available at: [https://drpakhare.github.io/HTA-R-Workshop-2026/](https://drpakhare.github.io/HTA-R-Workshop-2026/)
+
+## License
+
+This work is licensed under [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/). You are free to share and adapt these materials with appropriate attribution.

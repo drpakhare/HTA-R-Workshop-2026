@@ -107,6 +107,8 @@ website:
       - text: "Resources"
         href: further-resources.qmd
     right:
+      - text: "About"
+        href: about.qmd
       - icon: github
         href: https://github.com/drpakhare/HTA-R-Workshop-2026
 
