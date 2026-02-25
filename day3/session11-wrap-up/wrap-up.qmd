@@ -1,0 +1,212 @@
+---
+title: "Session 11: Wrap-Up and Next Steps"
+subtitle: "Where to go from here with R for HTA"
+format:
+  html:
+    toc: true
+---
+
+## What You Learned in 3 Days
+
+Over the past three days, you've gone from R fundamentals to building complete health technology assessment models. Here's what you accomplished:
+
+**Session 1-2: Foundations** - You learned R syntax, data manipulation, and visualization—the building blocks of any analysis.
+
+**Session 3: Diagnostic Decision Tree** - You built a model comparing screening strategies for gestational diabetes, learning how to compare multiple interventions and calculate cost-effectiveness.
+
+**Session 4: Therapeutic Decision Tree** - You implemented a drug-eluting stent comparison, applying decision tree logic to evaluate treatment choices.
+
+**Session 5: Markov Models** - You constructed a 4-state chronic kidney disease model, mastering state transitions, discounting, and long-term outcomes.
+
+**Session 8: Partitioned Survival Models** - You built a breast cancer model using survival analysis, learning to separate progression-free and overall survival.
+
+**Session 10: Shiny Apps** - You created interactive web applications that let non-technical stakeholders explore your models.
+
+Each model taught you different aspects of HTA: probability calculations, decision trees, state-based simulation, survival analysis, cost-effectiveness reasoning, and how to communicate results.
+
+## Key R Packages for HTA
+
+The R ecosystem for health economic evaluation is rich. Here are the most important packages to know:
+
+### heemod: Markov Models Made Easy
+The `heemod` package (Health Economic Evaluation MODelling) streamlines Markov model construction. Rather than writing transition matrices by hand, you define strategies and transitions using a clean syntax. It handles discounting, sensitivity analysis, and probabilistic analysis automatically.
+
+### dampack: Decision-Analytic Modeling
+`dampack` (Decision-Analytic Modeling Package) is a comprehensive toolkit for decision analysis. It provides functions for building decision trees, performing sensitivity analysis, and creating visualizations like tornado plots and cost-effectiveness frontiers.
+
+### BCEA: Bayesian Cost-Effectiveness Analysis
+`BCEA` (Bayesian Cost-Effectiveness Analysis) specializes in probabilistic analyses. It takes simulated samples from your model's parameter distributions and conducts Bayesian cost-effectiveness analysis, including credibility regions and EVPI (expected value of perfect information) calculations.
+
+### hesim: Health Economic Simulation
+`hesim` (Health Economic Simulation) is a framework for simulation-based HTA. It's particularly useful for discrete event simulation, individual patient simulation, and complex model structures that don't fit neatly into decision trees or Markov models.
+
+### flexsurv: Flexible Parametric Survival Models
+`flexsurv` fits flexible parametric survival distributions to observed data. This is essential when you have patient-level survival data and need to extrapolate beyond the trial duration. It supports Weibull, Gompertz, log-logistic, and many other distributions.
+
+### survHE: Survival Analysis for Health Economics
+`survHE` bridges survival analysis and health economics. It fits multiple survival distributions, compares goodness of fit, and integrates results with cost-effectiveness analysis.
+
+## The DARTH Group and Community Resources
+
+The **Decision Analysis in R for Technologies in Health (DARTH)** group is a research collaboration that produces educational materials for health economic modeling in R. They've published:
+
+- **Tutorial papers** in medical decision-making journals showing how to implement complex models
+- **GitHub repositories** with fully worked examples
+- **Coding standards** that make HTA models reproducible and transparent
+
+You can find DARTH materials at their website and GitHub. Their tutorials follow the same philosophy as this workshop: start with simple models and build up to complex analyses.
+
+Beyond DARTH, the **R-HTA Consortium** is a community of health economists using R. They hold webinars, share code, and provide a forum for questions. Joining this community connects you with other analysts facing similar challenges.
+
+## Using the Workshop GitHub Repository
+
+This workshop's code is (or will be) available on GitHub. Here's how to use it:
+
+**Fork the repository** to create your own copy. This lets you modify the models and templates without affecting the original.
+
+**Clone your fork** to your computer:
+```bash
+git clone https://github.com/yourusername/hta-r-workshop.git
+```
+
+**Explore the templates** for each model type. The Shiny apps, R scripts, and Quarto documents show complete, working examples.
+
+**Adapt them for your problem**. Change parameter values, add new costs, modify state transitions—whatever your analysis requires. Don't start from scratch; start from a template.
+
+**Share improvements**. If you enhance a template or find a bug, submit a pull request. This helps the whole community.
+
+**Version control your work**. Use Git to track changes to your models. This creates a detailed record of what you changed and why, which is invaluable when presenting results to stakeholders or reviewers.
+
+## Publishing with R: Quarto for Reproducible Reports
+
+Quarto (the successor to R Markdown) lets you weave R code and narrative into a single document that produces a polished report. This is transformative for HTA reporting because:
+
+- **Code and text are unified**. Your assumptions, calculations, and interpretations live in one file.
+- **Reproducibility is built in**. Anyone can run the code and regenerate the report exactly as you did.
+- **Multiple output formats**. Write once in Quarto, export to HTML, PDF, Word, or even a website.
+- **Transparency**. Reviewers can see every line of code that produced every number in your report.
+
+A typical Quarto HTA report might have:
+- An executive summary of key findings
+- Sections explaining the model structure
+- Embedded code chunks that run analyses
+- Plots and tables generated directly from R
+- Sensitivity analyses and scenario explorations
+- A conclusion tying results to decision-making
+
+Many journals now accept Quarto reports as supplementary material, and some encourage it. By publishing your code alongside your results, you advance the field toward reproducible research.
+
+## Your Learning Path — From Here Onwards
+
+You now have the knowledge to use R for HTA. But learning doesn't stop here. Here's how to continue:
+
+```{r}
+#| label: fig-learning-path
+#| echo: true
+#| fig-cap: "Your R for HTA learning path — from this workshop onwards"
+
+library(DiagrammeR)
+
+grViz("
+digraph learning_path {
+  graph [rankdir=TB, bgcolor='transparent', fontname='Helvetica']
+  node [fontname='Helvetica', fontsize=11, style='filled,rounded', shape=box, width=3]
+
+  workshop [label='This Workshop\nRead, modify, run R code\n4 model types + PSA + Shiny', fillcolor='#4e79a7', fontcolor='white']
+
+  next1 [label='Next Steps\nAdapt templates for your own projects\nUse GenAI to help write code', fillcolor='#59a14f', fontcolor='white']
+
+  next2 [label='Intermediate\nheemod, dampack, BCEA packages\nSurvival analysis with flexsurv/survHE', fillcolor='#f28e2b', fontcolor='white']
+
+  next3 [label='Advanced\nMicrosimulation & DES\nBayesian modelling (JAGS/Stan)\nR-HTA Consortium workshops', fillcolor='#e15759', fontcolor='white']
+
+  community [label='Community\nDARTH Group | R-HTA | R-HTA in LMICs\nRRC Network | GitHub', fillcolor='#76b7b2', fontcolor='white']
+
+  workshop -> next1 -> next2 -> next3
+  next1 -> community [style=dashed]
+  next2 -> community [style=dashed]
+  next3 -> community [style=dashed]
+}
+")
+```
+
+## Four Model Types: A Recap
+
+To help you remember which model type to use for different decision problems, here's a quick decision guide:
+
+```{r}
+#| label: fig-models-recap
+#| echo: true
+#| fig-cap: "The four model types you learned — and when to use each"
+
+grViz("
+digraph models_recap {
+  graph [rankdir=TB, bgcolor='transparent', fontname='Helvetica']
+  node [fontname='Helvetica', fontsize=10, style='filled,rounded', shape=box, width=3]
+
+  q [label='What is your\ndecision problem?', shape=diamond, fillcolor='#4e79a7', fontcolor='white', width=2.5]
+
+  dt_diag [label='Diagnostic Decision Tree\nCompare screening/testing strategies\nKey: sensitivity, specificity, prevalence', fillcolor='#59a14f', fontcolor='white']
+  dt_ther [label='Therapeutic Decision Tree\nCompare treatment options (one-time)\nKey: event probabilities, costs', fillcolor='#f28e2b', fontcolor='white']
+  markov [label='Markov Cohort Model\nChronic disease progression over time\nKey: transition probabilities, cycles', fillcolor='#e15759', fontcolor='white']
+  psm [label='Partitioned Survival Model\nOncology / survival data available\nKey: PFS and OS curves, extrapolation', fillcolor='#76b7b2', fontcolor='white']
+
+  q -> dt_diag [label='Diagnostic\naccuracy?', fontsize=9]
+  q -> dt_ther [label='Short-term\ntreatment?', fontsize=9]
+  q -> markov [label='Chronic disease\nover time?', fontsize=9]
+  q -> psm [label='Survival\ncurves?', fontsize=9]
+}
+")
+```
+
+
+**Phase 1: Consolidate (Next 1-2 weeks)**
+- Take each workshop template and modify it for a problem you care about
+- Change parameter values, add new strategies, adjust the time horizon
+- Run the models several times to understand how assumptions drive results
+- Get feedback from colleagues on whether the model structure makes sense
+
+**Phase 2: Expand (Weeks 3-4)**
+- Identify a feature you want to add: perhaps probabilistic sensitivity analysis, or a new outcome measure
+- Use AI tools (ChatGPT, Claude, Copilot) to help write code. Show them the workshop examples and ask for modifications
+- Read the relevant package vignette (e.g., `vignette("heemod")` in R)
+- Build the feature into your model
+
+**Phase 3: Share (Months 2-3)**
+- Deploy one of your Shiny apps to shinyapps.io
+- Share your Quarto report with stakeholders
+- Invite colleagues to explore the app and give feedback
+- Iterate on the model based on what you learn
+
+**Phase 4: Contribute (Ongoing)**
+- Join the R-HTA Consortium or a local R user group
+- Attend workshops and webinars
+- Help others learn by sharing your code and experiences
+- Consider publishing your methods in an open-access journal
+
+## Key Principles to Remember
+
+As you go forward, keep these principles in mind:
+
+**Transparency first.** Every assumption should be visible and adjustable. Avoid hiding logic in helper functions; make the model structure obvious.
+
+**Start simple.** The simplest model that answers your question is usually the best. You can always add complexity later.
+
+**Validate early.** Before running a sensitivity analysis or publishing, check that your model reproduces expected results under baseline assumptions.
+
+**Document as you go.** Future you will thank present you for clear comments explaining why you made each modeling choice.
+
+**Test your code.** A small bug in a transition probability can propagate through your entire analysis. Sanity-check results at each step.
+
+**Share your work.** The HTA community improves when we share methods, code, and lessons learned. Open science benefits everyone.
+
+## Final Encouragement
+
+You don't need to be a programmer to do health economic modeling in R. You need to be an HTA analyst who has learned to use R as a tool—just as you might use Excel, but better.
+
+The models you'll build will be reproducible, transparent, and shareable. They'll let decision-makers explore scenarios interactively. They'll speed up your analysis and reduce errors. And they'll position you as someone who understands both health economics and the tools that make modern science possible.
+
+The R community is welcoming. When you have questions, ask them. When you get stuck, others have likely been stuck there too. And when you solve a problem, share the solution.
+
+You've invested three days in learning these skills. That investment pays dividends. Go build something great.
+

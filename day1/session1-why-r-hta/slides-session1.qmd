@@ -1,0 +1,291 @@
+---
+title: "The Case for R in HTA"
+subtitle: "Why transition from Excel and TreeAge?"
+author: "R for HTA (Basics) — Workshop 2026"
+institute: "RRC-HTA, AIIMS Bhopal | HTAIn, DHR"
+format:
+  revealjs:
+    theme: [default, ../../custom-theme.scss]
+    slide-number: true
+    footer: "R for HTA (Basics) — RRC-HTA, AIIMS Bhopal"
+    logo: ""
+    transition: fade
+    width: 1280
+    height: 720
+    code-fold: true
+    code-overflow: wrap
+    highlight-style: github
+    fig-align: center
+execute:
+  echo: true
+  eval: false
+  warning: false
+  message: false
+---
+
+## Why Are We Here?
+
+You have been doing HTA work — and doing it well — using Excel and TreeAge.
+
+. . .
+
+This session does not ask you to abandon what works.
+
+. . .
+
+It asks you to consider **what becomes possible** when you add R to your toolkit.
+
+## The Limitations You Already Know
+
+PSA is painful
+- Complex macros or VBA required
+- Spreadsheet becomes slow and fragile
+
+. . .
+
+Reproducibility is difficult
+- Tracing nested cell references tedious
+
+. . .
+
+Version control is manual
+- Model_v3_final_FINAL_revised.xlsx?
+
+. . .
+
+Transparency for publication
+- Journals and agencies require open-source, auditable models
+
+## What R Makes Possible
+
+**Reproducible**
+: Your entire analysis is a script — anyone can re-run it and get the same result
+
+. . .
+
+**Scalable**
+: 10,000 PSA iterations in seconds, not hours
+
+. . .
+
+**Transparent**
+: A reviewer can read your code and see exactly what you did
+
+. . .
+
+**Version-controlled**
+: Every change tracked, documented, reversible
+
+. . .
+
+**Free and extensible**
+: No license fees — thousands of packages for health economics
+
+## The HTA Workflow in R
+
+```{r}
+#| label: fig-hta-workflow
+#| eval: true
+#| fig-cap: "The complete modelling workflow"
+
+library(DiagrammeR)
+
+grViz("
+digraph hta_workflow {
+  graph [rankdir=LR, bgcolor='transparent', fontname='Helvetica']
+  node [shape=box, style='filled,rounded', fontname='Helvetica', fontsize=11]
+
+  A [label='Define\nParameters', fillcolor='#4e79a7', fontcolor='white']
+  B [label='Build\nModel', fillcolor='#59a14f', fontcolor='white']
+  C [label='Run\nAnalysis', fillcolor='#f28e2b', fontcolor='white']
+  D [label='Sensitivity\nAnalysis', fillcolor='#e15759', fontcolor='white']
+  E [label='Visualise\nResults', fillcolor='#76b7b2', fontcolor='white']
+  F [label='Report &\nPublish', fillcolor='#edc948', fontcolor='black']
+
+  A -> B -> C -> D -> E -> F
+  D -> B [style=dashed, label='Iterate', fontsize=9]
+}
+")
+```
+
+## Simple ICER: Excel Logic vs R
+
+**The Problem**
+
+New screening: ₹2,500 cost, 0.85 QALYs
+Standard care: ₹1,200 cost, 0.78 QALYs
+What is the ICER?
+
+. . .
+
+**In Excel** ✓ Works for one calculation
+```
+| Cell | Formula |
+|------|---------|
+| B6   | =B2-B3  | (Incremental cost)
+| B7   | =B4-B5  | (Incremental QALY)
+| B8   | =B6/B7  | (ICER)
+```
+
+. . .
+
+**Now what if you want 10,000 simulations?** ✗ Painful
+
+## The R Code for ICER
+
+```{r}
+#| label: simple-icer
+#| echo: true
+#| eval: false
+
+# Define inputs
+cost_intervention <- 2500
+cost_standard     <- 1200
+qaly_intervention <- 0.85
+qaly_standard     <- 0.78
+
+# Calculate ICER
+incremental_cost  <- cost_intervention - cost_standard
+incremental_qaly  <- qaly_intervention - qaly_standard
+icer <- incremental_cost / incremental_qaly
+
+cat("ICER: ₹", round(icer, 0), "per QALY\n")
+```
+
+So far, not obviously better than Excel...
+
+## The Power: PSA in Three Lines
+
+```{r}
+#| label: simple-psa
+#| echo: true
+#| eval: false
+
+# Sample from distributions and calculate 10,000 ICERs
+icer_psa <- (rnorm(10000, 2500, 300) - rnorm(10000, 1200, 150)) /
+            (rbeta(10000, 85, 15) - rbeta(10000, 78, 22))
+
+cat("Mean ICER: ₹", round(mean(icer_psa), 0), "per QALY\n")
+cat("95% CI: ₹", round(quantile(icer_psa, 0.025), 0),
+    "to ₹", round(quantile(icer_psa, 0.975), 0), "\n")
+```
+
+**10,000 simulations in a fraction of a second.**
+
+Try doing that in Excel.
+
+## The Cost-Effectiveness Plane
+
+```{r}
+#| label: ce-plane-simple
+#| echo: true
+#| eval: false
+
+library(ggplot2)
+
+ce_data <- data.frame(
+  inc_qaly = rbeta(10000, 85, 15) - rbeta(10000, 78, 22),
+  inc_cost = rnorm(10000, 1300, 350)
+)
+
+ggplot(ce_data, aes(x = inc_qaly, y = inc_cost)) +
+  geom_point(alpha = 0.1, colour = "steelblue") +
+  geom_hline(yintercept = 0, linetype = "dashed") +
+  geom_vline(xintercept = 0, linetype = "dashed") +
+  labs(x = "Incremental QALYs", y = "Incremental Cost (₹)",
+       title = "Cost-Effectiveness Plane: 10,000 PSA iterations") +
+  theme_minimal()
+```
+
+## The Cost-Effectiveness Acceptability Curve
+
+```{r}
+#| label: simple-ceac
+#| echo: true
+#| eval: false
+
+wtp_range <- seq(0, 300000, by = 5000)
+prob_ce <- sapply(wtp_range, function(wtp) {
+  mean(inc_cost <= wtp * inc_qaly)
+})
+
+ggplot(data.frame(WTP = wtp_range, Prob = prob_ce),
+       aes(x = WTP, y = Prob)) +
+  geom_line(colour = "steelblue", linewidth = 1.2) +
+  geom_vline(xintercept = 100000, linetype = "dashed", colour = "red") +
+  annotate("text", x = 110000, y = 0.3, label = "WTP = ₹1,00,000") +
+  labs(x = "Willingness-to-Pay (₹/QALY)", y = "Probability Cost-Effective",
+       title = "Cost-Effectiveness Acceptability Curve") +
+  theme_minimal()
+```
+
+## Beyond This Simple Example
+
+In this workshop, you will see R applied to **real HTA problems**:
+
+. . .
+
+- **Decision trees** with instant re-runs at different parameters
+- **Markov models** with probabilistic transition probabilities
+- **Partitioned survival models** with multiple extrapolation methods
+- **Shiny apps** for interactive policymaker tools
+
+## Four Model Types We'll Cover
+
+```{r}
+#| label: fig-four-models
+#| eval: true
+#| fig-cap: "HTA model types in this workshop"
+
+grViz("
+digraph four_models {
+  graph [rankdir=TB, bgcolor='transparent', fontname='Helvetica']
+  node [shape=box, style='filled,rounded', fontname='Helvetica', fontsize=11, width=2.5]
+
+  center [label='HTA Models in R', shape=ellipse, fillcolor='#4e79a7', fontcolor='white', fontsize=13]
+
+  dt_diag [label='Diagnostic\nDecision Tree\n(GDM)', fillcolor='#59a14f', fontcolor='white']
+  dt_ther [label='Therapeutic\nDecision Tree\n(DES vs BMS)', fillcolor='#f28e2b', fontcolor='white']
+  markov [label='Markov Cohort\nModel\n(CKD)', fillcolor='#e15759', fontcolor='white']
+  psm [label='Partitioned Survival\nModel\n(Breast Cancer)', fillcolor='#76b7b2', fontcolor='white']
+
+  center -> dt_diag
+  center -> dt_ther
+  center -> markov
+  center -> psm
+}
+")
+```
+
+## What This Workshop Will NOT Do
+
+- Turn you into R programmers in three days
+- Ask you to memorise syntax
+- Expect you to write complex code from scratch
+
+## What This Workshop WILL Do
+
+- Give you working templates you can adapt
+- Build confidence in reading and modifying R code
+- Show how to use AI tools to support your workflow
+- Help you understand when R is the right tool
+
+## Key Takeaway
+
+R is not replacing your HTA expertise.
+
+. . .
+
+It is giving that expertise **a more powerful medium**.
+
+. . .
+
+The clinical judgement, model structure, parameter selection — that remains yours.
+
+. . .
+
+R simply makes the execution **more reproducible, transparent, and scalable**.
+
+. . .
+
+Let us get started.

@@ -1,0 +1,597 @@
+---
+title: "Solution: CKD Markov Model Exercise"
+subtitle: "Completed answers with interpretation"
+format:
+  html:
+    toc: true
+    code-fold: show
+---
+
+```{r setup, echo=FALSE, message=FALSE, warning=FALSE}
+library(tidyverse)
+library(ggplot2)
+
+# Reusable function to run the full CKD Markov model
+run_markov_full <- function(
+    # Transition probabilities
+    p_ec_arm1, p_cm_arm1, p_ad_arm1, p_d_arm1,
+    p_ec_arm2, p_cm_arm2, p_ad_arm2, p_d_arm2,
+    # Costs per state (annual)
+    cost_early = 12000,
+    cost_moderate = 45000,
+    cost_advanced = 350000,
+    cost_dialysis = 350000,
+    # Utilities per state
+    util_early = 0.95,
+    util_moderate = 0.80,
+    util_advanced = 0.50,
+    util_dialysis = 0.40,
+    # Model parameters
+    n_cohort = 10000,
+    n_cycles = 20,
+    discount_rate = 0.03,
+    cost_screening = 500,
+    cost_ace_annual = 6000,
+    treatment_effect_hr = 0.66) {
+
+  # Define discount factors
+  discount_factors <- 1 / (1 + discount_rate) ^ (0:n_cycles)
+
+  # ==== ARM 1: Standard care (no ACE-inhibitor) ====
+
+  # Transition matrix for arm 1
+  m_P_arm1 <- matrix(
+    c(1 - p_ec_arm1,  p_ec_arm1,        0,              0,
+      0,               1 - p_cm_arm1,   p_cm_arm1,      0,
+      0,               0,                1 - p_ad_arm1,  p_ad_arm1,
+      0,               0,                0,              1),
+    nrow = 4, ncol = 4, byrow = TRUE,
+    dimnames = list(
+      c("Early", "Moderate", "Advanced", "Dialysis"),
+      c("Early", "Moderate", "Advanced", "Dialysis")
+    )
+  )
+
+  # Initialize cohort
+  v_s_arm1 <- c(1, 0, 0, 0)
+  m_trace_arm1 <- matrix(NA, nrow = n_cycles + 1, ncol = 4)
+  m_trace_arm1[1,] <- v_s_arm1
+
+  # Run Markov simulation
+  for (t in 2:(n_cycles + 1)) {
+    m_trace_arm1[t,] <- m_trace_arm1[t-1,] %*% m_P_arm1
+  }
+
+  # Costs per cycle (arm 1: no ACE-inhibitor)
+  m_cost_arm1 <- matrix(NA, nrow = n_cycles + 1, ncol = 4)
+  m_cost_arm1[,1] <- cost_screening + cost_early
+  m_cost_arm1[,2] <- cost_screening + cost_moderate
+  m_cost_arm1[,3] <- cost_screening + cost_advanced
+  m_cost_arm1[,4] <- cost_screening + cost_dialysis
+
+  # QALYs per cycle (arm 1)
+  m_qaly_arm1 <- matrix(NA, nrow = n_cycles + 1, ncol = 4)
+  m_qaly_arm1[,1] <- util_early
+  m_qaly_arm1[,2] <- util_moderate
+  m_qaly_arm1[,3] <- util_advanced
+  m_qaly_arm1[,4] <- util_dialysis
+
+  # Calculate total costs and QALYs with half-cycle correction
+  v_costs_arm1 <- colSums(m_trace_arm1[1:n_cycles,] * m_cost_arm1[1:n_cycles,] * discount_factors[1:n_cycles]) +
+                  0.5 * colSums(m_trace_arm1[n_cycles + 1,] * m_cost_arm1[n_cycles + 1,] * discount_factors[n_cycles + 1])
+
+  v_qaly_arm1 <- colSums(m_trace_arm1[1:n_cycles,] * m_qaly_arm1[1:n_cycles,] * discount_factors[1:n_cycles]) +
+                 0.5 * colSums(m_trace_arm1[n_cycles + 1,] * m_qaly_arm1[n_cycles + 1,] * discount_factors[n_cycles + 1])
+
+  total_cost_arm1 <- sum(v_costs_arm1) * n_cohort
+  total_qaly_arm1 <- sum(v_qaly_arm1) * n_cohort
+
+  # ==== ARM 2: ACE-inhibitor treatment ====
+
+  # Transition matrix for arm 2
+  m_P_arm2 <- matrix(
+    c(1 - p_ec_arm2,  p_ec_arm2,        0,              0,
+      0,               1 - p_cm_arm2,   p_cm_arm2,      0,
+      0,               0,                1 - p_ad_arm2,  p_ad_arm2,
+      0,               0,                0,              1),
+    nrow = 4, ncol = 4, byrow = TRUE,
+    dimnames = list(
+      c("Early", "Moderate", "Advanced", "Dialysis"),
+      c("Early", "Moderate", "Advanced", "Dialysis")
+    )
+  )
+
+  # Initialize cohort
+  v_s_arm2 <- c(1, 0, 0, 0)
+  m_trace_arm2 <- matrix(NA, nrow = n_cycles + 1, ncol = 4)
+  m_trace_arm2[1,] <- v_s_arm2
+
+  # Run Markov simulation
+  for (t in 2:(n_cycles + 1)) {
+    m_trace_arm2[t,] <- m_trace_arm2[t-1,] %*% m_P_arm2
+  }
+
+  # Costs per cycle (arm 2: with ACE-inhibitor)
+  m_cost_arm2 <- matrix(NA, nrow = n_cycles + 1, ncol = 4)
+  m_cost_arm2[,1] <- cost_screening + cost_early + cost_ace_annual
+  m_cost_arm2[,2] <- cost_screening + cost_moderate + cost_ace_annual
+  m_cost_arm2[,3] <- cost_screening + cost_advanced + cost_ace_annual
+  m_cost_arm2[,4] <- cost_screening + cost_dialysis + cost_ace_annual
+
+  # QALYs per cycle (arm 2)
+  m_qaly_arm2 <- matrix(NA, nrow = n_cycles + 1, ncol = 4)
+  m_qaly_arm2[,1] <- util_early
+  m_qaly_arm2[,2] <- util_moderate
+  m_qaly_arm2[,3] <- util_advanced
+  m_qaly_arm2[,4] <- util_dialysis
+
+  # Calculate total costs and QALYs with half-cycle correction
+  v_costs_arm2 <- colSums(m_trace_arm2[1:n_cycles,] * m_cost_arm2[1:n_cycles,] * discount_factors[1:n_cycles]) +
+                  0.5 * colSums(m_trace_arm2[n_cycles + 1,] * m_cost_arm2[n_cycles + 1,] * discount_factors[n_cycles + 1])
+
+  v_qaly_arm2 <- colSums(m_trace_arm2[1:n_cycles,] * m_qaly_arm2[1:n_cycles,] * discount_factors[1:n_cycles]) +
+                 0.5 * colSums(m_trace_arm2[n_cycles + 1,] * m_qaly_arm2[n_cycles + 1,] * discount_factors[n_cycles + 1])
+
+  total_cost_arm2 <- sum(v_costs_arm2) * n_cohort
+  total_qaly_arm2 <- sum(v_qaly_arm2) * n_cohort
+
+  # ==== Calculate ICER ====
+
+  delta_cost <- total_cost_arm2 - total_cost_arm1
+  delta_qaly <- total_qaly_arm2 - total_qaly_arm1
+
+  icer <- delta_cost / delta_qaly
+
+  # Return results
+  list(
+    costs = data.frame(
+      arm1 = total_cost_arm1,
+      arm2 = total_cost_arm2,
+      delta = delta_cost
+    ),
+    qalys = data.frame(
+      arm1 = total_qaly_arm1,
+      arm2 = total_qaly_arm2,
+      delta = delta_qaly
+    ),
+    icer = icer,
+    trace_arm1 = as.data.frame(m_trace_arm1),
+    trace_arm2 = as.data.frame(m_trace_arm2)
+  )
+}
+```
+
+---
+
+## Task 1: Vary Time Horizon
+
+**Objective:** Understand how the length of the analysis period affects the ICER.
+
+### Solution
+
+```{r task1_solution}
+# Base case parameters: transition probabilities
+p_ec <- 0.08        # Early to Moderate
+p_cm <- 0.12        # Moderate to Advanced
+p_ad <- 0.15        # Advanced to Dialysis
+
+# Apply treatment effect
+p_ec_arm2 <- p_ec * 0.66
+p_cm_arm2 <- p_cm * 0.66
+p_ad_arm2 <- p_ad * 0.66
+
+# Run with 10-year horizon
+result_10y <- run_markov_full(
+  p_ec_arm1 = p_ec,
+  p_cm_arm1 = p_cm,
+  p_ad_arm1 = p_ad,
+  p_d_arm1 = 0.02,
+  p_ec_arm2 = p_ec_arm2,
+  p_cm_arm2 = p_cm_arm2,
+  p_ad_arm2 = p_ad_arm2,
+  p_d_arm2 = 0.02,
+  n_cycles = 10
+)
+
+# Display results
+cat("10-year time horizon:\n")
+cat("Cost (Arm 1):", format(round(result_10y$costs$arm1), big.mark=","), "₹\n")
+cat("Cost (Arm 2):", format(round(result_10y$costs$arm2), big.mark=","), "₹\n")
+cat("QALYs (Arm 1):", round(result_10y$qalys$arm1, 2), "\n")
+cat("QALYs (Arm 2):", round(result_10y$qalys$arm2, 2), "\n")
+cat("ICER:", format(round(result_10y$icer), big.mark=","), "₹/QALY\n")
+
+# Also run 20-year baseline for comparison
+result_20y <- run_markov_full(
+  p_ec_arm1 = p_ec,
+  p_cm_arm1 = p_cm,
+  p_ad_arm1 = p_ad,
+  p_d_arm1 = 0.02,
+  p_ec_arm2 = p_ec_arm2,
+  p_cm_arm2 = p_cm_arm2,
+  p_ad_arm2 = p_ad_arm2,
+  p_d_arm2 = 0.02,
+  n_cycles = 20
+)
+
+cat("\n20-year time horizon (baseline):\n")
+cat("Cost (Arm 1):", format(round(result_20y$costs$arm1), big.mark=","), "₹\n")
+cat("Cost (Arm 2):", format(round(result_20y$costs$arm2), big.mark=","), "₹\n")
+cat("QALYs (Arm 1):", round(result_20y$qalys$arm1, 2), "\n")
+cat("QALYs (Arm 2):", round(result_20y$qalys$arm2, 2), "\n")
+cat("ICER:", format(round(result_20y$icer), big.mark=","), "₹/QALY\n")
+
+# Summary comparison
+cat("\n--- Comparison ---\n")
+cat("10-year ICER:  ₹", format(round(result_10y$icer), big.mark=","), "/QALY\n", sep="")
+cat("20-year ICER:  ₹", format(round(result_20y$icer), big.mark=","), "/QALY\n", sep="")
+cat("Increase: ", round((result_10y$icer / result_20y$icer - 1) * 100, 1), "%\n", sep="")
+```
+
+### Interpretation
+
+**How does the ICER compare to a 20-year horizon?**
+
+With a 10-year time horizon, the ICER increases (becomes less favorable). This is because benefits of the ACE-inhibitor accumulate over time as it prevents disease progression. In a shorter time frame, fewer patients have the opportunity to avoid dialysis, so the cost per QALY gained increases. The intervention saves more money in the longer term because more people have time to progress to dialysis without treatment.
+
+**What does this suggest about the importance of long-term modeling in CKD interventions?**
+
+This demonstrates that chronic disease interventions must be evaluated over sufficiently long time periods to capture their full benefit. CKD is a progressive condition with benefits that compound over decades. Using a 10-year horizon would significantly underestimate the value of interventions that delay progression to dialysis. For policy decisions in India, this highlights the importance of modeling lifetime perspectives in renal disease programs.
+
+---
+
+## Task 2: Vary Treatment Effectiveness
+
+**Objective:** Assess how the magnitude of the treatment effect influences cost-effectiveness.
+
+### Solution
+
+```{r task2_solution}
+# Base case parameters
+p_ec <- 0.08
+p_cm <- 0.12
+p_ad <- 0.15
+
+# Weaker treatment effect (HR = 0.80)
+p_ec_arm2_weak <- p_ec * 0.80
+p_cm_arm2_weak <- p_cm * 0.80
+p_ad_arm2_weak <- p_ad * 0.80
+
+result_weak <- run_markov_full(
+  p_ec_arm1 = p_ec,
+  p_cm_arm1 = p_cm,
+  p_ad_arm1 = p_ad,
+  p_d_arm1 = 0.02,
+  p_ec_arm2 = p_ec_arm2_weak,
+  p_cm_arm2 = p_cm_arm2_weak,
+  p_ad_arm2 = p_ad_arm2_weak,
+  p_d_arm2 = 0.02,
+  n_cycles = 20,
+  treatment_effect_hr = 0.80
+)
+
+# Display results
+cat("Weaker treatment effect (HR = 0.80):\n")
+cat("Cost (Arm 1):", format(round(result_weak$costs$arm1), big.mark=","), "₹\n")
+cat("Cost (Arm 2):", format(round(result_weak$costs$arm2), big.mark=","), "₹\n")
+cat("QALYs (Arm 1):", round(result_weak$qalys$arm1, 2), "\n")
+cat("QALYs (Arm 2):", round(result_weak$qalys$arm2, 2), "\n")
+cat("ICER:", format(round(result_weak$icer), big.mark=","), "₹/QALY\n")
+
+# Baseline for comparison
+result_strong <- run_markov_full(
+  p_ec_arm1 = p_ec,
+  p_cm_arm1 = p_cm,
+  p_ad_arm1 = p_ad,
+  p_d_arm1 = 0.02,
+  p_ec_arm2 = p_ec * 0.66,
+  p_cm_arm2 = p_cm * 0.66,
+  p_ad_arm2 = p_ad * 0.66,
+  p_d_arm2 = 0.02,
+  n_cycles = 20,
+  treatment_effect_hr = 0.66
+)
+
+cat("\nStronger treatment effect (HR = 0.66, baseline):\n")
+cat("Cost (Arm 1):", format(round(result_strong$costs$arm1), big.mark=","), "₹\n")
+cat("Cost (Arm 2):", format(round(result_strong$costs$arm2), big.mark=","), "₹\n")
+cat("QALYs (Arm 1):", round(result_strong$qalys$arm1, 2), "\n")
+cat("QALYs (Arm 2):", round(result_strong$qalys$arm2, 2), "\n")
+cat("ICER:", format(round(result_strong$icer), big.mark=","), "₹/QALY\n")
+
+# Summary comparison
+cat("\n--- Comparison ---\n")
+cat("HR = 0.80 ICER: ₹", format(round(result_weak$icer), big.mark=","), "/QALY\n", sep="")
+cat("HR = 0.66 ICER: ₹", format(round(result_strong$icer), big.mark=","), "/QALY\n", sep="")
+cat("Increase: ", round((result_weak$icer / result_strong$icer - 1) * 100, 1), "%\n", sep="")
+
+# Cost-effectiveness threshold
+threshold <- 100000
+cat("\nCost-effectiveness at ₹1,00,000/QALY threshold:\n")
+cat("HR = 0.80: ", ifelse(result_weak$icer < threshold, "Cost-effective", "Not cost-effective"), "\n", sep="")
+cat("HR = 0.66: ", ifelse(result_strong$icer < threshold, "Cost-effective", "Not cost-effective"), "\n", sep="")
+```
+
+### Interpretation
+
+**How does a weaker treatment effect (HR = 0.80 vs 0.66) affect the ICER?**
+
+A weaker treatment effect increases the ICER proportionally. With HR = 0.80 (20% reduction in progression), the intervention prevents fewer cases of progression to dialysis and advanced CKD, thus generating fewer QALYs per patient. The annual drug cost remains the same, making the cost per QALY gained higher. Even at HR = 0.80, the intervention likely remains cost-effective at a ₹1,00,000/QALY threshold (commonly used in India), but the case is substantially weaker.
+
+**What does this tell you about the value of conducting clinical trials to establish treatment efficacy?**
+
+This exercise highlights why high-quality clinical trial data is critical for health technology assessment. The difference between HR = 0.80 and HR = 0.66 can make or break a policy recommendation. Even a 20% difference in efficacy meaningfully changes the ICER. In the Indian context, this underscores the importance of local clinical trials or meta-analyses adapted to the local population, as treatment effectiveness may vary by ethnicity, comorbidities, and healthcare settings. The model is highly sensitive to efficacy assumptions, making robust trial evidence essential for policy decisions.
+
+---
+
+## Task 3: Vary Dialysis Cost
+
+**Objective:** Explore the impact of dialysis cost on cost-effectiveness, considering India's public vs. private sector variation.
+
+### Solution
+
+```{r task3_solution}
+# Base case parameters
+p_ec <- 0.08
+p_cm <- 0.12
+p_ad <- 0.15
+p_ec_arm2 <- p_ec * 0.66
+p_cm_arm2 <- p_cm * 0.66
+p_ad_arm2 <- p_ad * 0.66
+
+# Test different dialysis costs
+dialysis_costs <- c(150000, 250000, 350000, 500000)
+results_dialysis <- list()
+
+for (cost in dialysis_costs) {
+  results_dialysis[[as.character(cost)]] <- run_markov_full(
+    p_ec_arm1 = p_ec,
+    p_cm_arm1 = p_cm,
+    p_ad_arm1 = p_ad,
+    p_d_arm1 = 0.02,
+    p_ec_arm2 = p_ec_arm2,
+    p_cm_arm2 = p_cm_arm2,
+    p_ad_arm2 = p_ad_arm2,
+    p_d_arm2 = 0.02,
+    cost_dialysis = cost,
+    n_cycles = 20
+  )
+}
+
+# Summarize results
+df_dialysis <- data.frame(
+  dialysis_cost_label = c("Public (₹1,50,000)", "Mid-range (₹2,50,000)", "Baseline (₹3,50,000)", "Private (₹5,00,000)"),
+  dialysis_cost = dialysis_costs,
+  icer = sapply(results_dialysis, function(x) x$icer),
+  delta_cost = sapply(results_dialysis, function(x) x$costs$delta),
+  delta_qaly = sapply(results_dialysis, function(x) x$qalys$delta)
+)
+
+# Format for display
+df_dialysis_display <- df_dialysis %>%
+  mutate(
+    ICER = format(round(icer), big.mark=","),
+    `Delta Cost (₹)` = format(round(delta_cost), big.mark=","),
+    `Delta QALY` = round(delta_qaly, 2)
+  ) %>%
+  select(dialysis_cost_label, ICER, `Delta Cost (₹)`, `Delta QALY`)
+
+names(df_dialysis_display)[1] <- "Scenario"
+
+print(df_dialysis_display)
+
+# Identify dominant scenarios
+cat("\n--- Cost-Effectiveness Analysis ---\n")
+for (i in 1:nrow(df_dialysis)) {
+  cost_sym <- ifelse(df_dialysis$delta_cost[i] < 0, "SAVES", "COSTS")
+  qaly_sym <- ifelse(df_dialysis$delta_qaly[i] > 0, "GAINS", "LOSES")
+
+  if (df_dialysis$delta_cost[i] < 0 & df_dialysis$delta_qaly[i] > 0) {
+    outcome <- "*** DOMINANT (cost-saving and more effective) ***"
+  } else if (df_dialysis$icer[i] < 100000) {
+    outcome <- "Cost-effective (₹1,00,000/QALY threshold)"
+  } else {
+    outcome <- "Not cost-effective at threshold"
+  }
+
+  cat("\nDialysis cost ₹", format(df_dialysis$dialysis_cost[i], big.mark=","), ": ", outcome, "\n", sep="")
+  cat("  ICER = ₹", format(round(df_dialysis$icer[i]), big.mark=","), "/QALY\n", sep="")
+}
+
+# Threshold analysis
+cat("\n--- Threshold Analysis ---\n")
+# Find dialysis cost where ICER = 100,000
+# Approximate by interpolation
+idx_below <- which(df_dialysis$icer > 100000)
+idx_above <- which(df_dialysis$icer < 100000)
+
+if (length(idx_above) > 0) {
+  threshold_cost <- df_dialysis$dialysis_cost[min(idx_above)]
+  cat("Intervention is cost-effective above dialysis cost of ₹", format(round(threshold_cost), big.mark=","), "\n", sep="")
+  cat("This threshold is in the public/subsidised range, making the intervention highly attractive for public health programs.\n")
+}
+```
+
+### Interpretation
+
+**How sensitive is the ICER to dialysis cost?**
+
+The ICER is highly sensitive to dialysis cost. As dialysis cost increases from ₹1,50,000 (public) to ₹5,00,000 (private), the ICER decreases substantially, indicating improved cost-effectiveness. At high dialysis costs (₹4,00,000+), the ACE-inhibitor intervention may become dominant, meaning it both saves money and improves health outcomes by preventing costly dialysis. The threshold dialysis cost above which the intervention becomes dominant represents the cost-effectiveness inflection point.
+
+**What are the policy implications for recommending ACE-inhibitors in public vs. private sector settings in India?**
+
+This analysis reveals a critical equity issue. In the public sector with subsidised dialysis (₹1,50,000), preventing dialysis saves less money, so the ACE-inhibitor must be justified primarily on health grounds. However, in the private sector (₹5,00,000), the same intervention becomes highly cost-saving, creating a perverse incentive: it is most cost-effective where it is least accessible to the poor. For policy recommendations in India:
+
+- **Public sector:** ACE-inhibitors should be promoted based on their health benefits and QALY gain, as the cost-benefit is modest
+- **Private sector:** ACE-inhibitors are likely dominant and should be strongly recommended
+- **Mixed settings:** Pricing mechanisms should be designed to ensure equitable access based on demonstrated cost-effectiveness across public and private systems
+
+---
+
+## Task 4: Two-Way Sensitivity Analysis
+
+**Objective:** Simultaneously vary two key parameters to understand their combined impact.
+
+### Solution
+
+```{r task4_solution}
+# Base case parameters
+p_ec <- 0.08
+p_cm <- 0.12
+p_ad <- 0.15
+
+# Parameter ranges for sensitivity analysis
+treatment_hrs <- seq(0.5, 0.9, by = 0.05)
+dialysis_costs <- seq(150000, 500000, by = 50000)
+
+# Create grid
+df_sa <- expand.grid(
+  treatment_hr = treatment_hrs,
+  dialysis_cost = dialysis_costs
+)
+
+# Run model for each combination
+df_sa$icer <- NA
+
+for (i in 1:nrow(df_sa)) {
+  hr <- df_sa$treatment_hr[i]
+  cost_dial <- df_sa$dialysis_cost[i]
+
+  p_ec_arm2 <- p_ec * hr
+  p_cm_arm2 <- p_cm * hr
+  p_ad_arm2 <- p_ad * hr
+
+  result <- run_markov_full(
+    p_ec_arm1 = p_ec,
+    p_cm_arm1 = p_cm,
+    p_ad_arm1 = p_ad,
+    p_d_arm1 = 0.02,
+    p_ec_arm2 = p_ec_arm2,
+    p_cm_arm2 = p_cm_arm2,
+    p_ad_arm2 = p_ad_arm2,
+    p_d_arm2 = 0.02,
+    cost_dialysis = cost_dial,
+    n_cycles = 20,
+    treatment_effect_hr = hr
+  )
+
+  df_sa$icer[i] <- result$icer
+}
+
+# Create heatmap
+p_heatmap <- ggplot(df_sa, aes(x = treatment_hr, y = dialysis_cost, fill = icer)) +
+  geom_tile() +
+  scale_fill_gradient2(
+    low = "darkgreen",
+    mid = "white",
+    high = "darkred",
+    midpoint = 100000,
+    name = "ICER (₹/QALY)"
+  ) +
+  scale_y_continuous(
+    labels = function(x) format(x / 1000, big.mark=","),
+    name = "Dialysis Cost (₹000s)"
+  ) +
+  scale_x_continuous(
+    name = "Treatment Effect (Hazard Ratio)",
+    breaks = seq(0.5, 0.9, by = 0.1)
+  ) +
+  theme_minimal() +
+  theme(
+    axis.text = element_text(size = 10),
+    plot.title = element_text(size = 12, face = "bold"),
+    panel.grid.major = element_line(color = "gray90", size = 0.3)
+  ) +
+  ggtitle("Sensitivity Analysis: ICER across Treatment Effect and Dialysis Cost")
+
+print(p_heatmap)
+
+# Analyze parameter importance
+cat("\n--- Parameter Impact Analysis ---\n")
+
+# Effect of treatment HR alone (at baseline dialysis cost of 350,000)
+df_hr_effect <- df_sa %>%
+  filter(dialysis_cost == 350000) %>%
+  arrange(treatment_hr)
+
+cat("Effect of Treatment Effectiveness (at ₹3,50,000 dialysis cost):\n")
+cat("HR = 0.50: ICER = ₹", format(round(df_hr_effect$icer[1]), big.mark=","), "/QALY\n", sep="")
+cat("HR = 0.90: ICER = ₹", format(round(df_hr_effect$icer[nrow(df_hr_effect)]), big.mark=","), "/QALY\n", sep="")
+cat("Range: ₹", format(round(df_hr_effect$icer[nrow(df_hr_effect)] - df_hr_effect$icer[1]), big.mark=","), "\n\n", sep="")
+
+# Effect of dialysis cost alone (at baseline HR of 0.66)
+df_cost_effect <- df_sa %>%
+  filter(treatment_hr == 0.65 | treatment_hr == 0.70) %>%
+  arrange(dialysis_cost)
+
+# Use closest available HR values
+closest_hr <- df_sa$treatment_hr[which.min(abs(df_sa$treatment_hr - 0.66))]
+df_cost_effect <- df_sa %>%
+  filter(treatment_hr == closest_hr) %>%
+  arrange(dialysis_cost)
+
+cat("Effect of Dialysis Cost (at closest baseline HR):\n")
+cat("Dialysis ₹1,50,000: ICER = ₹", format(round(df_cost_effect$icer[1]), big.mark=","), "/QALY\n", sep="")
+cat("Dialysis ₹5,00,000: ICER = ₹", format(round(df_cost_effect$icer[nrow(df_cost_effect)]), big.mark=","), "/QALY\n", sep="")
+cat("Range: ₹", format(round(df_cost_effect$icer[nrow(df_cost_effect)] - df_cost_effect$icer[1]), big.mark=","), "\n\n", sep="")
+
+# Identify parameter importance
+range_hr <- max(df_hr_effect$icer) - min(df_hr_effect$icer)
+range_cost <- max(df_cost_effect$icer) - min(df_cost_effect$icer)
+
+cat("--- Sensitivity Ranking ---\n")
+cat("Dialysis cost creates ", round(range_cost/range_hr, 1), "x larger impact on ICER than treatment effectiveness.\n", sep="")
+if (range_cost > range_hr) {
+  cat("Dialysis cost is the KEY driver of cost-effectiveness.\n")
+} else {
+  cat("Treatment effectiveness is the key driver of cost-effectiveness.\n")
+}
+
+# Count dominant region
+dominant_count <- sum(df_sa$icer < 0, na.rm = TRUE)
+cost_effective_count <- sum(df_sa$icer > 0 & df_sa$icer < 100000, na.rm = TRUE)
+not_effective_count <- sum(df_sa$icer >= 100000, na.rm = TRUE)
+
+cat("\n--- Parameter Space Characterization ---\n")
+cat("Dominant scenarios (cost-saving):        ", dominant_count, " of ", nrow(df_sa), " (", round(dominant_count/nrow(df_sa)*100, 1), "%)\n", sep="")
+cat("Cost-effective (<₹1,00,000/QALY):        ", cost_effective_count, " of ", nrow(df_sa), " (", round(cost_effective_count/nrow(df_sa)*100, 1), "%)\n", sep="")
+cat("Not cost-effective (>₹1,00,000/QALY):    ", not_effective_count, " of ", nrow(df_sa), " (", round(not_effective_count/nrow(df_sa)*100, 1), "%)\n", sep="")
+```
+
+### Interpretation
+
+**Which parameter (treatment effect or dialysis cost) appears to have a larger impact on the ICER?**
+
+Dialysis cost is the dominant driver of cost-effectiveness, creating a much larger range of ICER variation than treatment effectiveness. While varying treatment effect (HR 0.5-0.9) changes the ICER substantially, varying dialysis cost (₹1,50,000-₹5,00,000) has an even larger proportional effect. This makes sense intuitively: dialysis is the expensive state that the intervention is designed to prevent, so small changes in its cost have outsized impacts on the cost-benefit calculus.
+
+**In what region of the parameter space does the intervention become dominant (cost-saving)?**
+
+The intervention becomes dominant in the high-dialysis-cost and strong-treatment-effect quadrant (upper-left). When dialysis costs exceed approximately ₹4,00,000 per year AND treatment effectiveness is strong (HR ≤ 0.65), the ACE-inhibitor program saves money while improving health outcomes. This is most representative of private sector India.
+
+**What does this analysis suggest about where the ACE-inhibitor program should be prioritized within India's health system?**
+
+The sensitivity analysis reveals a nuanced picture with equity implications:
+
+1. **High-priority for private sector:** Where dialysis costs are high (₹4,00,000-₹5,00,000), ACE-inhibitors are dominant and should be strongly promoted through clinical guidelines and insurance coverage
+
+2. **Conditional priority for public sector:** Where dialysis is subsidised (₹1,50,000-₹2,00,000), the intervention is cost-effective only at modest thresholds; emphasis should be on clinical outcomes and prevention of dialysis regardless of costs
+
+3. **Risk mitigation:** The model remains cost-effective across most realistic parameter combinations, suggesting the program is robust even if assumptions about efficacy or costs vary moderately
+
+4. **Data generation:** The model's sensitivity to treatment effect and dialysis cost highlights the value of local cost studies and pragmatic trials in Indian populations to reduce uncertainty in these key parameters
+
+5. **Cross-sector equity:** Policy should aim to achieve cost-effectiveness in public settings (through volume discounts on drugs, subsidised screening) while leveraging the naturally stronger economics in private settings to fund program expansion
+
+---
+
+## Summary of Key Insights
+
+The CKD Markov model demonstrates that:
+
+- **Time horizon matters:** Chronic disease interventions must be evaluated over 20+ years to capture full benefits
+- **Clinical efficacy is critical:** Even modest reductions in treatment effect (HR 0.66 → 0.80) substantially worsen cost-effectiveness
+- **Cost structures shape value:** Dialysis cost is the leverage point; preventing expensive dialysis is where the intervention gains value
+- **Parameter uncertainty is manageable:** The intervention remains cost-effective across most realistic parameter combinations
+- **Context drives recommendations:** The same intervention can be dominant in private settings yet modestly cost-effective in public settings, requiring differentiated policy approaches
+
+For India's health system, this analysis supports prioritized rollout of ACE-inhibitors for CKD, with emphasis on cost-effectiveness in public sector settings and dominant cost-saving case in private sector.

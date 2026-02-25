@@ -1,0 +1,331 @@
+---
+title: "Exercise: PSA for the Breast Cancer Model"
+subtitle: "Exploring uncertainty in the partitioned survival analysis"
+format:
+  html:
+    toc: true
+    code-fold: false
+---
+
+## Overview
+
+In this exercise, you will use the PSA framework from the main module to explore parameter uncertainty in the breast cancer trastuzumab model. You have two tasks:
+
+1. **Task 1**: Investigate the impact of reducing cost uncertainty on the cost-effectiveness plane.
+2. **Task 2**: Calculate the probability of cost-effectiveness at multiple WTP thresholds and present as a table.
+
+Load the required libraries and set up the helper functions from the main module.
+
+```{r}
+#| message: false
+library(tidyverse)
+library(ggplot2)
+
+theme_set(theme_minimal() +
+          theme(panel.grid.major = element_line(colour = "grey90"),
+                panel.grid.minor = element_blank()))
+
+# Helper function: Convert mean and SD to gamma parameters
+mean_sd_to_gamma <- function(mean, sd) {
+  rate <- mean / (sd^2)
+  shape <- mean * rate
+  return(list(shape = shape, rate = rate))
+}
+
+# Helper function: Convert mean and SD to beta parameters
+mean_sd_to_beta <- function(mean, sd) {
+  if (mean <= 0 | mean >= 1) {
+    stop("Beta mean must be strictly between 0 and 1")
+  }
+  alpha <- ((1 - mean) / (sd^2) - 1 / mean) * mean^2
+  beta <- alpha * (1 / mean - 1)
+  return(list(alpha = alpha, beta = beta))
+}
+
+# PSM function from the module
+psm_model <- function(
+    hr_os = 0.70,
+    hr_pfs = 0.50,
+    os_lambda_ctrl = 0.045,
+    os_gamma_ctrl = 1.15,
+    pfs_lambda_ctrl = 0.12,
+    pfs_gamma_ctrl = 1.05,
+    cost_pf_trast = 420000,
+    cost_pd = 180000,
+    utility_pf = 0.80,
+    utility_pd = 0.55,
+    cost_trast_maint = 25000,
+    time_horizon = 20,
+    discount_rate = 0.03
+) {
+
+  times <- seq(0, time_horizon, by = 1)
+
+  S_os_ctrl <- function(t) exp(-os_lambda_ctrl * t^os_gamma_ctrl)
+  S_pfs_ctrl <- function(t) exp(-pfs_lambda_ctrl * t^pfs_gamma_ctrl)
+  S_os_trast <- function(t) exp(-os_lambda_ctrl * (hr_os * t)^os_gamma_ctrl)
+  S_pfs_trast <- function(t) exp(-pfs_lambda_ctrl * (hr_pfs * t)^pfs_gamma_ctrl)
+
+  df <- tibble(
+    time = times,
+    S_os_ctrl_t = sapply(times, S_os_ctrl),
+    S_pfs_ctrl_t = sapply(times, S_pfs_ctrl),
+    S_os_trast_t = sapply(times, S_os_trast),
+    S_pfs_trast_t = sapply(times, S_pfs_trast)
+  ) %>%
+    mutate(
+      pfs_ctrl_t = S_pfs_ctrl_t,
+      pfs_trast_t = S_pfs_trast_t,
+      pd_ctrl_t = pmax(S_os_ctrl_t - S_pfs_ctrl_t, 0),
+      pd_trast_t = pmax(S_os_trast_t - S_pfs_trast_t, 0),
+      dead_ctrl_t = 1 - S_os_ctrl_t,
+      dead_trast_t = 1 - S_os_trast_t,
+      discount = (1 + discount_rate)^(-(time - 0.5))
+    )
+
+  df <- df %>%
+    mutate(
+      cost_trast_pfs = if_else(
+        time <= 1,
+        cost_pf_trast,
+        cost_trast_maint
+      ),
+      cost_pf_ctrl = 0,
+      cost_pf_trast = cost_trast_pfs,
+      cost_pd_ctrl = cost_pd,
+      cost_pd_trast = cost_pd,
+      cost_dead = 0
+    )
+
+  df <- df %>%
+    mutate(
+      total_cost_ctrl = pfs_ctrl_t * cost_pf_ctrl + pd_ctrl_t * cost_pd_ctrl + dead_ctrl_t * cost_dead,
+      total_cost_trast = pfs_trast_t * cost_pf_trast + pd_trast_t * cost_pd_trast + dead_trast_t * cost_dead
+    )
+
+  df <- df %>%
+    mutate(
+      utility_pf = utility_pf,
+      utility_pd = utility_pd,
+      utility_dead = 0,
+      total_qaly_ctrl = pfs_ctrl_t * utility_pf + pd_ctrl_t * utility_pd + dead_ctrl_t * utility_dead,
+      total_qaly_trast = pfs_trast_t * utility_pf + pd_trast_t * utility_pd + dead_trast_t * utility_dead
+    )
+
+  df <- df %>%
+    mutate(
+      disc_cost_ctrl = total_cost_ctrl * discount,
+      disc_cost_trast = total_cost_trast * discount,
+      disc_qaly_ctrl = total_qaly_ctrl * discount,
+      disc_qaly_trast = total_qaly_trast * discount
+    )
+
+  results <- list(
+    cost_ctrl = sum(df$disc_cost_ctrl),
+    cost_trast = sum(df$disc_cost_trast),
+    qaly_ctrl = sum(df$disc_qaly_ctrl),
+    qaly_trast = sum(df$disc_qaly_trast),
+    inc_cost = sum(df$disc_cost_trast) - sum(df$disc_cost_ctrl),
+    inc_qaly = sum(df$disc_qaly_trast) - sum(df$disc_qaly_ctrl),
+    icer = (sum(df$disc_cost_trast) - sum(df$disc_cost_ctrl)) /
+           (sum(df$disc_qaly_trast) - sum(df$disc_qaly_ctrl))
+  )
+
+  return(results)
+}
+```
+
+## Task 1: Impact of cost uncertainty reduction
+
+In the main module, costs were sampled with realistic uncertainty (SD ~20% of mean). In this task, you will reduce cost uncertainty to 10% of mean and compare the resulting cost-effectiveness plane.
+
+**Instructions:**
+
+1. Run a PSA with reduced cost uncertainty (SD = 10% of mean for both costs). Use the same seed and iteration count as the main module.
+2. Create two CE plane plots side-by-side: one with original uncertainty (from the module) and one with reduced uncertainty.
+3. Compare the scatter pattern and interpret what you see.
+
+```{r}
+# Define parameters for reduced cost uncertainty scenario
+
+# Original scenario (from module)
+cost_pf_trast_yr1_mean <- 420000
+cost_pf_trast_yr1_sd_original <- 80000      # ~19% of mean
+
+cost_pd_mean <- 180000
+cost_pd_sd_original <- 40000                # ~22% of mean
+
+# Reduced uncertainty scenario
+cost_pf_trast_yr1_sd_reduced <- ___         # 10% of mean
+cost_pd_sd_reduced <- ___                   # 10% of mean
+
+# Other parameters (unchanged)
+hr_os_mean <- log(0.70)
+hr_os_sd <- 0.15
+hr_pfs_mean <- log(0.50)
+hr_pfs_sd <- 0.20
+
+utility_pf_mean <- 0.80
+utility_pf_sd <- 0.05
+utility_pd_mean <- 0.55
+utility_pd_sd <- 0.08
+
+os_lambda_ctrl <- 0.045
+os_gamma_ctrl <- 1.15
+pfs_lambda_ctrl <- 0.12
+pfs_gamma_ctrl <- 1.05
+cost_trast_maintenance_yr1 <- 25000
+
+# Run PSA with reduced cost uncertainty
+set.seed(2026)
+n_iterations <- 3000
+
+psa_reduced_cost <- tibble(
+  iteration = integer(n_iterations),
+  inc_cost = numeric(n_iterations),
+  inc_qaly = numeric(n_iterations),
+  icer = numeric(n_iterations)
+)
+
+for (i in seq_len(n_iterations)) {
+
+  # Sample parameters
+  hr_os_sampled <- exp(rnorm(1, hr_os_mean, hr_os_sd))
+  hr_pfs_sampled <- exp(rnorm(1, hr_pfs_mean, hr_pfs_sd))
+
+  # Gamma distributions with REDUCED cost uncertainty
+  gamma_pf_trast <- mean_sd_to_gamma(cost_pf_trast_yr1_mean, cost_pf_trast_yr1_sd_reduced)
+  cost_pf_trast_sampled <- rgamma(1, shape = gamma_pf_trast$shape, rate = gamma_pf_trast$rate)
+
+  gamma_pd <- mean_sd_to_gamma(cost_pd_mean, cost_pd_sd_reduced)
+  cost_pd_sampled <- rgamma(1, shape = gamma_pd$shape, rate = gamma_pd$rate)
+
+  # Beta distributions (unchanged)
+  beta_pf <- mean_sd_to_beta(utility_pf_mean, utility_pf_sd)
+  utility_pf_sampled <- rbeta(1, shape1 = beta_pf$alpha, shape2 = beta_pf$beta)
+
+  beta_pd <- mean_sd_to_beta(utility_pd_mean, utility_pd_sd)
+  utility_pd_sampled <- rbeta(1, shape1 = beta_pd$alpha, shape2 = beta_pd$beta)
+
+  # Run model
+  model_output <- psm_model(
+    hr_os = hr_os_sampled,
+    hr_pfs = hr_pfs_sampled,
+    cost_pf_trast = cost_pf_trast_sampled,
+    cost_pd = cost_pd_sampled,
+    utility_pf = utility_pf_sampled,
+    utility_pd = utility_pd_sampled,
+    cost_trast_maint = cost_trast_maintenance_yr1
+  )
+
+  # Store results
+  psa_reduced_cost$iteration[i] <- i
+  psa_reduced_cost$inc_cost[i] <- model_output$inc_cost
+  psa_reduced_cost$inc_qaly[i] <- model_output$inc_qaly
+  psa_reduced_cost$icer[i] <- model_output$icer
+
+  if (i %% 500 == 0) {
+    cat("Completed iteration", i, "of", n_iterations, "\n")
+  }
+}
+```
+
+Now, load the original PSA results from the main module and create comparison plots. You'll need to load or re-run the PSA from the module.
+
+```{r}
+# Assume psa_results from the main module is available
+# If not, you may need to re-run the PSA from the module here
+
+# For now, create comparison plot (you may need to adjust based on available data)
+
+# Add WTP threshold classification for reduced cost scenario
+wtp_threshold <- 170000
+
+psa_reduced_cost <- psa_reduced_cost %>%
+  mutate(
+    ce_at_threshold = inc_cost <= (wtp_threshold * inc_qaly)
+  )
+
+# Create CE plane plot for reduced cost uncertainty
+p_reduced <- ggplot(psa_reduced_cost, aes(x = inc_qaly, y = inc_cost, colour = ce_at_threshold)) +
+  geom_point(alpha = 0.5, size = 2) +
+  geom_abline(intercept = 0, slope = wtp_threshold,
+              linetype = "dashed", colour = "red", linewidth = 1.2) +
+  scale_colour_manual(
+    values = c("TRUE" = "#2ecc71", "FALSE" = "#e74c3c"),
+    labels = c("TRUE" = "Cost-effective", "FALSE" = "Not cost-effective"),
+    name = ""
+  ) +
+  labs(
+    title = "REDUCED Cost Uncertainty (SD=10% of mean)",
+    x = "Incremental QALYs",
+    y = "Incremental Cost (₹)",
+    caption = "n=3000 iterations"
+  ) +
+  theme(legend.position = "bottom") +
+  scale_y_continuous(labels = function(x) paste0("₹", format(x/1e6, digits = 1), "M"))
+
+print(p_reduced)
+
+# Write interpretation below:
+# ___ Compare the scatter pattern with the original CE plane (from the module).
+# ___ What does this tell you about which parameters drive uncertainty in cost-effectiveness?
+```
+
+---
+
+## Task 2: Probability of cost-effectiveness at multiple thresholds
+
+Calculate the probability that trastuzumab is cost-effective at four key WTP thresholds:
+- ₹100,000/QALY (0.67× GDP per capita)
+- ₹170,000/QALY (1× GDP per capita)
+- ₹300,000/QALY (2× GDP per capita)
+- ₹500,000/QALY (3.3× GDP per capita)
+
+Present the results in a nicely formatted table.
+
+```{r}
+# Calculate CE probability at specific WTP thresholds
+# Use the original psa_results from the main module
+
+wtp_thresholds <- c(100000, 170000, 300000, 500000)
+
+ce_probs <- tibble(
+  wtp_threshold = wtp_thresholds,
+  wtp_label = c("₹100,000 (0.67× GDP pc)",
+                 "₹170,000 (1× GDP pc)",
+                 "₹300,000 (2× GDP pc)",
+                 "₹500,000 (3.3× GDP pc)"),
+  prob_ce = ___    # Calculate probability of CE at each threshold
+)
+
+# Format and display table
+ce_probs <- ce_probs %>%
+  mutate(
+    prob_ce_pct = paste0(round(prob_ce * 100, 1), "%")
+  ) %>%
+  select(wtp_label, prob_ce, prob_ce_pct) %>%
+  rename(
+    "WTP Threshold" = wtp_label,
+    "Probability of CE" = prob_ce,
+    "Percentage" = prob_ce_pct
+  )
+
+knitr::kable(ce_probs, caption = "Probability of cost-effectiveness at multiple WTP thresholds")
+
+# Write interpretation below:
+# ___ What do these probabilities tell decision-makers about the uncertainty in recommending this intervention?
+# ___ At what WTP threshold does the intervention cross 50% probability of being cost-effective?
+```
+
+---
+
+## Your insights
+
+Reflect on what you've learned:
+
+1. **From Task 1**: Does parameter uncertainty shift from costs to survival outcomes impact the CE plane differently than cost uncertainty?
+
+2. **From Task 2**: How does the CEAC help decision-makers understand the robustness of the recommendation compared to a point estimate ICER?
+
+3. **General**: Why is PSA particularly important for cost-effectiveness analyses in low- and middle-income countries, where data are often limited?

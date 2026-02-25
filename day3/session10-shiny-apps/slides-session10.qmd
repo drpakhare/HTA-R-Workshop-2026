@@ -1,0 +1,488 @@
+---
+title: "Interactive Shiny App Templates"
+subtitle: "Turning your HTA models into tools anyone can use"
+author: "R for HTA (Basics) — Workshop 2026"
+institute: "RRC-HTA, AIIMS Bhopal | HTAIn, DHR"
+format:
+  revealjs:
+    theme: [default, ../../custom-theme.scss]
+    slide-number: true
+    footer: "R for HTA (Basics) — RRC-HTA, AIIMS Bhopal"
+    logo: ""
+    transition: fade
+    width: 1280
+    height: 720
+    code-fold: true
+    code-overflow: wrap
+    highlight-style: github
+    fig-align: center
+execute:
+  echo: true
+  eval: false
+  warning: false
+  message: false
+---
+
+## What is Shiny?
+
+Shiny is an R package that builds **interactive web applications** directly from R code.
+
+. . .
+
+**No HTML, CSS, or JavaScript required.**
+
+. . .
+
+Your HTA model (thousands of lines of R) → wrapped in a friendly UI → anyone can use in a browser.
+
+. . .
+
+:::{.callout-tip}
+Instead of sharing Excel with hidden formulas, you create an app where stakeholders adjust sliders and see results update instantly.
+:::
+
+:::notes
+Introduce Shiny as the bridge between complex R models and non-technical users. Emphasize no web dev skills needed.
+:::
+
+## Why Shiny for HTA?
+
+Health technology assessment is fundamentally about **"What if?" questions**.
+
+. . .
+
+- What if treatment cost goes down?
+- What if efficacy improves?
+- What if we target a high-risk subgroup?
+
+. . .
+
+**Shiny apps let decision-makers explore these scenarios in real time.**
+
+. . .
+
+**Bonus:** Transparency and reproducibility built in. Every calculation is real R code, not hidden Excel cells.
+
+:::notes
+Emphasize the value: interactivity + transparency. Stakeholders see exactly how you arrived at each number.
+:::
+
+## The 4 Shiny Apps in This Workshop
+
+1. **GDM Diagnostic Tree** — Gestational diabetes screening strategies
+2. **DES vs BMS** — Drug-eluting vs bare metal stents
+3. **CKD Markov Model** — Chronic kidney disease progression
+4. **Breast Cancer PSM** — Trastuzumab cost-effectiveness (Session 8)
+
+. . .
+
+Each is **complete, ready-to-run, and easy to modify.**
+
+:::notes
+Introduce the four templates. Each covers a different model type taught in the workshop.
+:::
+
+## Anatomy of a Shiny App
+
+Every Shiny app has **three core parts:**
+
+```{r}
+#| label: fig-shiny-anatomy
+#| eval: true
+#| fig-cap: "How Shiny connects the user to your HTA model"
+#| fig-width: 10
+#| fig-height: 5
+
+library(DiagrammeR)
+
+grViz("
+digraph shiny_anatomy {
+  graph [rankdir=LR, bgcolor='transparent', fontname='Helvetica']
+  node [fontname='Helvetica', fontsize=11, style='filled,rounded', shape=box]
+
+  user [label='User\n(Browser)', fillcolor='#76b7b2', fontcolor='white',
+        shape=ellipse, width=1.5]
+
+  subgraph cluster_ui {
+    label='UI (Frontend)'
+    style=filled
+    fillcolor='#d4e6f1'
+
+    inputs [label='Input Widgets\n(sliders, dropdowns,\ntext boxes)',
+            fillcolor='#4e79a7', fontcolor='white']
+    outputs [label='Output Displays\n(plots, tables,\nresults)',
+             fillcolor='#4e79a7', fontcolor='white']
+  }
+
+  subgraph cluster_server {
+    label='Server (R Logic)'
+    style=filled
+    fillcolor='#d5f5e3'
+
+    model [label='HTA Model\n(tree, Markov,\nPSM, etc)',
+           fillcolor='#59a14f', fontcolor='white']
+    render [label='Render Outputs\n(create plots,\ncompute ICER)',
+            fillcolor='#59a14f', fontcolor='white']
+  }
+
+  user -> inputs [label='Adjusts\nsliders']
+  inputs -> model [label='Send\nparameters']
+  model -> render [label='Calculate']
+  render -> outputs [label='Update']
+  outputs -> user [label='Display\nresults']
+}
+")
+```
+
+:::notes
+Visual walkthrough of the Shiny architecture. User → UI inputs → Server logic → HTA model → Server rendering → UI outputs → User sees results.
+:::
+
+## The Three Parts: UI, Server, shinyApp()
+
+```{r}
+#| code-fold: false
+
+library(shiny)
+
+# 1. DEFINE USER INTERFACE
+ui <- fluidPage(
+  titlePanel("My First HTA App"),
+  sidebarLayout(
+    sidebarPanel(
+      sliderInput("cohort_size", "Cohort Size:",
+                  min = 100, max = 10000, value = 1000)
+    ),
+    mainPanel(
+      textOutput("result")
+    )
+  )
+)
+
+# 2. DEFINE SERVER LOGIC
+server <- function(input, output) {
+  output$result <- renderText({
+    total_cost <- input$cohort_size * 50000
+    paste("Total cost for cohort: ₹", format(total_cost, big.mark=","))
+  })
+}
+
+# 3. COMBINE UI AND SERVER
+# shinyApp(ui = ui, server = server)
+# (Don't actually run here, just show the pattern)
+```
+
+. . .
+
+**Key idea:** When user moves slider, `input$cohort_size` updates → server re-runs → `output$result` updates → browser shows new result.
+
+:::notes
+Walk through the three-part structure. Emphasize the reactivity: changing an input automatically triggers recalculation.
+:::
+
+## Running a Shiny App Locally
+
+Open an app's `app.R` file in RStudio:
+
+. . .
+
+**Option 1:** Click the **"Run App"** button in the script pane
+
+. . .
+
+**Option 2:** Type in console:
+```r
+shiny::runApp("path/to/app.R")
+```
+
+. . .
+
+The app launches in your default browser. Press Escape or close the browser to stop.
+
+:::notes
+Simple instructions. Getting started with Shiny is frictionless.
+:::
+
+## Running a Shiny App From This Workshop
+
+```bash
+# Navigate to the app directory
+cd day3/session10-shiny-apps/gdm-decision-tree-app
+
+# In RStudio, open app.R and click "Run App"
+# OR in R console:
+shiny::runApp()
+```
+
+. . .
+
+Explore:
+- Adjust sliders (probabilities, costs)
+- See plots and tables update in real time
+- Understand how each parameter affects the ICER
+
+:::notes
+Practical guidance. Make it concrete by referring to the workshop apps.
+:::
+
+## Key UI Widgets (Inputs)
+
+```{r}
+#| code-fold: false
+
+# SLIDER: continuous parameter
+sliderInput("discount_rate", "Discount Rate (%):",
+            min = 0, max = 10, value = 3, step = 0.1)
+
+# NUMERIC INPUT: single value
+numericInput("cohort_size", "Cohort Size:",
+             value = 1000, min = 1)
+
+# DROPDOWN: choose one option
+selectInput("distribution", "Survival Distribution:",
+            choices = c("Weibull", "Exponential", "Log-logistic"),
+            selected = "Weibull")
+
+# RADIO BUTTONS: choose one (visible)
+radioButtons("currency", "Currency:",
+             choices = c("INR" = "inr", "USD" = "usd"),
+             selected = "inr")
+
+# CHECKBOX: toggle on/off
+checkboxInput("include_psa", "Include PSA?", value = FALSE)
+```
+
+:::notes
+Show common input widgets. Each has `inputId` (how you reference it in server) and appearance options.
+:::
+
+## Key Server Functions (Outputs)
+
+```{r}
+#| code-fold: false
+
+# RENDER TEXT
+output$summary <- renderText({
+  paste("ICER: ₹", format(round(icer()), big.mark=","), "/QALY")
+})
+
+# RENDER PLOT
+output$ce_plane <- renderPlot({
+  ggplot(ce_data, aes(x = inc_qaly, y = inc_cost)) +
+    geom_point(alpha = 0.5) +
+    geom_abline(intercept = 0, slope = input$wtp_threshold)
+    # Note: input$wtp_threshold updates automatically
+})
+
+# RENDER TABLE
+output$results_table <- renderTable({
+  data.frame(
+    Strategy = c("Control", "Intervention"),
+    Cost = c(cost_control, cost_intervention),
+    QALYs = c(qaly_control, qaly_intervention)
+  )
+})
+```
+
+. . .
+
+**Reactivity:** When `input$wtp_threshold` changes, `renderPlot()` re-runs automatically.
+
+:::notes
+Show how server functions work. The key is reactivity: when inputs change, outputs recalculate.
+:::
+
+## Example: Simple CKD Markov App
+
+```{r}
+#| code-fold: false
+
+# Sidebar inputs
+sidebarPanel(
+  titlePanel("CKD Markov Model"),
+  sliderInput("baseline_cost", "Annual cost (Stage 1):",
+              min = 5000, max = 50000, value = 20000),
+  sliderInput("treatment_effect", "Treatment effect (%):",
+              min = 0, max = 50, value = 20)
+)
+
+# Main panel outputs
+mainPanel(
+  tabsetPanel(
+    tabPanel("Results",
+             textOutput("icer_summary"),
+             tableOutput("cost_table")),
+    tabPanel("Sensitivity Analysis",
+             plotOutput("tornado_plot")),
+    tabPanel("Cohort Trace",
+             plotOutput("state_occupancy"))
+  )
+)
+```
+
+. . .
+
+This structure is identical across all four workshop apps. **Only the HTA model logic changes.**
+
+:::notes
+Show a typical app layout. Sidebar for inputs, main panel with tabs for different outputs. This layout is standard.
+:::
+
+## Modifying the Apps
+
+The apps are **designed to be adapted**:
+
+. . .
+
+**Want to add a parameter?**
+1. Add a `sliderInput()` in the UI
+2. Use `input$parameter_name` in the server calculation
+3. Re-run the app
+
+. . .
+
+**Want to change a plot theme?**
+→ Edit the `ggplot()` code directly
+
+. . .
+
+**Want to add a new output?**
+→ Add a `renderPlot()` or `renderTable()` in the server, then reference it in the UI
+
+. . .
+
+:::{.callout-note}
+You don't need to understand all the Shiny internals. Just focus on: inputs, model logic, outputs.
+:::
+
+:::notes
+Empower participants. The apps are templates, not black boxes. They can modify them confidently.
+:::
+
+## Sharing Shiny Apps
+
+**Option 1: shinyapps.io (Free)**
+- Cloud hosting (Posit/RStudio account)
+- Deploy with one click: `rsconnect::deployApp()`
+- Others access via URL in browser
+
+. . .
+
+**Option 2: Shiny Server (Self-hosted)**
+- Host on your organization's server
+- Control who has access
+- More control, more setup
+
+. . .
+
+**Option 3: Share the app.R file**
+- Email or GitHub
+- Others run locally with `shiny::runApp()`
+- Simplest; no server needed
+
+. . .
+
+For this workshop: Start with **Option 3** (share app.R file).
+
+:::notes
+Give practical guidance on deployment. Option 3 is easiest for getting started; others are for wider sharing.
+:::
+
+## Modifying Apps for Your Organization
+
+Change **parameter defaults and ranges** to match your data:
+
+```{r}
+#| code-fold: false
+
+# BEFORE: Generic defaults
+sliderInput("treatment_cost", "Annual treatment cost:",
+            min = 10000, max = 500000, value = 100000)
+
+# AFTER: Your organization's estimates
+sliderInput("treatment_cost", "Annual trastuzumab cost (INR):",
+            min = 350000, max = 500000,
+            value = 420000,  # Your base case
+            step = 10000)
+```
+
+. . .
+
+This is **your model**. Own it. Change assumptions to reflect your beliefs.
+
+:::notes
+Emphasize ownership. The apps are starting points; participants should customize them for their context.
+:::
+
+## Don't Build from Scratch
+
+:::{.callout-important}
+**This session is NOT about learning to code Shiny from the ground up.**
+
+You are learning to:
+1. Understand how provided apps work
+2. Identify which template matches your problem
+3. Modify parameters and ranges
+4. Add/remove outputs (plots, tables)
+:::
+
+. . .
+
+If you want to dive deeper later: Read *Mastering Shiny* by Hadley Wickham.
+
+For now: **Use the templates.**
+
+:::notes
+Set expectations. Focus is on using and customizing existing apps, not building from first principles.
+:::
+
+## The Power of Interactive Models
+
+Without Shiny:
+- Share a PDF report
+- "If you want to change an assumption, email me"
+- Decision-makers are passive
+
+. . .
+
+With Shiny:
+- Deploy an interactive app
+- Decision-makers explore scenarios themselves
+- Trust increases; decisions are informed
+
+. . .
+
+:::{.callout-tip}
+By publishing your Shiny app, you are **democratizing health technology assessment**.
+:::
+
+:::notes
+Show the transformative potential. Interactive models engage stakeholders and increase buy-in.
+:::
+
+## Summary
+
+✓ Shiny wraps your HTA model in a **user-friendly web interface**
+
+✓ **Three-part structure:** UI (inputs) → Server (logic) → shinyApp()
+
+✓ **No HTML/CSS/JavaScript needed** — it's all R
+
+✓ Easy to modify: **change sliders, add plots, adjust assumptions**
+
+✓ Easy to share: **email app.R or deploy to cloud**
+
+. . .
+
+Next: Wrap-up everything you've learned in 3 days (Session 11)
+
+:::notes
+Quick summary. Reinforce that Shiny is accessible and powerful.
+:::
+
+## References
+
+- Wickham H. (2021). *Mastering Shiny*. O'Reilly Media. [Free online at mastering-shiny.org]
+- Shiny Official Documentation: https://shiny.rstudio.com/
+- DARTH Group Shiny examples on GitHub
+

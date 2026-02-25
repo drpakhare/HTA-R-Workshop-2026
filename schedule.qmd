@@ -1,0 +1,46 @@
+---
+title: "Workshop Schedule"
+subtitle: "R for HTA (Basics) — 3-Day Programme"
+---
+
+## Day 1 — Why R, Getting Comfortable, and Decision Trees
+
+| Time | Session | Description |
+|---|---|---|
+| 09:00–09:30 | Inauguration & Introductions | Welcome, participant introductions, workshop objectives |
+| 09:30–10:30 | **Session 1: The Case for R in HTA** | Why R? Reproducibility, transparency, scalability. Side-by-side Excel vs R comparison |
+| 10:30–10:45 | *Tea Break* | |
+| 10:45–12:00 | **Session 2: R Orientation** | Navigating RStudio, reading code, running .qmd files, installing packages |
+| 12:00–13:00 | *Lunch* | |
+| 13:00–14:30 | **Session 3: Diagnostic Decision Tree** | GDM screening — universal vs risk-based. Concept → annotated code → exercise |
+| 14:30–14:45 | *Tea Break* | |
+| 14:45–16:15 | **Session 4: Therapeutic Decision Tree** | DES vs BMS for CAD. Concept → annotated code → exercise |
+| 16:15–16:45 | Day 1 Wrap-Up | Q&A, recap, preview of Day 2 |
+
+## Day 2 — Markov Model, PSA, and Practical Tools
+
+| Time | Session | Description |
+|---|---|---|
+| 09:00–09:15 | Day 1 Recap | Quick review, address questions from Day 1 |
+| 09:15–11:00 | **Session 5: 4-State Markov Model** | CKD progression — concepts, transition matrices, cycle correction, discounting. Annotated code walkthrough and exercise |
+| 11:00–11:15 | *Tea Break* | |
+| 11:15–12:30 | **Session 6: Probabilistic Sensitivity Analysis** | Why PSA matters, parameter distributions, Monte Carlo simulation, CE plane, CEAC — applied to the CKD Markov model |
+| 12:30–13:30 | *Lunch* | |
+| 13:30–15:00 | **Session 6 (contd.): PSA Hands-on** | Running PSA, interpreting outputs, visualising uncertainty |
+| 15:00–15:15 | *Tea Break* | |
+| 15:15–16:15 | **Session 7: Using Generative AI for HTA Coding** | Practical session — prompting for HTA code, troubleshooting, realistic expectations |
+| 16:15–16:45 | Day 2 Wrap-Up | Q&A, recap, preview of Day 3 |
+
+## Day 3 — Partitioned Survival, Shiny Apps, and Next Steps
+
+| Time | Session | Description |
+|---|---|---|
+| 09:00–09:15 | Day 2 Recap | Quick review, address questions from Day 2 |
+| 09:15–11:00 | **Session 8: Partitioned Survival Model** | Trastuzumab for HER2+ breast cancer — survival curves, extrapolation, AUC partitioning. Annotated code walkthrough and exercise |
+| 11:00–11:15 | *Tea Break* | |
+| 11:15–12:30 | **Session 9: PSA for the Partitioned Survival Model** | Applying PSA to the breast cancer model, structural uncertainty |
+| 12:30–13:30 | *Lunch* | |
+| 13:30–14:30 | **Session 10: Interactive Shiny App Templates** | Exploring the four Shiny apps, understanding how they work, how to adapt them |
+| 14:30–14:45 | *Tea Break* | |
+| 14:45–15:45 | **Session 11: Wrap-Up and Next Steps** | Resources for continued learning, the DARTH group, R-HTA consortium, heemod ecosystem, how to use the workshop GitHub repo going forward |
+| 15:45–16:30 | Valedictory & Feedback | Certificates, feedback forms, closing |

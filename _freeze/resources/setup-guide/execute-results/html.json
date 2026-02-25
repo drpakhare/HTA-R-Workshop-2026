@@ -1,0 +1,17 @@
+{
+  "hash": "6cda6dd254b448e66fac17f39d26291b",
+  "result": {
+    "engine": "knitr",
+    "markdown": "---\ntitle: \"Setup Guide\"\nsubtitle: \"Installing R, RStudio, and required packages\"\nformat:\n  html:\n    toc: true\n---\n\n## Step 1: Install R\n\nDownload and install R from [CRAN](https://cran.r-project.org/):\n\n- **Windows:** Click \"Download R for Windows\" → \"base\" → download the `.exe` file\n- **Mac:** Click \"Download R for macOS\" → download the `.pkg` file\n- **Linux:** Follow instructions for your distribution\n\n**Recommended version:** R 4.3.0 or later.\n\n## Step 2: Install RStudio\n\nDownload RStudio Desktop (free) from [Posit](https://posit.co/download/rstudio-desktop/).\n\nInstall and open RStudio. You should see four panels as described in Session 2.\n\n## Step 3: Install Required Packages\n\nOpen RStudio and run the following code in the Console (bottom-left panel):\n\n\n::: {.cell}\n\n```{.r .cell-code}\n# Core packages for the workshop\ninstall.packages(c(\n  # Data manipulation and visualization\n  \"tidyverse\",\n  \"ggplot2\",\n  \"knitr\",\n  \"DT\",\n  \"DiagrammeR\",\n\n  # Health economics modelling\n  \"heemod\",\n  \"dampack\",\n  \"BCEA\",\n\n  # Survival analysis\n  \"survival\",\n  \"survHE\",\n  \"flexsurv\",\n\n  # Interactive apps\n  \"shiny\",\n  \"shinydashboard\",\n\n  # Document rendering\n  \"quarto\",\n  \"rmarkdown\"\n))\n```\n:::\n\n\nThis may take 10-15 minutes depending on your internet connection.\n\n## Step 4: Verify Installation\n\nRun this code to check that all packages installed correctly:\n\n\n::: {.cell}\n\n```{.r .cell-code}\npackages <- c(\"tidyverse\", \"ggplot2\", \"knitr\", \"DT\", \"DiagrammeR\", \"heemod\",\n               \"dampack\", \"BCEA\", \"survival\", \"survHE\", \"flexsurv\",\n               \"shiny\", \"shinydashboard\", \"quarto\", \"rmarkdown\")\n\nfor (pkg in packages) {\n  if (require(pkg, character.only = TRUE, quietly = TRUE)) {\n    cat(\"[OK]\", pkg, \"installed successfully\\n\")\n  } else {\n    cat(\"[FAIL]\", pkg, \"-- try reinstalling with install.packages('\", pkg, \"')\\n\")\n  }\n}\n```\n:::\n\n\n## Step 5: Open the Workshop Project\n\n1. Download or clone this repository\n2. In RStudio, go to **File → Open Project**\n3. Navigate to the workshop folder and open `HTA-R-Workshop-2026.Rproj`\n4. You are ready to begin!\n\n## Troubleshooting\n\n**\"Package not available\" error:** Your R version may be too old. Update R to version 4.3 or later.\n\n**Installation hangs:** Try installing packages one at a time instead of all at once.\n\n**Behind a proxy/firewall:** Ask your IT department for proxy settings, then run:\n```r\nSys.setenv(http_proxy = \"http://your-proxy:port\")\nSys.setenv(https_proxy = \"http://your-proxy:port\")\n```\n",
+    "supporting": [
+      "setup-guide_files"
+    ],
+    "filters": [
+      "rmarkdown/pagebreak.lua"
+    ],
+    "includes": {},
+    "engineDependencies": {},
+    "preserve": {},
+    "postProcess": true
+  }
+}

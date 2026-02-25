@@ -1,0 +1,466 @@
+---
+title: "Wrap-Up and Next Steps"
+subtitle: "Where to go from here with R for HTA"
+author: "R for HTA (Basics) — Workshop 2026"
+institute: "RRC-HTA, AIIMS Bhopal | HTAIn, DHR"
+format:
+  revealjs:
+    theme: [default, ../../custom-theme.scss]
+    slide-number: true
+    footer: "R for HTA (Basics) — RRC-HTA, AIIMS Bhopal"
+    logo: ""
+    transition: fade
+    width: 1280
+    height: 720
+    code-fold: true
+    code-overflow: wrap
+    highlight-style: github
+    fig-align: center
+execute:
+  echo: true
+  eval: false
+  warning: false
+  message: false
+---
+
+## What You Accomplished in 3 Days
+
+**Day 1: Foundations + Decision Trees**
+- R fundamentals (syntax, data types, visualization)
+- GDM diagnostic decision tree
+- TES therapeutic decision tree
+
+. . .
+
+**Day 2: Markov Models + PSA + GenAI**
+- CKD Markov cohort model (4 states)
+- Probabilistic sensitivity analysis
+- How to use AI tools to help write code
+
+. . .
+
+**Day 3: PSM + Shiny Apps**
+- Breast cancer partitioned survival model
+- PSA for PSM (parameter distributions, CEAC, CE plane)
+- Interactive Shiny app templates
+
+:::notes
+Recap the journey. In three days, participants went from R basics to building complete HTA models with interactive apps.
+:::
+
+## Four Model Types You've Mastered
+
+```{r}
+#| label: fig-model-types
+#| eval: true
+#| fig-cap: "Four model structures for different HTA questions"
+#| fig-width: 10
+#| fig-height: 6
+
+library(DiagrammeR)
+
+grViz("
+digraph models {
+  graph [rankdir=TB, bgcolor='transparent', fontname='Helvetica']
+  node [fontname='Helvetica', fontsize=10, style='filled,rounded', shape=box, width=2.5]
+
+  dt_diag [label='Diagnostic\nDecision Tree\n(GDM)', fillcolor='#59a14f', fontcolor='white']
+  dt_ther [label='Therapeutic\nDecision Tree\n(Stents)', fillcolor='#f28e2b', fontcolor='white']
+  markov [label='Markov\nCohort Model\n(CKD)', fillcolor='#e15759', fontcolor='white']
+  psm [label='Partitioned\nSurvival Model\n(Breast Ca)', fillcolor='#76b7b2', fontcolor='white']
+
+  workshop [label='This Workshop', shape=ellipse, fillcolor='#4e79a7', fontcolor='white', width=2]
+
+  workshop -> dt_diag
+  workshop -> dt_ther
+  workshop -> markov
+  workshop -> psm
+}
+")
+```
+
+. . .
+
+**You can now:**
+- Identify which model fits a given decision problem
+- Build and validate each type
+- Run sensitivity analyses and PSA
+- Communicate results to stakeholders
+
+:::notes
+Summarize the scope. Four distinct model types, each useful for different clinical questions.
+:::
+
+## Key R Packages for HTA
+
+| Package | Purpose |
+|---------|---------|
+| **heemod** | Markov models (easy syntax, automatic discounting) |
+| **dampack** | Decision trees, sensitivity analyses (tornado plots, frontiers) |
+| **BCEA** | Bayesian cost-effectiveness (CEAC, EVPI, credible regions) |
+| **hesim** | Microsimulation & DES (complex state-transition models) |
+| **flexsurv** | Parametric survival fitting (Weibull, log-logistic, etc.) |
+| **survHE** | Survival analysis for HE (fit, compare, integrate) |
+
+. . .
+
+**You've already used the core concepts** in this workshop. These packages automate and streamline them.
+
+:::notes
+Introduce the major packages in the R-HTA ecosystem. Participants have done the manual version; now they know what these packages do.
+:::
+
+## The DARTH Group: Your Community
+
+**DARTH** = Decision Analysis in R for Technologies in Health
+
+. . .
+
+They publish:
+- **Tutorial papers** (Lancet, MDM, other journals)
+- **GitHub repositories** with fully worked examples
+- **Coding standards** for reproducible HTA
+
+. . .
+
+Find them: GitHub, DARTH website, MDM journal
+
+. . .
+
+**R-HTA Consortium:** Connect with other analysts, webinars, code sharing
+
+:::notes
+Point to existing communities and resources. Participants aren't alone; there's a growing community.
+:::
+
+## Your Learning Path Forward
+
+```{r}
+#| label: fig-learning-path
+#| eval: true
+#| fig-cap: "Progression from this workshop to mastery"
+#| fig-width: 10
+#| fig-height: 5
+
+grViz("
+digraph path {
+  graph [rankdir=TB, bgcolor='transparent', fontname='Helvetica']
+  node [fontname='Helvetica', fontsize=10, style='filled,rounded', shape=box, width=3]
+
+  now [label='This Workshop\n(Read, modify, run R code)', fillcolor='#4e79a7', fontcolor='white']
+  next1 [label='Next 1-2 weeks\n(Adapt templates for your problem)', fillcolor='#59a14f', fontcolor='white']
+  next2 [label='Weeks 3-4\n(Add features: PSA, new outcomes)', fillcolor='#f28e2b', fontcolor='white']
+  next3 [label='Months 2-3\n(Share Shiny app, deploy)', fillcolor='#e15759', fontcolor='white']
+  community [label='Ongoing\n(DARTH, R-HTA Consortium,\npublish methods)', fillcolor='#76b7b2', fontcolor='white']
+
+  now -> next1 -> next2 -> next3 -> community
+}
+")
+```
+
+:::notes
+Give concrete milestones. Learning is a journey; outline realistic next steps.
+:::
+
+## Phase 1: Consolidate (Next 1-2 Weeks)
+
+1. Take one workshop template
+2. Modify it for a problem you care about
+3. Change parameter values, time horizon, strategies
+4. Run the model several times to understand assumptions
+5. Get feedback from colleagues
+
+. . .
+
+**Goal:** Build confidence with the templates. Understand how each assumption drives results.
+
+:::notes
+Actionable first steps. Keep it concrete and achievable.
+:::
+
+## Phase 2: Expand (Weeks 3-4)
+
+1. Identify a feature you want to add:
+   - PSA (if starting from a deterministic model)
+   - New outcome measure
+   - Sensitivity analysis tornado plot
+
+2. Use AI tools (ChatGPT, Claude) to help:
+   - Show them the workshop code
+   - Ask for modifications
+   - They generate scaffolding; you refine
+
+3. Read the relevant package vignette
+
+4. Test and validate
+
+:::notes
+Practical guidance on using AI. Participants shouldn't be intimidated by code they don't yet understand.
+:::
+
+## Phase 3: Share (Months 2-3)
+
+1. Deploy a Shiny app to shinyapps.io (free tier)
+2. Share your Quarto report with stakeholders
+3. Invite colleagues to explore and give feedback
+4. Iterate on the model
+
+. . .
+
+**This is where impact happens.** Your models inform real decisions.
+
+:::notes
+Sharing is crucial. The model in a drawer helps no one.
+:::
+
+## Phase 4: Contribute (Ongoing)
+
+- Join R-HTA Consortium or local R user group
+- Attend webinars and workshops
+- Help others by sharing your code
+- Consider publishing methods in open-access journal
+
+:::notes
+The virtuous cycle. Learn, build, share, teach.
+:::
+
+## Four Model Types: A Decision Guide
+
+**Your decision problem:...**
+
+. . .
+
+→ **Is it about diagnostic accuracy?** → Use **Diagnostic Decision Tree**
+  (sensitivity, specificity, prevalence)
+
+. . .
+
+→ **Is it about a one-time treatment choice?** → Use **Therapeutic Decision Tree**
+  (event probabilities, immediate costs/benefits)
+
+. . .
+
+→ **Does the disease progress over time?** → Use **Markov Cohort Model**
+  (states, transition probabilities, cycles)
+
+. . .
+
+→ **Do you have survival curves from a trial?** → Use **Partitioned Survival Model**
+  (OS and PFS, extrapolation)
+
+:::notes
+Practical decision tree for choosing model types. Participants should reference this.
+:::
+
+## Key Principles to Remember
+
+**Transparency first.** Every assumption visible and adjustable. Avoid hiding logic.
+
+. . .
+
+**Start simple.** Simplest model that answers the question. Add complexity later.
+
+. . .
+
+**Validate early.** Check that your model reproduces expected results before publishing.
+
+. . .
+
+**Document as you go.** Clear comments explaining each modeling choice.
+
+. . .
+
+**Test your code.** A bug in a transition probability propagates through the analysis.
+
+. . .
+
+**Share your work.** HTA community improves when we share methods and code.
+
+:::notes
+Core principles that apply regardless of model type or package.
+:::
+
+## Publishing with R: Quarto for Reproducible Reports
+
+Quarto weaves **R code and narrative** into a single reproducible document.
+
+. . .
+
+A typical HTA report:
+- Executive summary
+- Model structure explanation
+- Embedded code chunks (transparent)
+- Plots and tables generated directly from R
+- Sensitivity analyses
+- Conclusion
+
+. . .
+
+**Output:** HTML, PDF, Word, or website — write once, export everywhere.
+
+. . .
+
+**Benefit:** Reviewers can see every line of code that produced every number.
+
+:::notes
+Quarto is powerful for reproducibility. Many journals now encourage or require it.
+:::
+
+## You Don't Need to Be a Programmer
+
+You need to be **an HTA analyst who has learned to use R as a tool**.
+
+. . .
+
+Just as you might use Excel, but better.
+
+. . .
+
+Your models will be:
+- Reproducible (everyone can run the code)
+- Transparent (all assumptions visible)
+- Shareable (interactive apps, GitHub)
+
+. . .
+
+:::{.callout-important}
+You've invested three days in learning these skills. That investment pays dividends.
+:::
+
+:::notes
+Final encouragement. Participants shouldn't feel like they need to be programmers. They're analysts who happen to use R.
+:::
+
+## The R Community is Welcoming
+
+When you have questions: **Ask them.**
+
+When you get stuck: **Others have been stuck there too.**
+
+When you solve a problem: **Share the solution.**
+
+. . .
+
+Resources:
+- Stack Overflow (tag: r, health-economics)
+- R-HTA Consortium forums
+- GitHub Discussions
+- DARTH tutorials
+- Local R user groups
+
+:::notes
+Community support is real. Reduce isolation. Participants are joining a helpful ecosystem.
+:::
+
+## Resources to Dive Deeper
+
+**Books:**
+- *R for Data Science* by Hadley Wickham
+- *Mastering Shiny* by Hadley Wickham
+- *Decision Modelling for HE* by Briggs, Claxton, Sculpher
+
+. . .
+
+**Online:**
+- DARTH tutorials (GitHub)
+- R-HTA Consortium webinars
+- Shiny official documentation
+
+. . .
+
+**Packages to explore:**
+- `heemod` vignette
+- `dampack` vignette
+- `BCEA` vignette
+
+:::notes
+Provide a reading list for self-directed learning.
+:::
+
+## ParCC: Your Tool from RRC-HTA
+
+[Information about ParCC — the platform or tool your organization offers]
+
+. . .
+
+Check the workshop GitHub repository for:
+- All slide decks (reveal.js)
+- All R code and Quarto documents
+- All Shiny app templates
+- Sample data and results
+
+:::notes
+Reference any institutional tools or resources. Direct participants back to the workshop repository.
+:::
+
+## Your Next Steps (Concrete)
+
+**This week:**
+1. Run one of the workshop apps locally
+2. Modify a parameter and observe the change
+3. Understand how the code works (read comments, not every line)
+
+. . .
+
+**Next week:**
+1. Adapt a template for a problem at your organization
+2. Change parameter values to match your data
+3. Share results with a colleague
+
+. . .
+
+**Next month:**
+1. Add a feature (plot, sensitivity analysis, PSA)
+2. Deploy a Shiny app
+3. Get feedback
+
+:::notes
+Concrete, achievable milestones. Reduce overwhelm. One step at a time.
+:::
+
+## Thank You!
+
+You've worked hard over three days. You now have the skills to:
+- **Build** health technology assessment models in R
+- **Validate** and **test** them rigorously
+- **Communicate** results interactively to stakeholders
+- **Contribute** to reproducible, transparent decision-making in health
+
+. . .
+
+**Go build something great.**
+
+. . .
+
+Questions? Contact:
+- **RRC-HTA, AIIMS Bhopal** [email/contact]
+- **HTAIn, Department of Health Research** [email/contact]
+
+:::notes
+Final thanks and inspiration. End on a high note.
+:::
+
+## Workshop Materials
+
+All materials (slides, code, templates, data) available at:
+
+**GitHub:** [repository URL]
+
+**Local path:** `/day3/`
+
+. . .
+
+**How to use the repository:**
+1. Fork it (create your own copy)
+2. Clone to your computer
+3. Explore and modify the templates
+4. Share improvements via pull request
+
+. . .
+
+Happy coding!
+
+:::notes
+Direct participants to the resource repository. Make it easy to access and use materials after the workshop.
+:::
+

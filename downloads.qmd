@@ -1,0 +1,76 @@
+---
+title: "Downloads"
+subtitle: "Exercise files, solution files, and Shiny app templates"
+---
+
+## How to Use These Files
+
+1. **Right-click** on the download link and select **"Save link as..."**
+2. Save the `.qmd` file to your workshop project folder
+3. Open the file in **RStudio**
+4. Run code chunks using the green **play button** (▶)
+
+Exercise files contain tasks with blank spaces (`___`) for you to fill in. Solution files contain completed code with interpretations.
+
+## Day 1 — Decision Trees
+
+### Session 3: GDM Diagnostic Decision Tree
+
+| File | Description |
+|---|---|
+| [gdm-exercise.qmd](day1/session3-gdm-diagnostic-tree/gdm-exercise.qmd) | Exercise: Modify prevalence, OGTT cost, DIPSI sensitivity, run sensitivity analysis |
+| [gdm-solution.qmd](day1/session3-gdm-diagnostic-tree/gdm-solution.qmd) | Solution: Completed tasks with interpretations |
+
+### Session 4: DES vs BMS Therapeutic Decision Tree
+
+| File | Description |
+|---|---|
+| [des-bms-exercise.qmd](day1/session4-des-bms-therapeutic-tree/des-bms-exercise.qmd) | Exercise: Pre-regulation prices, restenosis rates, threshold analysis, NNT |
+| [des-bms-solution.qmd](day1/session4-des-bms-therapeutic-tree/des-bms-solution.qmd) | Solution: Completed tasks with interpretations |
+
+## Day 2 — Markov Model and PSA
+
+### Session 5: CKD 4-State Markov Model
+
+| File | Description |
+|---|---|
+| [ckd-exercise.qmd](day2/session5-ckd-markov/ckd-exercise.qmd) | Exercise: Time horizon, treatment effect, dialysis cost, two-way sensitivity |
+| [ckd-solution.qmd](day2/session5-ckd-markov/ckd-solution.qmd) | Solution: Completed tasks with interpretations |
+
+### Session 6: Probabilistic Sensitivity Analysis
+
+| File | Description |
+|---|---|
+| [psa-exercise.qmd](day2/session6-psa/psa-exercise.qmd) | Exercise: Iteration count, uncertainty propagation, EVPI |
+| [psa-solution.qmd](day2/session6-psa/psa-solution.qmd) | Solution: Completed tasks with interpretations |
+
+## Day 3 — Partitioned Survival and Shiny Apps
+
+### Session 8: Breast Cancer Partitioned Survival Model
+
+| File | Description |
+|---|---|
+| [breast-cancer-exercise.qmd](day3/session8-breast-cancer-psm/breast-cancer-exercise.qmd) | Exercise: Time horizon, biosimilar pricing, 9-week regimen, distribution comparison |
+| [breast-cancer-solution.qmd](day3/session8-breast-cancer-psm/breast-cancer-solution.qmd) | Solution: Completed tasks with interpretations |
+
+### Session 9: PSA for the Breast Cancer Model
+
+| File | Description |
+|---|---|
+| [psa-psm-exercise.qmd](day3/session9-psa-psm/psa-psm-exercise.qmd) | Exercise: Cost uncertainty, probability of cost-effectiveness at multiple WTP thresholds |
+| [psa-psm-solution.qmd](day3/session9-psa-psm/psa-psm-solution.qmd) | Solution: Completed tasks with interpretations |
+
+## Shiny App Templates
+
+These are standalone R Shiny applications. To run them:
+
+1. Download the `app.R` file into a folder
+2. Open it in RStudio
+3. Click **"Run App"** (or run `shiny::runApp()` in the console)
+
+| App | Description |
+|---|---|
+| [Diagnostic Tree app.R](shiny-apps/diagnostic-tree/app.R) | Interactive GDM screening model with parameter sliders |
+| [Therapeutic Tree app.R](shiny-apps/therapeutic-tree/app.R) | Interactive DES vs BMS model with cost breakdown charts |
+| [Markov Model app.R](shiny-apps/markov-model/app.R) | Interactive CKD Markov model with trace plots |
+| [Partitioned Survival app.R](shiny-apps/partitioned-survival/app.R) | Interactive breast cancer PSM with survival curve fitting |

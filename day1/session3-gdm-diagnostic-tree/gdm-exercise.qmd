@@ -1,0 +1,326 @@
+---
+title: "Exercise: GDM Diagnostic Decision Tree"
+subtitle: "Modify inputs, observe results, interpret findings"
+format:
+  html:
+    toc: true
+    code-fold: false
+    code-tools: true
+---
+
+## Instructions
+
+This exercise uses the same decision tree model from the explanatory module. Your task is to **modify specific parameters** and **interpret what changes**. You are not expected to write new code — only to change input values and re-run the analysis.
+
+**How to complete this exercise:**
+
+1. Read each task carefully
+2. Find the parameter(s) you need to change in the code chunk
+3. Change the value(s) as instructed
+4. Run the code chunk (click the green play button ▶)
+5. Write your interpretation in the space provided
+
+## Setup: Load the Base Model
+
+Run this chunk first to set up the model. **Do not modify this chunk.**
+
+```{r}
+#| label: setup
+#| echo: true
+
+library(ggplot2)
+library(knitr)
+
+# ============================================================
+# BASE MODEL — Do not modify this section
+# ============================================================
+run_gdm_model <- function(prev_gdm, sens_ogtt, spec_ogtt, prop_high_risk,
+                           prev_gdm_high_risk, prev_gdm_low_risk,
+                           cost_ogtt, cost_risk_assessment, cost_gdm_treatment,
+                           p_adverse_gdm_treated, p_adverse_gdm_untreated,
+                           p_adverse_no_gdm, cost_adverse, cost_no_adverse,
+                           utility_adverse, utility_no_adverse,
+                           utility_gdm_treated, detection_rate_clinical,
+                           n_cohort = 10000) {
+
+  # --- Universal Screening ---
+  n_gdm <- n_cohort * prev_gdm
+  n_no_gdm <- n_cohort * (1 - prev_gdm)
+  tp <- n_gdm * sens_ogtt
+  fn <- n_gdm * (1 - sens_ogtt)
+  fp <- n_no_gdm * (1 - spec_ogtt)
+  tn <- n_no_gdm * spec_ogtt
+
+  cost_univ <- n_cohort * cost_ogtt +
+               (tp + fp) * cost_gdm_treatment +
+               (tp * p_adverse_gdm_treated + fn * p_adverse_gdm_untreated +
+                (fp + tn) * p_adverse_no_gdm) * cost_adverse +
+               (tp * (1 - p_adverse_gdm_treated) + fn * (1 - p_adverse_gdm_untreated) +
+                (fp + tn) * (1 - p_adverse_no_gdm)) * cost_no_adverse
+
+  qaly_univ <- tp * ((1 - p_adverse_gdm_treated) * utility_gdm_treated +
+               p_adverse_gdm_treated * utility_adverse) +
+               fn * ((1 - p_adverse_gdm_untreated) * utility_no_adverse +
+               p_adverse_gdm_untreated * utility_adverse) +
+               fp * ((1 - p_adverse_no_gdm) * utility_gdm_treated +
+               p_adverse_no_gdm * utility_adverse) +
+               tn * ((1 - p_adverse_no_gdm) * utility_no_adverse +
+               p_adverse_no_gdm * utility_adverse)
+
+  adverse_univ <- tp * p_adverse_gdm_treated + fn * p_adverse_gdm_untreated +
+                  (fp + tn) * p_adverse_no_gdm
+
+  # --- Risk-Based Screening ---
+  n_hr <- n_cohort * prop_high_risk
+  n_lr <- n_cohort * (1 - prop_high_risk)
+  n_gdm_hr <- n_hr * prev_gdm_high_risk
+  n_no_gdm_hr <- n_hr * (1 - prev_gdm_high_risk)
+  n_gdm_lr <- n_lr * prev_gdm_low_risk
+  n_no_gdm_lr <- n_lr * (1 - prev_gdm_low_risk)
+
+  tp_hr <- n_gdm_hr * sens_ogtt
+  fn_hr <- n_gdm_hr * (1 - sens_ogtt)
+  fp_hr <- n_no_gdm_hr * (1 - spec_ogtt)
+  tn_hr <- n_no_gdm_hr * spec_ogtt
+
+  cost_risk <- n_cohort * cost_risk_assessment + n_hr * cost_ogtt +
+               (tp_hr + fp_hr) * cost_gdm_treatment +
+               (tp_hr * p_adverse_gdm_treated + fn_hr * p_adverse_gdm_untreated +
+                (fp_hr + tn_hr) * p_adverse_no_gdm +
+                n_gdm_lr * p_adverse_gdm_untreated +
+                n_no_gdm_lr * p_adverse_no_gdm) * cost_adverse +
+               (tp_hr * (1 - p_adverse_gdm_treated) + fn_hr * (1 - p_adverse_gdm_untreated) +
+                (fp_hr + tn_hr) * (1 - p_adverse_no_gdm) +
+                n_gdm_lr * (1 - p_adverse_gdm_untreated) +
+                n_no_gdm_lr * (1 - p_adverse_no_gdm)) * cost_no_adverse
+
+  qaly_risk <- tp_hr * ((1 - p_adverse_gdm_treated) * utility_gdm_treated +
+               p_adverse_gdm_treated * utility_adverse) +
+               fn_hr * ((1 - p_adverse_gdm_untreated) * utility_no_adverse +
+               p_adverse_gdm_untreated * utility_adverse) +
+               fp_hr * ((1 - p_adverse_no_gdm) * utility_gdm_treated +
+               p_adverse_no_gdm * utility_adverse) +
+               tn_hr * ((1 - p_adverse_no_gdm) * utility_no_adverse +
+               p_adverse_no_gdm * utility_adverse) +
+               n_gdm_lr * ((1 - p_adverse_gdm_untreated) * utility_no_adverse +
+               p_adverse_gdm_untreated * utility_adverse) +
+               n_no_gdm_lr * ((1 - p_adverse_no_gdm) * utility_no_adverse +
+               p_adverse_no_gdm * utility_adverse)
+
+  adverse_risk <- tp_hr * p_adverse_gdm_treated + fn_hr * p_adverse_gdm_untreated +
+                  (fp_hr + tn_hr) * p_adverse_no_gdm +
+                  n_gdm_lr * p_adverse_gdm_untreated +
+                  n_no_gdm_lr * p_adverse_no_gdm
+
+  # --- No Screening ---
+  n_gdm_det <- n_cohort * prev_gdm * detection_rate_clinical
+  n_gdm_undet <- n_cohort * prev_gdm * (1 - detection_rate_clinical)
+  n_no_gdm_all <- n_cohort * (1 - prev_gdm)
+
+  cost_none <- n_gdm_det * cost_gdm_treatment +
+               (n_gdm_det * p_adverse_gdm_treated +
+                n_gdm_undet * p_adverse_gdm_untreated +
+                n_no_gdm_all * p_adverse_no_gdm) * cost_adverse +
+               (n_gdm_det * (1 - p_adverse_gdm_treated) +
+                n_gdm_undet * (1 - p_adverse_gdm_untreated) +
+                n_no_gdm_all * (1 - p_adverse_no_gdm)) * cost_no_adverse
+
+  qaly_none <- n_gdm_det * ((1 - p_adverse_gdm_treated) * utility_gdm_treated +
+               p_adverse_gdm_treated * utility_adverse) +
+               n_gdm_undet * ((1 - p_adverse_gdm_untreated) * utility_no_adverse +
+               p_adverse_gdm_untreated * utility_adverse) +
+               n_no_gdm_all * ((1 - p_adverse_no_gdm) * utility_no_adverse +
+               p_adverse_no_gdm * utility_adverse)
+
+  adverse_none <- n_gdm_det * p_adverse_gdm_treated +
+                  n_gdm_undet * p_adverse_gdm_untreated +
+                  n_no_gdm_all * p_adverse_no_gdm
+
+  # Return results
+  data.frame(
+    Strategy = c("Universal Screening", "Risk-Based Screening", "No Screening"),
+    Total_Cost = c(cost_univ, cost_risk, cost_none),
+    Total_QALYs = c(qaly_univ, qaly_risk, qaly_none),
+    Adverse_Outcomes = c(adverse_univ, adverse_risk, adverse_none)
+  )
+}
+```
+
+## Task 1: Change the GDM Prevalence
+
+Southern Indian states report GDM prevalence as high as 20%. Northern and eastern states report around 8%.
+
+**Your task:** Run the model with prevalence = 0.20 (South India) and prevalence = 0.08 (North/East India). How does the ICER of universal vs no screening change?
+
+```{r}
+#| label: task1
+#| echo: true
+
+# >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
+# TASK 1: Change prev_gdm below and re-run
+# Try 0.20 first, then 0.08
+# >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
+
+prev_gdm_task1 <- ___   # Replace ___ with 0.20 or 0.08
+
+results_task1 <- run_gdm_model(
+  prev_gdm = prev_gdm_task1,
+  sens_ogtt = 0.90, spec_ogtt = 0.85,
+  prop_high_risk = 0.60,
+  prev_gdm_high_risk = 0.18, prev_gdm_low_risk = 0.03,
+  cost_ogtt = 250, cost_risk_assessment = 50, cost_gdm_treatment = 8000,
+  p_adverse_gdm_treated = 0.10, p_adverse_gdm_untreated = 0.35,
+  p_adverse_no_gdm = 0.05, cost_adverse = 45000, cost_no_adverse = 5000,
+  utility_adverse = 0.65, utility_no_adverse = 0.90,
+  utility_gdm_treated = 0.82, detection_rate_clinical = 0.25
+)
+
+# Calculate ICER: Universal vs No Screening
+inc_cost <- results_task1$Total_Cost[1] - results_task1$Total_Cost[3]
+inc_qaly <- results_task1$Total_QALYs[1] - results_task1$Total_QALYs[3]
+icer <- inc_cost / inc_qaly
+
+cat("Prevalence:", prev_gdm_task1, "\n")
+cat("ICER (Universal vs No Screening): ₹", format(round(icer), big.mark = ","), "per QALY\n")
+```
+
+**Your interpretation:**
+*[Write here: What happens to the ICER when prevalence increases? Why does this make clinical and economic sense?]*
+
+## Task 2: What If OGTT Cost Doubles?
+
+In some private settings, the OGTT costs ₹500 instead of ₹250.
+
+**Your task:** Change the OGTT cost to ₹500. Does universal screening remain cost-effective?
+
+```{r}
+#| label: task2
+#| echo: true
+
+# >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
+# TASK 2: Change cost_ogtt below
+# >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
+
+cost_ogtt_task2 <- ___   # Replace ___ with 500
+
+results_task2 <- run_gdm_model(
+  prev_gdm = 0.12,
+  sens_ogtt = 0.90, spec_ogtt = 0.85,
+  prop_high_risk = 0.60,
+  prev_gdm_high_risk = 0.18, prev_gdm_low_risk = 0.03,
+  cost_ogtt = cost_ogtt_task2, cost_risk_assessment = 50,
+  cost_gdm_treatment = 8000,
+  p_adverse_gdm_treated = 0.10, p_adverse_gdm_untreated = 0.35,
+  p_adverse_no_gdm = 0.05, cost_adverse = 45000, cost_no_adverse = 5000,
+  utility_adverse = 0.65, utility_no_adverse = 0.90,
+  utility_gdm_treated = 0.82, detection_rate_clinical = 0.25
+)
+
+# Compare all three strategies
+results_task2$Cost_per_Woman <- results_task2$Total_Cost / 10000
+results_task2$QALY_per_Woman <- round(results_task2$Total_QALYs / 10000, 4)
+
+kable(results_task2[, c("Strategy", "Cost_per_Woman", "QALY_per_Woman")],
+      col.names = c("Strategy", "Cost per Woman (₹)", "QALY per Woman"),
+      digits = 0)
+```
+
+**Your interpretation:**
+*[Write here: How sensitive is the result to OGTT cost? Is it still cost-effective at ₹500?]*
+
+## Task 3: Lower Sensitivity — Using DIPSI Instead of Fasting OGTT
+
+The DIPSI non-fasting OGTT is simpler to administer but has much lower sensitivity (~28% compared to fasting OGTT's ~90%). What happens if we use DIPSI for universal screening?
+
+**Your task:** Change sensitivity to 0.28 and specificity to 0.98 (DIPSI characteristics).
+
+```{r}
+#| label: task3
+#| echo: true
+
+# >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
+# TASK 3: Change sensitivity and specificity below
+# >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
+
+sens_task3 <- ___   # Replace ___ with 0.28
+spec_task3 <- ___   # Replace ___ with 0.98
+
+results_task3 <- run_gdm_model(
+  prev_gdm = 0.12,
+  sens_ogtt = sens_task3, spec_ogtt = spec_task3,
+  prop_high_risk = 0.60,
+  prev_gdm_high_risk = 0.18, prev_gdm_low_risk = 0.03,
+  cost_ogtt = 250, cost_risk_assessment = 50, cost_gdm_treatment = 8000,
+  p_adverse_gdm_treated = 0.10, p_adverse_gdm_untreated = 0.35,
+  p_adverse_no_gdm = 0.05, cost_adverse = 45000, cost_no_adverse = 5000,
+  utility_adverse = 0.65, utility_no_adverse = 0.90,
+  utility_gdm_treated = 0.82, detection_rate_clinical = 0.25
+)
+
+# How many GDM cases detected vs missed?
+n_gdm <- 10000 * 0.12
+cat("With DIPSI (sensitivity =", sens_task3, "):\n")
+cat("  GDM cases detected:", round(n_gdm * sens_task3), "out of", n_gdm, "\n")
+cat("  GDM cases MISSED:", round(n_gdm * (1 - sens_task3)), "\n\n")
+
+# Compare with standard OGTT
+cat("With fasting OGTT (sensitivity = 0.90):\n")
+cat("  GDM cases detected:", round(n_gdm * 0.90), "out of", n_gdm, "\n")
+cat("  GDM cases MISSED:", round(n_gdm * 0.10), "\n")
+```
+
+**Your interpretation:**
+*[Write here: What is the trade-off between using a simpler test (DIPSI) vs the more accurate fasting OGTT? In what settings might DIPSI still be the right choice despite lower sensitivity?]*
+
+## Task 4: One-Way Sensitivity Analysis
+
+Run the model across a range of prevalence values to see how the ICER changes.
+
+**Your task:** This code is complete — just run it and interpret the plot.
+
+```{r}
+#| label: task4
+#| echo: true
+#| fig-cap: "One-way sensitivity analysis: Effect of GDM prevalence on ICER"
+
+# Range of prevalence values
+prev_range <- seq(0.05, 0.25, by = 0.01)
+icer_values <- numeric(length(prev_range))
+
+for (i in seq_along(prev_range)) {
+  res <- run_gdm_model(
+    prev_gdm = prev_range[i],
+    sens_ogtt = 0.90, spec_ogtt = 0.85,
+    prop_high_risk = 0.60,
+    prev_gdm_high_risk = 0.18, prev_gdm_low_risk = 0.03,
+    cost_ogtt = 250, cost_risk_assessment = 50, cost_gdm_treatment = 8000,
+    p_adverse_gdm_treated = 0.10, p_adverse_gdm_untreated = 0.35,
+    p_adverse_no_gdm = 0.05, cost_adverse = 45000, cost_no_adverse = 5000,
+    utility_adverse = 0.65, utility_no_adverse = 0.90,
+    utility_gdm_treated = 0.82, detection_rate_clinical = 0.25
+  )
+  inc_cost <- res$Total_Cost[1] - res$Total_Cost[3]
+  inc_qaly <- res$Total_QALYs[1] - res$Total_QALYs[3]
+  icer_values[i] <- inc_cost / inc_qaly
+}
+
+sa_data <- data.frame(Prevalence = prev_range, ICER = icer_values)
+
+ggplot(sa_data, aes(x = Prevalence * 100, y = ICER)) +
+  geom_line(colour = "steelblue", linewidth = 1.2) +
+  geom_hline(yintercept = 100000, linetype = "dashed", colour = "red") +
+  annotate("text", x = 22, y = 110000, label = "WTP = ₹1,00,000/QALY",
+           colour = "red", size = 3) +
+  labs(
+    x = "GDM Prevalence (%)",
+    y = "ICER (₹ per QALY)",
+    title = "How Does GDM Prevalence Affect the ICER?",
+    subtitle = "Universal screening vs no screening"
+  ) +
+  theme_minimal()
+```
+
+**Your interpretation:**
+*[Write here: At what prevalence does universal screening become clearly cost-effective? Is this relevant for most Indian states?]*
+
+→ **Check your answers:** Open `gdm-solution.qmd` for completed solutions with interpretation.

@@ -1,0 +1,126 @@
+project:
+  type: website
+  output-dir: _site
+  render:
+    - "*.qmd"
+    - "day1/session1-why-r-hta/*.qmd"
+    - "day1/session2-r-orientation/*.qmd"
+    - "day1/session3-gdm-diagnostic-tree/gdm-diagnostic-tree.qmd"
+    - "day1/session3-gdm-diagnostic-tree/slides-session3.qmd"
+    - "day1/session4-des-bms-therapeutic-tree/des-bms-decision-tree.qmd"
+    - "day1/session4-des-bms-therapeutic-tree/slides-session4.qmd"
+    - "day2/session5-ckd-markov/ckd-markov-model.qmd"
+    - "day2/session5-ckd-markov/slides-session5.qmd"
+    - "day2/session6-psa/psa-module.qmd"
+    - "day2/session6-psa/slides-session6.qmd"
+    - "day2/session7-genai-for-hta/*.qmd"
+    - "day3/session8-breast-cancer-psm/breast-cancer-psm.qmd"
+    - "day3/session8-breast-cancer-psm/slides-session8.qmd"
+    - "day3/session9-psa-psm/psa-psm.qmd"
+    - "day3/session9-psa-psm/slides-session9.qmd"
+    - "day3/session10-shiny-apps/*.qmd"
+    - "day3/session11-wrap-up/*.qmd"
+    - "resources/*.qmd"
+    - "!**/*exercise*.qmd"
+    - "!**/*solution*.qmd"
+  resources:
+    - "day1/session3-gdm-diagnostic-tree/gdm-exercise.qmd"
+    - "day1/session3-gdm-diagnostic-tree/gdm-solution.qmd"
+    - "day1/session4-des-bms-therapeutic-tree/des-bms-exercise.qmd"
+    - "day1/session4-des-bms-therapeutic-tree/des-bms-solution.qmd"
+    - "day2/session5-ckd-markov/ckd-exercise.qmd"
+    - "day2/session5-ckd-markov/ckd-solution.qmd"
+    - "day2/session6-psa/psa-exercise.qmd"
+    - "day2/session6-psa/psa-solution.qmd"
+    - "day3/session8-breast-cancer-psm/breast-cancer-exercise.qmd"
+    - "day3/session8-breast-cancer-psm/breast-cancer-solution.qmd"
+    - "day3/session9-psa-psm/psa-psm-exercise.qmd"
+    - "day3/session9-psa-psm/psa-psm-solution.qmd"
+    - "shiny-apps/**"
+    - "img/**"
+
+website:
+  title: "R for HTA (Basics) — Workshop 2026"
+  navbar:
+    left:
+      - text: "Home"
+        href: index.qmd
+      - text: "Schedule"
+        href: schedule.qmd
+      - text: "Day 1"
+        menu:
+          - text: "Session 1: Why R for HTA"
+            href: day1/session1-why-r-hta/why-r-for-hta.qmd
+          - text: "Session 2: R Orientation"
+            href: day1/session2-r-orientation/r-orientation.qmd
+          - text: "Session 3: GDM Diagnostic Tree"
+            href: day1/session3-gdm-diagnostic-tree/gdm-diagnostic-tree.qmd
+          - text: "Session 4: DES vs BMS Decision Tree"
+            href: day1/session4-des-bms-therapeutic-tree/des-bms-decision-tree.qmd
+      - text: "Day 2"
+        menu:
+          - text: "Session 5: CKD Markov Model"
+            href: day2/session5-ckd-markov/ckd-markov-model.qmd
+          - text: "Session 6: Probabilistic Sensitivity Analysis"
+            href: day2/session6-psa/psa-module.qmd
+          - text: "Session 7: GenAI for HTA Coding"
+            href: day2/session7-genai-for-hta/genai-for-hta.qmd
+      - text: "Day 3"
+        menu:
+          - text: "Session 8: Breast Cancer PSM"
+            href: day3/session8-breast-cancer-psm/breast-cancer-psm.qmd
+          - text: "Session 9: PSA for PSM"
+            href: day3/session9-psa-psm/psa-psm.qmd
+          - text: "Session 10: Shiny Apps"
+            href: day3/session10-shiny-apps/shiny-apps.qmd
+          - text: "Session 11: Wrap-Up"
+            href: day3/session11-wrap-up/wrap-up.qmd
+      - text: "Slides"
+        menu:
+          - text: "--- Day 1 ---"
+          - text: "Session 1: Why R for HTA"
+            href: day1/session1-why-r-hta/slides-session1.qmd
+          - text: "Session 2: R Orientation"
+            href: day1/session2-r-orientation/slides-session2.qmd
+          - text: "Session 3: GDM Diagnostic Tree"
+            href: day1/session3-gdm-diagnostic-tree/slides-session3.qmd
+          - text: "Session 4: DES vs BMS Decision Tree"
+            href: day1/session4-des-bms-therapeutic-tree/slides-session4.qmd
+          - text: "--- Day 2 ---"
+          - text: "Session 5: CKD Markov Model"
+            href: day2/session5-ckd-markov/slides-session5.qmd
+          - text: "Session 6: PSA"
+            href: day2/session6-psa/slides-session6.qmd
+          - text: "Session 7: GenAI for HTA"
+            href: day2/session7-genai-for-hta/slides-session7.qmd
+          - text: "--- Day 3 ---"
+          - text: "Session 8: Breast Cancer PSM"
+            href: day3/session8-breast-cancer-psm/slides-session8.qmd
+          - text: "Session 9: PSA for PSM"
+            href: day3/session9-psa-psm/slides-session9.qmd
+          - text: "Session 10: Shiny Apps"
+            href: day3/session10-shiny-apps/slides-session10.qmd
+          - text: "Session 11: Wrap-Up"
+            href: day3/session11-wrap-up/slides-session11.qmd
+      - text: "Downloads"
+        href: downloads.qmd
+      - text: "Resources"
+        href: further-resources.qmd
+    right:
+      - icon: github
+        href: https://github.com/drpakhare/HTA-R-Workshop-2026
+
+execute:
+  freeze: auto
+  eval: true
+  echo: true
+
+format:
+  html:
+    theme: cosmo
+    toc: true
+    toc-depth: 3
+    code-fold: show
+    code-tools: true
+    code-copy: true
+    highlight-style: github

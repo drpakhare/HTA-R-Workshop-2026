@@ -1,0 +1,213 @@
+---
+title: "Session 7: Using Generative AI for HTA Coding"
+subtitle: "A practical tool in your R workflow — not a replacement for your expertise"
+format:
+  html:
+    toc: true
+    code-fold: show
+    code-tools: true
+---
+
+## What This Session Is
+
+This is a 60–90 minute practical session on using AI tools (such as Claude, ChatGPT, Gemini, or Copilot) to support your R-based HTA work. It is **one tool among many** — alongside documentation, package vignettes, Stack Overflow, and colleagues.
+
+This session is **not** about AI doing your HTA for you. The clinical reasoning, model structure, parameter selection, and interpretation remain yours. AI can help with the R code that implements your thinking.
+
+## The GenAI-Assisted HTA Workflow
+
+```{r}
+#| label: fig-genai-workflow
+#| echo: true
+#| fig-cap: "Using GenAI as a coding assistant in HTA work"
+
+library(DiagrammeR)
+
+grViz("
+digraph genai_flow {
+  graph [rankdir=TB, bgcolor='transparent', fontname='Helvetica']
+  node [shape=box, style='filled,rounded', fontname='Helvetica', fontsize=11]
+
+  you [label='YOU\n(HTA expertise,\nclinical question)', fillcolor='#4e79a7', fontcolor='white', width=2]
+  prompt [label='Write a Clear\nPrompt\n(describe model, parameters)', fillcolor='#59a14f', fontcolor='white', width=2]
+  ai [label='GenAI\nGenerates\nR Code', fillcolor='#f28e2b', fontcolor='white', width=2]
+  review [label='YOU Review\n& Validate\n(does it make sense?)', fillcolor='#e15759', fontcolor='white', width=2]
+  test [label='Test &\nModify\n(run, check outputs)', fillcolor='#76b7b2', fontcolor='white', width=2]
+  use [label='Use in\nYour Analysis', fillcolor='#edc948', fontcolor='black', width=2]
+
+  you -> prompt -> ai -> review -> test -> use
+  review -> prompt [style=dashed, label='Refine prompt', fontsize=9]
+  test -> review [style=dashed, label='Fix issues', fontsize=9]
+}
+")
+```
+
+## When AI Is Useful for HTA Work
+
+AI tools are most helpful when you:
+
+- Know *what* you want to calculate but not *how* to write it in R
+- Have working code but need to modify it (add a parameter, change a distribution, create a new plot)
+- Get an error message and need help understanding it
+- Want to convert Excel-based model logic into R code
+- Need to look up which R function or package does something specific
+
+AI tools are **not** reliable for:
+
+- Choosing model structures or clinical parameters (that is your expertise)
+- Validating whether a model is correct (always check the logic yourself)
+- Replacing peer review or expert consultation
+
+## The Art of Prompting for HTA Code
+
+The quality of AI-generated code depends heavily on how you describe what you need. Here are practical patterns.
+
+### Pattern 1: Describe the Model Structure First
+
+**Weak prompt:**
+> "Write R code for a cost-effectiveness model"
+
+**Strong prompt:**
+> "I need R code for a 4-state Markov cohort model with annual cycles over a 20-year time horizon. The states are: Mild Disease, Moderate Disease, Severe Disease, and Death. Death is an absorbing state. I want to compare two strategies: standard care and a new drug that reduces transition from Mild to Moderate by 30% (hazard ratio 0.70). I need to calculate total discounted costs and QALYs for each strategy and the ICER. Use a 3% discount rate. Costs per year: Mild = ₹10,000, Moderate = ₹50,000, Severe = ₹200,000. Utility weights: Mild = 0.85, Moderate = 0.70, Severe = 0.50."
+
+The strong prompt gives the AI everything it needs: model type, states, transitions, comparators, parameters, and desired outputs.
+
+### Pattern 2: Modify Existing Code
+
+When you have working code from this workshop and want to adapt it:
+
+> "I have the following R code that runs a 4-state Markov model for CKD. I want to modify it to: (1) add a 5th state called 'Transplant' between Advanced and Death, (2) add a transition probability of 0.05 from Advanced to Transplant, (3) set the annual cost of Transplant to ₹500,000 in the first year and ₹100,000 in subsequent years, and (4) set the utility weight for Transplant to 0.75. Here is my current code: [paste code]"
+
+### Pattern 3: Debug Errors
+
+When you get an error:
+
+> "I'm running this R code for a Markov model and getting the error: 'Error in trace[cycle + 1, ] <- trace[cycle, ] %*% tm : replacement has length 5, should be 4'. Here is my code: [paste code]. What's wrong and how do I fix it?"
+
+This is often the most immediately useful application of AI — understanding error messages.
+
+### Pattern 4: Create Visualisations
+
+> "I have a data frame called psa_results with columns: inc_cost, inc_qaly, and iteration (1 to 5000). Create a cost-effectiveness plane using ggplot2 with: scatter points in blue with low alpha, a WTP threshold line at ₹170,000 per QALY, labels for all four quadrants, and a clean minimal theme. Use Indian Rupee (₹) formatting for the y-axis."
+
+## Live Demonstration
+
+Let us walk through a real example. Suppose you want to build a simple **budget impact model** — something not covered in this workshop but relevant to your work.
+
+### Step 1: Describe What You Need
+
+A good prompt might be:
+
+> "Write R code for a budget impact analysis of introducing a new diabetes drug in India. Assumptions: target population of 50,000 patients, the new drug costs ₹15,000 per year, the current standard drug costs ₹8,000 per year, market uptake is expected to be 10% in year 1, 25% in year 2, and 40% in year 3. The new drug reduces hospitalisations by 20%, and the average hospitalisation costs ₹75,000. Current hospitalisation rate is 15% per year. Calculate total budget impact for years 1-3 and create a bar chart showing the net budget impact per year."
+
+### Step 2: Review What the AI Generates
+
+Here is the kind of code an AI tool might generate (edited for clarity):
+
+```{r}
+#| label: ai-generated-example
+#| echo: true
+
+# Budget Impact Analysis — AI-generated code (reviewed and corrected)
+
+# Parameters
+n_population <- 50000
+cost_new_drug <- 15000
+cost_current_drug <- 8000
+market_uptake <- c(0.10, 0.25, 0.40)  # Years 1-3
+hospitalisation_rate_current <- 0.15
+hospitalisation_reduction <- 0.20
+cost_hospitalisation <- 75000
+
+# Calculate for each year
+years <- 1:3
+results <- data.frame(Year = years)
+
+results$Patients_New <- n_population * market_uptake
+results$Patients_Current <- n_population * (1 - market_uptake)
+
+# Drug costs
+results$Drug_Cost_New <- results$Patients_New * cost_new_drug
+results$Drug_Cost_Current <- results$Patients_Current * cost_current_drug
+results$Total_Drug_Cost <- results$Drug_Cost_New + results$Drug_Cost_Current
+
+# Hospitalisation costs
+results$Hosp_New <- results$Patients_New * hospitalisation_rate_current *
+                    (1 - hospitalisation_reduction) * cost_hospitalisation
+results$Hosp_Current <- results$Patients_Current * hospitalisation_rate_current *
+                        cost_hospitalisation
+results$Total_Hosp_Cost <- results$Hosp_New + results$Hosp_Current
+
+# Total and comparison
+results$Total_Cost_With_New <- results$Total_Drug_Cost + results$Total_Hosp_Cost
+
+# Baseline (no new drug)
+baseline_drug <- n_population * cost_current_drug
+baseline_hosp <- n_population * hospitalisation_rate_current * cost_hospitalisation
+baseline_total <- baseline_drug + baseline_hosp
+
+results$Budget_Impact <- results$Total_Cost_With_New - baseline_total
+
+# Display
+cat("=== Budget Impact Analysis (₹) ===\n\n")
+for (i in 1:3) {
+  cat("Year", i, ": Net budget impact = ₹",
+      format(round(results$Budget_Impact[i]), big.mark = ","), "\n")
+}
+
+# Plot
+library(ggplot2)
+ggplot(results, aes(x = factor(Year), y = Budget_Impact / 100000)) +
+  geom_col(fill = ifelse(results$Budget_Impact > 0, "#e15759", "#59a14f")) +
+  labs(x = "Year", y = "Net Budget Impact (₹ Lakhs)",
+       title = "Budget Impact of Introducing New Diabetes Drug",
+       subtitle = "Positive = additional cost, Negative = savings") +
+  theme_minimal()
+```
+
+### Step 3: Check the Logic
+
+AI-generated code should always be reviewed:
+
+- **Are the formulas correct?** Trace through the logic manually for year 1.
+- **Are the assumptions implemented correctly?** Does the hospitalisation reduction apply only to patients on the new drug?
+- **Are there edge cases?** What happens if market uptake exceeds 100%?
+- **Do the results make clinical sense?** If the budget impact is wildly positive or negative, something may be wrong.
+
+## Common Pitfalls with AI-Generated HTA Code
+
+### Pitfall 1: Wrong Distribution Parameterisation
+
+AI tools sometimes confuse the parameterisation of Beta and Gamma distributions. For example, they may use mean and SD directly rather than converting to shape parameters.
+
+**Always check:** For a Beta distribution with mean μ and variance σ², the shape parameters are:
+$$\alpha = \mu \left(\frac{\mu(1-\mu)}{\sigma^2} - 1\right), \quad \beta = (1-\mu) \left(\frac{\mu(1-\mu)}{\sigma^2} - 1\right)$$
+
+### Pitfall 2: Forgetting Half-Cycle Correction
+
+Many AI-generated Markov models omit half-cycle correction. If you do not see it in the code, ask: "Add half-cycle correction to this Markov model."
+
+### Pitfall 3: Incorrect Discounting
+
+AI may discount from year 0 instead of year 1, or apply discounting to costs but not QALYs (or vice versa). Both costs and outcomes should be discounted, starting from year 1.
+
+### Pitfall 4: Hallucinated Functions
+
+AI tools sometimes invent R functions or package names that do not exist. If you see a function you do not recognise, verify it exists by typing `?function_name` in the R console.
+
+## A Sensible Workflow
+
+1. **Start with a workshop template** — the .qmd files from this workshop are your starting point
+2. **Modify parameters** directly — most adaptations only require changing numbers
+3. **Use AI for structural changes** — adding a state, changing model type, creating new visualisations
+4. **Always validate** — run the model with known inputs and check against hand calculations
+5. **Use AI for debugging** — paste error messages and get explanations
+6. **Save working code** — once something works, save it as a template for next time
+
+## Key Takeaway
+
+AI tools can dramatically speed up your R workflow for HTA, but they are an **accelerator**, not an **autopilot**. Your HTA expertise determines the model structure, the parameter choices, and the interpretation. AI helps translate that expertise into working R code more quickly.
+
+Think of AI as a very fast but occasionally unreliable research assistant who is good at R syntax but knows nothing about your specific clinical question.
+
+→ **Proceed to Day 3 sessions.**

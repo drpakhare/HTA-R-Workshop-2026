@@ -1,0 +1,90 @@
+---
+title: "Further Resources"
+subtitle: "Curated links for continuing your R for HTA journey"
+format:
+  html:
+    toc: true
+---
+
+## Books and Online Textbooks
+
+**R for Health Technology Assessment** by Gianluca Baio, Andrea Berardi, and Anna Heath is the definitive textbook on using R for HTA. It covers survival analysis, decision modelling, network meta-analysis, population adjustment, discrete event simulation, and Shiny applications. An online version is freely available.
+
+- [R for Health Technology Assessment (online book)](https://gianluca.statistica.it/books/online/r-hta/)
+- [R for Health Technology Assessment (Chapman & Hall/CRC, print edition)](https://www.routledge.com/R-for-Health-Technology-Assessment/Baio-Thom-Pechlivanoglou/p/book/9780367468910)
+
+**Decision Modelling for Health Economic Evaluation** by Andrew Briggs, Karl Claxton, and Mark Sculpher (Oxford University Press, 2006) remains the foundational reference for the modelling concepts used throughout this workshop --- decision trees, Markov models, PSA, and value of information analysis.
+
+## Organisations and Consortia
+
+**DARTH --- Decision Analysis in R for Technologies in Health** is a multi-institutional collaborative that develops transparent, open-source solutions for decision-analytic modelling in R. Their coding framework paper (Alarid-Escudero et al., 2019) provides a structured approach to building reproducible HTA models.
+
+- [DARTH website](https://www.darthworkgroup.com/)
+- [DARTH GitHub repositories](https://github.com/DARTH-git)
+- [DARTH coding framework paper (PharmacoEconomics, 2019)](https://pmc.ncbi.nlm.nih.gov/articles/PMC6871515/)
+
+**R-HTA Consortium** is an academic consortium that promotes the use of R for cost-effectiveness analysis. They host annual workshops, webinars, and maintain a growing library of tutorials and recorded talks.
+
+- [R-HTA website](https://r-hta.org/)
+- [R-HTA GitHub](https://github.com/r-hta)
+
+**R-HTA in LMICs** is the low- and middle-income country chapter of R-HTA, particularly relevant for analysts in the Indian and South Asian context. Their workshops and tutorials are tailored for settings with limited prior R exposure.
+
+- [R-HTA in LMICs website](https://r-hta-in-lmics.github.io/)
+- [R-HTA in LMICs resources page](https://r-hta-in-lmics.github.io/resources/)
+- [R-HTA in LMICs workshops](https://r-hta-in-lmics.github.io/workshops/)
+
+**R Consortium HTA Working Group** brings together stakeholders from industry, HTA bodies, and academia to develop best practices for using R in HTA analytics for both clinical assessment and economic evaluation.
+
+- [R Consortium HTA Working Group announcement](https://r-consortium.org/posts/announcing-health-technology-assessment-HTA-working-group/)
+
+## R Packages for HTA
+
+The following packages form the core ecosystem for health economic evaluation in R. All are available on CRAN.
+
+| Package | Purpose | Links |
+|---|---|---|
+| **heemod** | Markov cohort models with PSA, heterogeneity analysis, and time dependency | [CRAN](https://cran.r-project.org/package=heemod) |
+| **dampack** | Analysing and visualising health economic model outputs --- CEA, EVPI, EVPPI, CEAC | [CRAN](https://cran.r-project.org/package=dampack) / [GitHub](https://github.com/DARTH-git/dampack) |
+| **BCEA** | Bayesian cost-effectiveness analysis --- CE plane, CEAC, EVPI, expected loss | [CRAN](https://cran.r-project.org/package=BCEA) / [GitHub](https://github.com/giabaio/BCEA) |
+| **hesim** | High-performance simulation (cohort, partitioned survival, individual-level) with built-in PSA | [CRAN](https://cran.r-project.org/package=hesim) / [Documentation](https://hesim-dev.github.io/hesim/) |
+| **flexsurv** | Flexible parametric survival models (Weibull, Gompertz, generalised gamma, splines) | [CRAN](https://cran.r-project.org/package=flexsurv) |
+| **survHE** | Survival analysis wrapper integrating frequentist (flexsurv) and Bayesian (Stan/INLA) approaches | [CRAN](https://cran.r-project.org/package=survHE) / [Paper (JSS, 2020)](https://www.jstatsoft.org/article/view/v095i14) |
+| **darthpack** | DARTH coding framework template for structured, reproducible CEA projects | [GitHub](https://github.com/DARTH-git/darthpack) / [Documentation](https://darth-git.github.io/darthpack/) |
+
+## Indian HTA Resources
+
+**ParCC --- Parameter Converter and Calculator for Cost-effectiveness** is an R-based tool developed at RRC-HTA, AIIMS Bhopal. It helps HTA analysts convert and calculate parameters commonly needed in cost-effectiveness analysis --- for example, converting between rate and probability, estimating transition probabilities from hazard ratios, deriving distribution parameters (Beta, Gamma, Log-Normal) from mean and confidence intervals, and computing discounting. ParCC is available both as an interactive Shiny web app and as an installable R package.
+
+- [ParCC website and documentation](https://drpakhare.github.io/ParCC/)
+- Install as R package: `remotes::install_github("drpakhare/ParCC")`
+
+**Health Technology Assessment in India (HTAIn)** under the Department of Health Research coordinates HTA activities across Regional Resource Centres in India.
+
+- [HTAIn at DHR](https://dhr.gov.in/htain/)
+
+## Tutorials and Short Courses
+
+- [York Health Economics Consortium --- Introduction to R for HTA](https://www.yhec.co.uk/product/introduction-to-r-for-health-technology-assessment/) (one-day paid course)
+- [University of Minnesota --- Cost-Effectiveness and Decision Modeling using R Workshop](https://www.sph.umn.edu/events-calendar/decision-modeling-using-r-workshop/) (DARTH-affiliated annual workshop)
+- [Making Health Economic Models Shiny: A Tutorial (PMC)](https://pmc.ncbi.nlm.nih.gov/articles/PMC7459889/) --- step-by-step guide to wrapping R models in Shiny apps
+
+## Key Published Papers
+
+These papers provide the methodological foundations for the techniques covered in this workshop:
+
+- Alarid-Escudero, F. et al. (2019). A need for change! A coding framework for improving transparency in decision modeling. *PharmacoEconomics*, 37(11), 1329--1339. [PMC](https://pmc.ncbi.nlm.nih.gov/articles/PMC6871515/)
+- Baio, G. & Dawid, A. P. (2015). Probabilistic sensitivity analysis in health economics. *Statistical Methods in Medical Research*, 24(6), 615--634.
+- Briggs, A., Claxton, K. & Sculpher, M. (2006). *Decision Modelling for Health Economic Evaluation*. Oxford University Press.
+- Fenwick, E., O'Brien, B. J. & Briggs, A. (2001). Cost-effectiveness acceptability curves --- facts, fallacies and frequently asked questions. *Health Economics*, 10(7), 605--615.
+- Husereau, D. et al. (2022). Consolidated Health Economic Evaluation Reporting Standards (CHEERS) 2022. *Value in Health*, 25(1), 10--31.
+- Incerti, D. & Jansen, J. P. (2021). hesim: Health economic simulation modeling and decision analysis. *arXiv:2102.09437*.
+
+## Getting Help
+
+When you get stuck (and you will --- everyone does), these are good places to ask questions:
+
+- [Stack Overflow --- r + health-economics tag](https://stackoverflow.com/questions/tagged/r+health-economics)
+- [RStudio Community](https://community.rstudio.com/)
+- [R-HTA Slack workspace](https://r-hta.org/) (join via the R-HTA website)
+- Your fellow workshop participants and the RRC network

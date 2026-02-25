@@ -1,0 +1,634 @@
+---
+title: "Exercise: Breast Cancer Partitioned Survival Model"
+subtitle: "Exploring survival extrapolation and cost parameters"
+format:
+  html:
+    toc: true
+    code-fold: false
+---
+
+## Introduction
+
+In this exercise, you will build a partitioned survival model (PSM) for early-stage HER2-positive breast cancer, comparing trastuzumab therapy (IV formulation) versus standard chemotherapy. The model uses Weibull distributions to extrapolate progression-free survival (PFS) and overall survival (OS) beyond trial follow-up.
+
+**Clinical Context:** Trastuzumab has demonstrated significant survival benefits in HER2-positive breast cancer, but costs are substantial. In resource-constrained settings (like India), the availability of biosimilars and shorter regimens (e.g., 9-week trastuzumab as recommended by Tata Memorial Cancer Hospital) can improve cost-effectiveness.
+
+**Learning Objectives:**
+- Understand how hazard ratios scale survival distributions
+- Implement half-cycle correction in cost and QALY calculations
+- Perform parameter uncertainty analysis
+- Critically evaluate how distribution choice affects extrapolation
+
+---
+
+## Setup: Core PSM Function
+
+```{r}
+#| label: setup
+#| echo: true
+
+library(tidyverse)
+library(kableExtra)
+
+# Core PSM function
+run_psm <- function(
+  os_lambda_ctrl,
+  os_gamma_ctrl,
+  pfs_lambda_ctrl,
+  pfs_gamma_ctrl,
+  hr_os = 0.70,
+  hr_pfs = 0.50,
+  cost_pf_chemo = 25000,
+  cost_pf_trast_yr1 = 420000,
+  cost_pf_trast_maint = 25000,
+  cost_pd = 180000,
+  utility_pf = 0.80,
+  utility_pd = 0.55,
+  n_cycles = 20,
+  discount_rate = 0.03
+) {
+
+  # Create time vector (annual cycles)
+  t <- seq(0.5, n_cycles, 1)  # Half-cycle correction: start at 0.5
+
+  # ========== Hazard Ratios applied to scale parameters ==========
+  # For Weibull: HR affects lambda only
+  # Intervention lambda = Control lambda * HR
+  os_lambda_int <- os_lambda_ctrl * hr_os
+  pfs_lambda_int <- pfs_lambda_ctrl * hr_pfs
+
+  # ========== Survival curves ==========
+  # Weibull: S(t) = exp(-lambda * t^gamma)
+
+  # CONTROL ARM
+  os_ctrl <- exp(-os_lambda_ctrl * t^os_gamma_ctrl)
+  pfs_ctrl <- exp(-pfs_lambda_ctrl * t^pfs_gamma_ctrl)
+
+  # INTERVENTION ARM
+  os_int <- exp(-os_lambda_int * t^os_gamma_ctrl)
+  pfs_int <- exp(-pfs_lambda_int * t^pfs_gamma_ctrl)
+
+  # Ensure PFS <= OS (PFS cannot exceed OS)
+  pfs_ctrl <- pmin(pfs_ctrl, os_ctrl)
+  pfs_int <- pmin(pfs_int, os_int)
+
+  # ========== State occupancy: Half-cycle corrected ==========
+  # PF (progression-free): S_PFS
+  # PD (progressive disease): S_OS - S_PFS
+  # D (dead): 1 - S_OS
+
+  state_pf_ctrl <- pfs_ctrl
+  state_pd_ctrl <- os_ctrl - pfs_ctrl
+  state_d_ctrl <- 1 - os_ctrl
+
+  state_pf_int <- pfs_int
+  state_pd_int <- os_int - pfs_int
+  state_d_int <- 1 - os_int
+
+  # ========== Costs and QALYs ==========
+  # Discount factors
+  discount_factor <- (1 + discount_rate)^(-t)
+
+  # CONTROL ARM COSTS
+  # Standard chemo in PF state
+  cost_pf_ctrl_annual <- rep(cost_pf_chemo, length(t))
+  costs_ctrl <- (state_pf_ctrl * cost_pf_ctrl_annual +
+                 state_pd_ctrl * cost_pd) * discount_factor
+
+  # INTERVENTION ARM COSTS
+  # Trastuzumab: Year 1 high cost, Year 2+ maintenance
+  cost_pf_int_annual <- ifelse(t == 0.5, cost_pf_trast_yr1, cost_pf_trast_maint)
+  costs_int <- (state_pf_int * cost_pf_int_annual +
+                state_pd_int * cost_pd) * discount_factor
+
+  # QALYs
+  qaly_ctrl <- (state_pf_ctrl * utility_pf +
+                state_pd_ctrl * utility_pd) * discount_factor
+  qaly_int <- (state_pf_int * utility_pf +
+               state_pd_int * utility_pd) * discount_factor
+
+  # ========== Total costs and QALYs ==========
+  total_cost_ctrl <- sum(costs_ctrl)
+  total_cost_int <- sum(costs_int)
+  total_qaly_ctrl <- sum(qaly_ctrl)
+  total_qaly_int <- sum(qaly_int)
+
+  # ========== Incremental analysis ==========
+  inc_cost <- total_cost_int - total_cost_ctrl
+  inc_qaly <- total_qaly_int - total_qaly_ctrl
+  icer <- if (inc_qaly > 0) inc_cost / inc_qaly else NA
+
+  # Return results
+  list(
+    total_cost_ctrl = total_cost_ctrl,
+    total_cost_int = total_cost_int,
+    total_qaly_ctrl = total_qaly_ctrl,
+    total_qaly_int = total_qaly_int,
+    inc_cost = inc_cost,
+    inc_qaly = inc_qaly,
+    icer = icer,
+    data = data.frame(
+      t = t,
+      state_pf_ctrl = state_pf_ctrl,
+      state_pd_ctrl = state_pd_ctrl,
+      state_pf_int = state_pf_int,
+      state_pd_int = state_pd_int
+    )
+  )
+}
+
+# Base case parameters (Indian setting)
+os_lambda_ctrl_base <- 0.045
+os_gamma_ctrl_base <- 1.15
+pfs_lambda_ctrl_base <- 0.12
+pfs_gamma_ctrl_base <- 1.05
+
+cat("PSM function loaded. Base case parameters ready.\n")
+```
+
+---
+
+## Task 1: Time Horizon Sensitivity
+
+**Scenario:** Analyze how the choice of time horizon (10 years vs. 30 years) affects the ICER.
+
+**Context:** In India, Gross National Income per capita is approximately ₹1,50,000-₹2,00,000. The WHO-recommended cost-effectiveness threshold is 1-3 × GDP per capita. Longer horizons capture more life expectancy gains from early treatment but introduce greater extrapolation uncertainty.
+
+**Instructions:**
+1. Run the base case PSM with `n_cycles = 10` (10 years)
+2. Run again with `n_cycles = 30` (30 years)
+3. Compare the ICERs and cost-effectiveness conclusions
+4. Create a 2-row table with columns: Scenario, Time Horizon, Total Cost (Int), Total QALY (Int), ICER
+5. **Interpret:** At what threshold does trastuzumab become cost-effective in each scenario?
+
+**Write here:** [Your code and interpretation]
+
+```{r}
+#| label: task1
+#| eval: false
+#| echo: true
+
+# Run base case with 10-year horizon
+result_10yr <- run_psm(
+  os_lambda_ctrl = ___,
+  os_gamma_ctrl = ___,
+  pfs_lambda_ctrl = ___,
+  pfs_gamma_ctrl = ___,
+  n_cycles = ___
+)
+
+# Run base case with 30-year horizon
+result_30yr <- run_psm(
+  os_lambda_ctrl = ___,
+  os_gamma_ctrl = ___,
+  pfs_lambda_ctrl = ___,
+  pfs_gamma_ctrl = ___,
+  n_cycles = ___
+)
+
+# Create comparison table
+comparison_table <- data.frame(
+  Scenario = c("10-year horizon", "30-year horizon"),
+  Time_Horizon_Years = c(10, 30),
+  Total_Cost_Int = c(
+    format(round(result_10yr$total_cost_int), big.mark = ","),
+    format(round(result_30yr$total_cost_int), big.mark = ",")
+  ),
+  Total_QALY_Int = c(
+    round(result_10yr$total_qaly_int, 2),
+    round(result_30yr$total_qaly_int, 2)
+  ),
+  ICER = c(
+    format(round(result_10yr$icer), big.mark = ","),
+    format(round(result_30yr$icer), big.mark = ",")
+  )
+)
+
+kable(comparison_table, caption = "Time Horizon Sensitivity Analysis") %>%
+  kable_styling()
+
+cat("\n**Interpretation:**\n")
+cat("- At 10 years, ICER is: ___\n")
+cat("- At 30 years, ICER is: ___\n")
+cat("- Cost-effectiveness conclusion: ___\n")
+```
+
+---
+
+## Task 2: Biosimilar Trastuzumab Impact
+
+**Scenario:** Trastuzumab biosimilars are now available in India at approximately 50% of originator price. Explore the impact on cost-effectiveness.
+
+**Context:** PMJAY (Pradhan Mantri Jan Arogya Yojana) and state-based health programs increasingly use biosimilars to expand access. The question: does the cost savings translate to a cost-effective intervention?
+
+**Instructions:**
+1. Run the base case PSM with the original Year 1 trastuzumab cost: ₹4,20,000
+2. Run again with biosimilar cost: ₹2,10,000 (50% reduction)
+3. Compare ICERs and cost-effectiveness
+4. **Interpret:** What is the absolute cost-saving per patient? Does this change the policy recommendation?
+
+**Write here:** [Your code and interpretation]
+
+```{r}
+#| label: task2
+#| eval: false
+#| echo: true
+
+# Base case with originator trastuzumab
+result_originator <- run_psm(
+  os_lambda_ctrl = ___,
+  os_gamma_ctrl = ___,
+  pfs_lambda_ctrl = ___,
+  pfs_gamma_ctrl = ___,
+  cost_pf_trast_yr1 = ___
+)
+
+# Biosimilar scenario: 50% cost reduction
+result_biosimilar <- run_psm(
+  os_lambda_ctrl = ___,
+  os_gamma_ctrl = ___,
+  pfs_lambda_ctrl = ___,
+  pfs_gamma_ctrl = ___,
+  cost_pf_trast_yr1 = ___
+)
+
+# Comparison
+biosimilar_comparison <- data.frame(
+  Scenario = c("Originator trastuzumab", "Biosimilar trastuzumab"),
+  Year1_Cost = c("₹4,20,000", "₹2,10,000"),
+  Total_Cost_Int = c(
+    format(round(result_originator$total_cost_int), big.mark = ","),
+    format(round(result_biosimilar$total_cost_int), big.mark = ",")
+  ),
+  Incremental_Cost = c(
+    format(round(result_originator$inc_cost), big.mark = ","),
+    format(round(result_biosimilar$inc_cost), big.mark = ",")
+  ),
+  ICER = c(
+    format(round(result_originator$icer), big.mark = ","),
+    format(round(result_biosimilar$icer), big.mark = ",")
+  )
+)
+
+kable(biosimilar_comparison, caption = "Biosimilar Impact on Cost-Effectiveness") %>%
+  kable_styling()
+
+cat("\n**Interpretation:**\n")
+cat("- Cost saving with biosimilar: ₹___\n")
+cat("- ICER reduction: ___\n")
+cat("- Policy implication: ___\n")
+```
+
+---
+
+## Task 3: 9-Week Trastuzumab Regimen
+
+**Scenario:** Tata Memorial Cancer Hospital recommends 9-week trastuzumab in resource-constrained settings. This reduces Year 1 cost to ₹1,50,000. Is this regimen cost-effective?
+
+**Context:** The 9-week regimen is based on pragmatic evidence from resource-limited settings. The assumption: efficacy is similar to standard 12-month regimen (same HR), but with dramatically reduced costs. This is a key question for equitable access in India.
+
+**Instructions:**
+1. Run the PSM with 9-week trastuzumab cost: ₹1,50,000
+2. Compare against originator (₹4,20,000) and biosimilar (₹2,10,000)
+3. Calculate cost per QALY gained
+4. Compare against WHO threshold of 1 × GDP per capita (₹1,50,000)
+5. **Interpret:** Does the 9-week regimen validate TMC's recommendation? What are trade-offs?
+
+**Write here:** [Your code and interpretation]
+
+```{r}
+#| label: task3
+#| eval: false
+#| echo: true
+
+# 9-week trastuzumab scenario
+result_9week <- run_psm(
+  os_lambda_ctrl = ___,
+  os_gamma_ctrl = ___,
+  pfs_lambda_ctrl = ___,
+  pfs_gamma_ctrl = ___,
+  cost_pf_trast_yr1 = ___
+)
+
+# Three-way comparison
+regimen_comparison <- data.frame(
+  Scenario = c("Originator", "Biosimilar", "9-week (TMC)"),
+  Year1_Cost = c("₹4,20,000", "₹2,10,000", "₹1,50,000"),
+  Total_Cost_Int = c(
+    format(round(result_originator$total_cost_int), big.mark = ","),
+    format(round(result_biosimilar$total_cost_int), big.mark = ","),
+    format(round(result_9week$total_cost_int), big.mark = ",")
+  ),
+  Total_QALY_Int = c(
+    round(result_originator$total_qaly_int, 2),
+    round(result_biosimilar$total_qaly_int, 2),
+    round(result_9week$total_qaly_int, 2)
+  ),
+  ICER = c(
+    format(round(result_originator$icer), big.mark = ","),
+    format(round(result_biosimilar$icer), big.mark = ","),
+    format(round(result_9week$icer), big.mark = ",")
+  )
+)
+
+kable(regimen_comparison, caption = "Trastuzumab Regimen Comparison") %>%
+  kable_styling()
+
+gdp_threshold <- 150000
+cat("\n**Interpretation:**\n")
+cat("- WHO threshold (1 × GDP per capita): ₹", format(gdp_threshold, big.mark = ","), "\n")
+cat("- ICER for 9-week regimen: ₹___\n")
+cat("- Cost-effective vs. threshold: ___\n")
+cat("- Clinical implication: ___\n")
+```
+
+---
+
+## Task 4: Survival Distribution Sensitivity Analysis
+
+**Scenario:** Complete the code to perform a structural sensitivity analysis comparing three survival distributions for OS extrapolation:
+1. **Weibull** (baseline): S(t) = exp(-λt^γ)
+2. **Exponential** (simplest): S(t) = exp(-rate × t)
+3. **Log-logistic** (optimistic tail): S(t) = 1 / (1 + (t/α)^β)
+
+**Context:** The NICE Decision Support Unit (DSU) emphasizes that distribution choice can dramatically affect cost-effectiveness conclusions, especially for long-term extrapolation. Exponential assumes constant hazard (unrealistic); Weibull allows flexibility; Log-logistic often has optimistic long-term tail.
+
+**Instructions:**
+1. For **Exponential**: Calibrate rate to match 5-year OS from base case Weibull
+   - Calculate 5-year OS from base case Weibull
+   - Solve: exp(-rate × 5) = OS_5yr_weibull → rate = -ln(OS_5yr) / 5
+2. For **Log-logistic**: Use α=12, β=1.5 (approximate to Weibull 5-year OS)
+3. Create modified versions of `run_psm()` for each distribution
+4. Run base case under all three distributions
+5. Create a bar chart comparing ICERs (₹/QALY)
+6. **Interpret:** Why does distribution choice matter? Which is most conservative?
+
+**Write here:** [Your complete code, plots, and interpretation]
+
+```{r}
+#| label: task4_helper
+#| echo: true
+#| eval: false
+
+# Helper: Calculate 5-year OS from base case Weibull
+os_5yr_weibull <- exp(-os_lambda_ctrl_base * 5^os_gamma_ctrl_base)
+cat("Base case 5-year OS (Weibull):", round(os_5yr_weibull, 3), "\n")
+
+# Calibrate Exponential rate
+exp_rate <- -log(os_5yr_weibull) / 5
+cat("Exponential rate (calibrated):", round(exp_rate, 4), "\n")
+
+# Log-logistic parameters (given)
+alpha <- 12
+beta <- 1.5
+cat("Log-logistic: alpha =", alpha, ", beta =", beta, "\n")
+```
+
+```{r}
+#| label: task4_exponential
+#| echo: true
+#| eval: false
+
+run_psm_exponential <- function(
+  rate_ctrl,
+  pfs_lambda_ctrl,
+  pfs_gamma_ctrl,
+  hr_os = 0.70,
+  hr_pfs = 0.50,
+  cost_pf_chemo = 25000,
+  cost_pf_trast_yr1 = 420000,
+  cost_pf_trast_maint = 25000,
+  cost_pd = 180000,
+  utility_pf = 0.80,
+  utility_pd = 0.55,
+  n_cycles = 20,
+  discount_rate = 0.03
+) {
+
+  t <- seq(0.5, n_cycles, 1)
+
+  # Exponential: S(t) = exp(-rate * t)
+  rate_int <- rate_ctrl * hr_os
+
+  os_ctrl <- exp(-rate_ctrl * t)
+  os_int <- exp(-rate_int * t)
+
+  # PFS still Weibull
+  pfs_lambda_int <- pfs_lambda_ctrl * hr_pfs
+  pfs_ctrl <- exp(-pfs_lambda_ctrl * t^pfs_gamma_ctrl)
+  pfs_int <- exp(-pfs_lambda_int * t^pfs_gamma_ctrl)
+
+  # Ensure PFS <= OS
+  pfs_ctrl <- pmin(pfs_ctrl, os_ctrl)
+  pfs_int <- pmin(pfs_int, os_int)
+
+  # State occupancy
+  state_pf_ctrl <- pfs_ctrl
+  state_pd_ctrl <- os_ctrl - pfs_ctrl
+  state_d_ctrl <- 1 - os_ctrl
+
+  state_pf_int <- pfs_int
+  state_pd_int <- os_int - pfs_int
+  state_d_int <- 1 - os_int
+
+  # Discount factors
+  discount_factor <- (1 + discount_rate)^(-t)
+
+  # Costs and QALYs (same as before)
+  cost_pf_int_annual <- ifelse(t == 0.5, cost_pf_trast_yr1, cost_pf_trast_maint)
+
+  costs_ctrl <- (state_pf_ctrl * cost_pf_chemo + state_pd_ctrl * cost_pd) * discount_factor
+  costs_int <- (state_pf_int * cost_pf_int_annual + state_pd_int * cost_pd) * discount_factor
+
+  qaly_ctrl <- (state_pf_ctrl * utility_pf + state_pd_ctrl * utility_pd) * discount_factor
+  qaly_int <- (state_pf_int * utility_pf + state_pd_int * utility_pd) * discount_factor
+
+  # Totals
+  total_cost_ctrl <- sum(costs_ctrl)
+  total_cost_int <- sum(costs_int)
+  total_qaly_ctrl <- sum(qaly_ctrl)
+  total_qaly_int <- sum(qaly_int)
+
+  inc_cost <- total_cost_int - total_cost_ctrl
+  inc_qaly <- total_qaly_int - total_qaly_ctrl
+  icer <- if (inc_qaly > 0) inc_cost / inc_qaly else NA
+
+  list(
+    total_cost_ctrl = total_cost_ctrl,
+    total_cost_int = total_cost_int,
+    total_qaly_ctrl = total_qaly_ctrl,
+    total_qaly_int = total_qaly_int,
+    inc_cost = inc_cost,
+    inc_qaly = inc_qaly,
+    icer = icer
+  )
+}
+```
+
+```{r}
+#| label: task4_loglogistic
+#| echo: true
+#| eval: false
+
+run_psm_loglogistic <- function(
+  alpha,
+  beta,
+  pfs_lambda_ctrl,
+  pfs_gamma_ctrl,
+  hr_os = 0.70,
+  hr_pfs = 0.50,
+  cost_pf_chemo = 25000,
+  cost_pf_trast_yr1 = 420000,
+  cost_pf_trast_maint = 25000,
+  cost_pd = 180000,
+  utility_pf = 0.80,
+  utility_pd = 0.55,
+  n_cycles = 20,
+  discount_rate = 0.03
+) {
+
+  t <- seq(0.5, n_cycles, 1)
+
+  # Log-logistic: S(t) = 1 / (1 + (t/alpha)^beta)
+  # For intervention, scale by HR (approximate)
+  os_ctrl <- 1 / (1 + (t / alpha)^beta)
+  os_int <- 1 / (1 + (t / (alpha / hr_os))^beta)
+
+  # PFS still Weibull
+  pfs_lambda_int <- pfs_lambda_ctrl * hr_pfs
+  pfs_ctrl <- exp(-pfs_lambda_ctrl * t^pfs_gamma_ctrl)
+  pfs_int <- exp(-pfs_lambda_int * t^pfs_gamma_ctrl)
+
+  # Ensure PFS <= OS
+  pfs_ctrl <- pmin(pfs_ctrl, os_ctrl)
+  pfs_int <- pmin(pfs_int, os_int)
+
+  # State occupancy
+  state_pf_ctrl <- pfs_ctrl
+  state_pd_ctrl <- os_ctrl - pfs_ctrl
+
+  state_pf_int <- pfs_int
+  state_pd_int <- os_int - pfs_int
+
+  # Discount factors
+  discount_factor <- (1 + discount_rate)^(-t)
+
+  # Costs and QALYs
+  cost_pf_int_annual <- ifelse(t == 0.5, cost_pf_trast_yr1, cost_pf_trast_maint)
+
+  costs_ctrl <- (state_pf_ctrl * cost_pf_chemo + state_pd_ctrl * cost_pd) * discount_factor
+  costs_int <- (state_pf_int * cost_pf_int_annual + state_pd_int * cost_pd) * discount_factor
+
+  qaly_ctrl <- (state_pf_ctrl * utility_pf + state_pd_ctrl * utility_pd) * discount_factor
+  qaly_int <- (state_pf_int * utility_pf + state_pd_int * utility_pd) * discount_factor
+
+  # Totals
+  total_cost_ctrl <- sum(costs_ctrl)
+  total_cost_int <- sum(costs_int)
+  total_qaly_ctrl <- sum(qaly_ctrl)
+  total_qaly_int <- sum(qaly_int)
+
+  inc_cost <- total_cost_int - total_cost_ctrl
+  inc_qaly <- total_qaly_int - total_qaly_ctrl
+  icer <- if (inc_qaly > 0) inc_cost / inc_qaly else NA
+
+  list(
+    total_cost_ctrl = total_cost_ctrl,
+    total_cost_int = total_cost_int,
+    total_qaly_ctrl = total_qaly_ctrl,
+    total_qaly_int = total_qaly_int,
+    inc_cost = inc_cost,
+    inc_qaly = inc_qaly,
+    icer = icer
+  )
+}
+```
+
+```{r}
+#| label: task4_run
+#| eval: false
+#| echo: true
+
+# Run all three distributions
+result_weibull <- run_psm(
+  os_lambda_ctrl = os_lambda_ctrl_base,
+  os_gamma_ctrl = os_gamma_ctrl_base,
+  pfs_lambda_ctrl = pfs_lambda_ctrl_base,
+  pfs_gamma_ctrl = pfs_gamma_ctrl_base
+)
+
+result_exponential <- run_psm_exponential(
+  rate_ctrl = ___,  # Calibrated rate
+  pfs_lambda_ctrl = pfs_lambda_ctrl_base,
+  pfs_gamma_ctrl = pfs_gamma_ctrl_base
+)
+
+result_loglogistic <- run_psm_loglogistic(
+  alpha = ___,
+  beta = ___,
+  pfs_lambda_ctrl = pfs_lambda_ctrl_base,
+  pfs_gamma_ctrl = pfs_gamma_ctrl_base
+)
+
+# Summary table
+dist_comparison <- data.frame(
+  Distribution = c("Weibull", "Exponential", "Log-logistic"),
+  Incremental_Cost = c(
+    format(round(result_weibull$inc_cost), big.mark = ","),
+    format(round(result_exponential$inc_cost), big.mark = ","),
+    format(round(result_loglogistic$inc_cost), big.mark = ",")
+  ),
+  Incremental_QALY = c(
+    round(result_weibull$inc_qaly, 3),
+    round(result_exponential$inc_qaly, 3),
+    round(result_loglogistic$inc_qaly, 3)
+  ),
+  ICER = c(
+    round(result_weibull$icer, 0),
+    round(result_exponential$icer, 0),
+    round(result_loglogistic$icer, 0)
+  )
+)
+
+kable(dist_comparison, caption = "Survival Distribution Sensitivity Analysis") %>%
+  kable_styling()
+
+# Bar chart
+dist_data <- tibble(
+  Distribution = c("Weibull", "Exponential", "Log-logistic"),
+  ICER = c(result_weibull$icer, result_exponential$icer, result_loglogistic$icer)
+)
+
+ggplot(dist_data, aes(x = Distribution, y = ICER, fill = Distribution)) +
+  geom_col() +
+  geom_hline(yintercept = 150000, linetype = "dashed", color = "red", linewidth = 1) +
+  scale_y_continuous(labels = function(x) paste0("₹", format(x, big.mark = ","))) +
+  labs(
+    title = "ICER Comparison Across Survival Distributions",
+    subtitle = "Red line: WHO threshold (1 × GDP per capita)",
+    y = "ICER (₹/QALY)",
+    x = "OS Distribution"
+  ) +
+  theme_minimal() +
+  theme(legend.position = "none")
+
+cat("\n**Interpretation:**\n")
+cat("- Weibull ICER: ₹___\n")
+cat("- Exponential ICER: ₹___\n")
+cat("- Log-logistic ICER: ₹___\n")
+cat("- Difference (highest vs. lowest): ₹___\n")
+cat("- Most conservative assumption: ___\n")
+cat("- NICE DSU recommendation: ___\n")
+```
+
+---
+
+## Summary Questions
+
+**At the end of this exercise, reflect on:**
+
+1. How does time horizon affect the cost-effectiveness of early intervention (trastuzumab)?
+2. What is the threshold cost reduction needed for trastuzumab to be cost-effective in India?
+3. Does the 9-week regimen validate equitable access in resource-constrained settings?
+4. Why is distribution choice critical in HTA? What would you recommend to PMJAY?
+

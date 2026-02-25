@@ -1,0 +1,170 @@
+/*-- scss:defaults --*/
+
+// Fonts
+$font-family-sans-serif: "Source Sans Pro", "Segoe UI", Calibri, sans-serif;
+$presentation-font-size-root: 36px;
+$presentation-heading-font: "Source Sans Pro", "Segoe UI", Calibri, sans-serif;
+$presentation-heading-color: #1B4965;
+
+// Colors — Teal Trust palette for healthcare/HTA
+$body-bg: #FFFFFF;
+$body-color: #2D3436;
+$link-color: #028090;
+
+// Headings
+$presentation-h1-font-size: 1.8em;
+$presentation-h2-font-size: 1.4em;
+$presentation-h3-font-size: 1.1em;
+
+/*-- scss:rules --*/
+
+// Title slide
+.reveal .slides section.title-slide {
+  text-align: left;
+}
+
+.reveal .slides section.title-slide h1 {
+  color: #1B4965;
+  font-weight: 700;
+  font-size: 2.0em;
+  line-height: 1.1;
+  margin-bottom: 0.2em;
+}
+
+.reveal .slides section.title-slide .subtitle {
+  color: #028090;
+  font-size: 0.7em;
+  font-weight: 400;
+}
+
+.reveal .slides section.title-slide .quarto-title-authors {
+  color: #636e72;
+}
+
+// Section header slides
+.reveal .slides section.section-slide {
+  background-color: #1B4965;
+  color: white;
+}
+
+.reveal .slides section.section-slide h2 {
+  color: white;
+}
+
+// General heading styling
+.reveal h2 {
+  color: #1B4965;
+  font-weight: 600;
+  border-bottom: 3px solid #028090;
+  padding-bottom: 0.2em;
+}
+
+.reveal h3 {
+  color: #028090;
+  font-weight: 600;
+}
+
+// Highlight boxes
+.reveal .callout-tip {
+  border-left-color: #028090;
+}
+
+.reveal .callout-note {
+  border-left-color: #1B4965;
+}
+
+.reveal .callout-important {
+  border-left-color: #e15759;
+}
+
+// Key insight box
+.key-insight {
+  background-color: #E8F4F8;
+  border-left: 5px solid #028090;
+  padding: 0.8em 1.2em;
+  margin: 0.8em 0;
+  border-radius: 0 8px 8px 0;
+  font-size: 0.85em;
+}
+
+// Stat callout (big numbers)
+.stat-callout {
+  text-align: center;
+  padding: 0.3em;
+}
+
+.stat-callout .stat-number {
+  font-size: 2.5em;
+  font-weight: 700;
+  color: #028090;
+  line-height: 1.1;
+}
+
+.stat-callout .stat-label {
+  font-size: 0.5em;
+  color: #636e72;
+  margin-top: 0.2em;
+}
+
+// Comparison columns
+.comparison-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1em;
+}
+
+// Footer styling
+.reveal .footer {
+  font-size: 0.4em;
+  color: #636e72;
+}
+
+// Code blocks — smaller for slides
+.reveal pre code {
+  font-size: 0.65em;
+  line-height: 1.4;
+  max-height: 400px;
+}
+
+// Table styling
+.reveal table {
+  font-size: 0.65em;
+}
+
+.reveal table th {
+  background-color: #1B4965;
+  color: white;
+  padding: 0.4em 0.8em;
+}
+
+.reveal table td {
+  padding: 0.3em 0.8em;
+}
+
+.reveal table tr:nth-child(even) {
+  background-color: #f0f7f4;
+}
+
+// Incremental list spacing
+.reveal .incremental li {
+  margin-bottom: 0.3em;
+}
+
+// Two-column layout helper
+.columns-tight {
+  display: flex;
+  gap: 1em;
+}
+
+// Emphasis text
+.emphasis {
+  color: #028090;
+  font-weight: 600;
+}
+
+.highlight-box {
+  background-color: #FFF3CD;
+  padding: 0.5em 1em;
+  border-radius: 8px;
+  font-size: 0.85em;
+}

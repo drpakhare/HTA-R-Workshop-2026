@@ -1,0 +1,234 @@
+---
+title: "Exercise: DES vs BMS Decision Tree"
+subtitle: "Exploring the cost-effectiveness of coronary stents in India"
+format:
+  html:
+    toc: true
+    code-fold: false
+    code-tools: true
+---
+
+## Instructions
+
+This exercise builds on the DES vs BMS decision tree from the explanatory module. Modify the indicated parameters, re-run the code, and interpret your findings.
+
+## Setup
+
+```{r}
+#| label: setup
+#| echo: true
+
+library(ggplot2)
+library(knitr)
+
+# Model function: DES vs BMS therapeutic decision tree
+run_des_bms_model <- function(
+    cost_des_stent = 38933, cost_bms_stent = 10693,
+    cost_procedure = 120000,
+    cost_dapt_des = 8000, cost_dapt_bms = 3000,
+    cost_followup = 5000,
+    p_restenosis_des = 0.08, p_restenosis_bms = 0.20,
+    p_mace_des_no_rest = 0.08, p_mace_bms_no_rest = 0.15,
+    p_mace_des_rest = 0.15, p_mace_bms_rest = 0.25,
+    p_mi_given_mace = 0.70,
+    cost_repeat_revasc = 194000,  # Weighted average of PCI + CABG
+    cost_mi = 200000, cost_death = 50000,
+    utility_well = 0.85, utility_restenosis = 0.78,
+    utility_mi = 0.65,
+    n_cohort = 1000, time_horizon = 5, discount_rate = 0.03
+) {
+
+  discount_factor <- sum(1 / (1 + discount_rate)^(0:(time_horizon - 1)))
+
+  # DES arm
+  des_rest <- n_cohort * p_restenosis_des
+  des_no_rest <- n_cohort * (1 - p_restenosis_des)
+  des_mace <- des_rest * p_mace_des_rest + des_no_rest * p_mace_des_no_rest
+  des_mi <- des_mace * p_mi_given_mace
+  des_death <- des_mace * (1 - p_mi_given_mace)
+
+  cost_des <- n_cohort * (cost_procedure + cost_des_stent) +
+              n_cohort * cost_dapt_des +
+              n_cohort * cost_followup * discount_factor +
+              des_rest * cost_repeat_revasc +
+              des_mi * cost_mi + des_death * cost_death
+
+  qaly_des <- des_no_rest * (1 - p_mace_des_no_rest) * utility_well * time_horizon +
+              des_no_rest * p_mace_des_no_rest * p_mi_given_mace *
+                (utility_well * 2 + utility_mi * 3) +
+              des_no_rest * p_mace_des_no_rest * (1 - p_mi_given_mace) *
+                utility_well * (time_horizon / 2) +
+              (des_rest * (1 - p_mace_des_rest)) *
+                (utility_well * 0.5 + utility_restenosis * (time_horizon - 0.5)) +
+              des_rest * p_mace_des_rest * p_mi_given_mace *
+                (utility_well * 1 + utility_mi * 2) +
+              des_rest * p_mace_des_rest * (1 - p_mi_given_mace) *
+                utility_well * 1.5
+
+  # BMS arm
+  bms_rest <- n_cohort * p_restenosis_bms
+  bms_no_rest <- n_cohort * (1 - p_restenosis_bms)
+  bms_mace <- bms_rest * p_mace_bms_rest + bms_no_rest * p_mace_bms_no_rest
+  bms_mi <- bms_mace * p_mi_given_mace
+  bms_death <- bms_mace * (1 - p_mi_given_mace)
+
+  cost_bms <- n_cohort * (cost_procedure + cost_bms_stent) +
+              n_cohort * cost_dapt_bms +
+              n_cohort * cost_followup * discount_factor +
+              bms_rest * cost_repeat_revasc +
+              bms_mi * cost_mi + bms_death * cost_death
+
+  qaly_bms <- bms_no_rest * (1 - p_mace_bms_no_rest) * utility_well * time_horizon +
+              bms_no_rest * p_mace_bms_no_rest * p_mi_given_mace *
+                (utility_well * 2 + utility_mi * 3) +
+              bms_no_rest * p_mace_bms_no_rest * (1 - p_mi_given_mace) *
+                utility_well * (time_horizon / 2) +
+              (bms_rest * (1 - p_mace_bms_rest)) *
+                (utility_well * 0.5 + utility_restenosis * (time_horizon - 0.5)) +
+              bms_rest * p_mace_bms_rest * p_mi_given_mace *
+                (utility_well * 1 + utility_mi * 2) +
+              bms_rest * p_mace_bms_rest * (1 - p_mi_given_mace) *
+                utility_well * 1.5
+
+  list(
+    cost_des = cost_des, cost_bms = cost_bms,
+    qaly_des = qaly_des, qaly_bms = qaly_bms,
+    restenosis_des = des_rest, restenosis_bms = bms_rest,
+    mace_des = des_mace, mace_bms = bms_mace,
+    inc_cost = cost_des - cost_bms,
+    inc_qaly = qaly_des - qaly_bms,
+    icer = (cost_des - cost_bms) / (qaly_des - qaly_bms)
+  )
+}
+```
+
+## Task 1: Pre-Regulation Stent Prices
+
+Before NPPA regulation in 2017, DES cost approximately ₹1,20,000 and BMS cost approximately ₹45,000. How does this change the ICER?
+
+```{r}
+#| label: task1
+#| echo: true
+
+# >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
+# TASK 1: Use pre-regulation prices
+# >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
+
+result_pre_reg <- run_des_bms_model(
+  cost_des_stent = ___,    # Replace with 120000
+  cost_bms_stent = ___     # Replace with 45000
+)
+
+cat("Pre-regulation ICER: ₹", format(round(result_pre_reg$icer), big.mark = ","), "per QALY\n")
+
+# Compare with current prices
+result_current <- run_des_bms_model()
+cat("Current (2025) ICER: ₹", format(round(result_current$icer), big.mark = ","), "per QALY\n")
+```
+
+**Your interpretation:**
+*[How did the NPPA price regulation affect the cost-effectiveness of DES? What does this tell us about the role of pricing policy in HTA?]*
+
+## Task 2: What If Restenosis Rates Were Equal?
+
+New-generation DES have even lower restenosis rates (~3-5%). What if BMS restenosis was also lower than expected (say 10%)?
+
+```{r}
+#| label: task2
+#| echo: true
+
+# >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
+# TASK 2: Vary restenosis rates
+# >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
+
+# Scenario A: State-of-the-art DES (3%) vs standard BMS (20%)
+result_a <- run_des_bms_model(p_restenosis_des = ___, p_restenosis_bms = ___)
+
+# Scenario B: Standard DES (8%) vs improved BMS (10%)
+result_b <- run_des_bms_model(p_restenosis_des = ___, p_restenosis_bms = ___)
+
+cat("Scenario A (DES 3% vs BMS 20%):\n")
+cat("  ICER: ₹", format(round(result_a$icer), big.mark = ","), "per QALY\n\n")
+
+cat("Scenario B (DES 8% vs BMS 10%):\n")
+cat("  ICER: ₹", format(round(result_b$icer), big.mark = ","), "per QALY\n")
+```
+
+**Your interpretation:**
+*[What drives the cost-effectiveness of DES — is it the absolute restenosis rate or the difference between DES and BMS? What happens when the gap narrows?]*
+
+## Task 3: Threshold Analysis — At What DES Price Does It Stop Being Cost-Effective?
+
+```{r}
+#| label: task3
+#| echo: true
+#| fig-cap: "Threshold analysis: DES stent price vs ICER"
+
+# This code is complete — just run it
+
+des_prices <- seq(10000, 150000, by = 5000)
+icers <- numeric(length(des_prices))
+
+for (i in seq_along(des_prices)) {
+  res <- run_des_bms_model(cost_des_stent = des_prices[i])
+  icers[i] <- res$icer
+}
+
+threshold_data <- data.frame(DES_Price = des_prices, ICER = icers)
+
+ggplot(threshold_data, aes(x = DES_Price / 1000, y = ICER)) +
+  geom_line(colour = "steelblue", linewidth = 1.2) +
+  geom_hline(yintercept = 170000, linetype = "dashed", colour = "red") +
+  geom_vline(xintercept = 38.933, linetype = "dotted", colour = "green4") +
+  annotate("text", x = 120, y = 185000,
+           label = "WTP = ₹1,70,000/QALY (1x GDP p.c.)", colour = "red", size = 3) +
+  annotate("text", x = 55, y = min(icers) * 1.5,
+           label = "Current NPPA\nceiling", colour = "green4", size = 3) +
+  labs(
+    x = "DES Stent Price (₹ thousands)",
+    y = "ICER (₹ per QALY)",
+    title = "At What DES Price Does It Stop Being Cost-Effective?",
+    subtitle = "BMS price fixed at ₹10,693 (NPPA 2025)"
+  ) +
+  theme_minimal()
+```
+
+**Your interpretation:**
+*[At approximately what DES price does the ICER cross the WTP threshold? Is the current NPPA ceiling well below this threshold?]*
+
+## Task 4: Number Needed to Treat Analysis
+
+How many patients need to receive DES instead of BMS to prevent one additional MACE event?
+
+```{r}
+#| label: task4
+#| echo: true
+
+# >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
+# TASK 4: Calculate NNT — this code is complete, just run it
+# >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
+
+result <- run_des_bms_model()
+
+mace_rate_des <- result$mace_des / 1000
+mace_rate_bms <- result$mace_bms / 1000
+
+absolute_risk_reduction <- mace_rate_bms - mace_rate_des
+nnt <- 1 / absolute_risk_reduction
+
+cat("MACE rate with DES:", round(mace_rate_des * 100, 1), "%\n")
+cat("MACE rate with BMS:", round(mace_rate_bms * 100, 1), "%\n")
+cat("Absolute risk reduction:", round(absolute_risk_reduction * 100, 1), "percentage points\n")
+cat("NNT to prevent one MACE:", round(nnt), "patients\n\n")
+
+# Cost per MACE avoided
+additional_cost_per_patient <- result$inc_cost / 1000
+cost_per_mace_avoided <- result$inc_cost / (result$mace_bms - result$mace_des)
+cat("Additional cost per patient for DES: ₹", format(round(additional_cost_per_patient), big.mark = ","), "\n")
+cat("Cost per MACE event avoided: ₹", format(round(cost_per_mace_avoided), big.mark = ","), "\n")
+```
+
+**Your interpretation:**
+*[Is the NNT clinically meaningful? How would you explain the cost per MACE avoided to a clinician or policy maker who is more familiar with NNT than ICERs?]*
+
+→ **Check your answers:** Open `des-bms-solution.qmd` for completed solutions with interpretation.

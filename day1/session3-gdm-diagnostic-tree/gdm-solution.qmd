@@ -1,0 +1,275 @@
+---
+title: "Solution: GDM Diagnostic Decision Tree Exercise"
+subtitle: "Completed answers with interpretation"
+format:
+  html:
+    toc: true
+    code-fold: show
+    code-tools: true
+---
+
+```{r}
+#| label: setup
+#| echo: false
+#| message: false
+
+library(ggplot2)
+library(knitr)
+
+# Copy the model function from exercise (collapsed for readability)
+run_gdm_model <- function(prev_gdm, sens_ogtt, spec_ogtt, prop_high_risk,
+                           prev_gdm_high_risk, prev_gdm_low_risk,
+                           cost_ogtt, cost_risk_assessment, cost_gdm_treatment,
+                           p_adverse_gdm_treated, p_adverse_gdm_untreated,
+                           p_adverse_no_gdm, cost_adverse, cost_no_adverse,
+                           utility_adverse, utility_no_adverse,
+                           utility_gdm_treated, detection_rate_clinical,
+                           n_cohort = 10000) {
+
+  n_gdm <- n_cohort * prev_gdm
+  n_no_gdm <- n_cohort * (1 - prev_gdm)
+  tp <- n_gdm * sens_ogtt
+  fn <- n_gdm * (1 - sens_ogtt)
+  fp <- n_no_gdm * (1 - spec_ogtt)
+  tn <- n_no_gdm * spec_ogtt
+
+  cost_univ <- n_cohort * cost_ogtt +
+               (tp + fp) * cost_gdm_treatment +
+               (tp * p_adverse_gdm_treated + fn * p_adverse_gdm_untreated +
+                (fp + tn) * p_adverse_no_gdm) * cost_adverse +
+               (tp * (1 - p_adverse_gdm_treated) + fn * (1 - p_adverse_gdm_untreated) +
+                (fp + tn) * (1 - p_adverse_no_gdm)) * cost_no_adverse
+
+  qaly_univ <- tp * ((1 - p_adverse_gdm_treated) * utility_gdm_treated +
+               p_adverse_gdm_treated * utility_adverse) +
+               fn * ((1 - p_adverse_gdm_untreated) * utility_no_adverse +
+               p_adverse_gdm_untreated * utility_adverse) +
+               fp * ((1 - p_adverse_no_gdm) * utility_gdm_treated +
+               p_adverse_no_gdm * utility_adverse) +
+               tn * ((1 - p_adverse_no_gdm) * utility_no_adverse +
+               p_adverse_no_gdm * utility_adverse)
+
+  adverse_univ <- tp * p_adverse_gdm_treated + fn * p_adverse_gdm_untreated +
+                  (fp + tn) * p_adverse_no_gdm
+
+  n_hr <- n_cohort * prop_high_risk
+  n_lr <- n_cohort * (1 - prop_high_risk)
+  n_gdm_hr <- n_hr * prev_gdm_high_risk
+  n_no_gdm_hr <- n_hr * (1 - prev_gdm_high_risk)
+  n_gdm_lr <- n_lr * prev_gdm_low_risk
+  n_no_gdm_lr <- n_lr * (1 - prev_gdm_low_risk)
+
+  tp_hr <- n_gdm_hr * sens_ogtt
+  fn_hr <- n_gdm_hr * (1 - sens_ogtt)
+  fp_hr <- n_no_gdm_hr * (1 - spec_ogtt)
+  tn_hr <- n_no_gdm_hr * spec_ogtt
+
+  cost_risk <- n_cohort * cost_risk_assessment + n_hr * cost_ogtt +
+               (tp_hr + fp_hr) * cost_gdm_treatment +
+               (tp_hr * p_adverse_gdm_treated + fn_hr * p_adverse_gdm_untreated +
+                (fp_hr + tn_hr) * p_adverse_no_gdm +
+                n_gdm_lr * p_adverse_gdm_untreated +
+                n_no_gdm_lr * p_adverse_no_gdm) * cost_adverse +
+               (tp_hr * (1 - p_adverse_gdm_treated) + fn_hr * (1 - p_adverse_gdm_untreated) +
+                (fp_hr + tn_hr) * (1 - p_adverse_no_gdm) +
+                n_gdm_lr * (1 - p_adverse_gdm_untreated) +
+                n_no_gdm_lr * (1 - p_adverse_no_gdm)) * cost_no_adverse
+
+  qaly_risk <- tp_hr * ((1 - p_adverse_gdm_treated) * utility_gdm_treated +
+               p_adverse_gdm_treated * utility_adverse) +
+               fn_hr * ((1 - p_adverse_gdm_untreated) * utility_no_adverse +
+               p_adverse_gdm_untreated * utility_adverse) +
+               fp_hr * ((1 - p_adverse_no_gdm) * utility_gdm_treated +
+               p_adverse_no_gdm * utility_adverse) +
+               tn_hr * ((1 - p_adverse_no_gdm) * utility_no_adverse +
+               p_adverse_no_gdm * utility_adverse) +
+               n_gdm_lr * ((1 - p_adverse_gdm_untreated) * utility_no_adverse +
+               p_adverse_gdm_untreated * utility_adverse) +
+               n_no_gdm_lr * ((1 - p_adverse_no_gdm) * utility_no_adverse +
+               p_adverse_no_gdm * utility_adverse)
+
+  adverse_risk <- tp_hr * p_adverse_gdm_treated + fn_hr * p_adverse_gdm_untreated +
+                  (fp_hr + tn_hr) * p_adverse_no_gdm +
+                  n_gdm_lr * p_adverse_gdm_untreated +
+                  n_no_gdm_lr * p_adverse_no_gdm
+
+  n_gdm_det <- n_cohort * prev_gdm * detection_rate_clinical
+  n_gdm_undet <- n_cohort * prev_gdm * (1 - detection_rate_clinical)
+  n_no_gdm_all <- n_cohort * (1 - prev_gdm)
+
+  cost_none <- n_gdm_det * cost_gdm_treatment +
+               (n_gdm_det * p_adverse_gdm_treated +
+                n_gdm_undet * p_adverse_gdm_untreated +
+                n_no_gdm_all * p_adverse_no_gdm) * cost_adverse +
+               (n_gdm_det * (1 - p_adverse_gdm_treated) +
+                n_gdm_undet * (1 - p_adverse_gdm_untreated) +
+                n_no_gdm_all * (1 - p_adverse_no_gdm)) * cost_no_adverse
+
+  qaly_none <- n_gdm_det * ((1 - p_adverse_gdm_treated) * utility_gdm_treated +
+               p_adverse_gdm_treated * utility_adverse) +
+               n_gdm_undet * ((1 - p_adverse_gdm_untreated) * utility_no_adverse +
+               p_adverse_gdm_untreated * utility_adverse) +
+               n_no_gdm_all * ((1 - p_adverse_no_gdm) * utility_no_adverse +
+               p_adverse_no_gdm * utility_adverse)
+
+  adverse_none <- n_gdm_det * p_adverse_gdm_treated +
+                  n_gdm_undet * p_adverse_gdm_untreated +
+                  n_no_gdm_all * p_adverse_no_gdm
+
+  data.frame(
+    Strategy = c("Universal Screening", "Risk-Based Screening", "No Screening"),
+    Total_Cost = c(cost_univ, cost_risk, cost_none),
+    Total_QALYs = c(qaly_univ, qaly_risk, qaly_none),
+    Adverse_Outcomes = c(adverse_univ, adverse_risk, adverse_none)
+  )
+}
+```
+
+## Task 1 Solution: Changing GDM Prevalence
+
+```{r}
+#| label: task1-solution
+#| echo: true
+
+# South India: prevalence = 20%
+results_south <- run_gdm_model(
+  prev_gdm = 0.20,
+  sens_ogtt = 0.90, spec_ogtt = 0.85, prop_high_risk = 0.60,
+  prev_gdm_high_risk = 0.18, prev_gdm_low_risk = 0.03,
+  cost_ogtt = 250, cost_risk_assessment = 50, cost_gdm_treatment = 8000,
+  p_adverse_gdm_treated = 0.10, p_adverse_gdm_untreated = 0.35,
+  p_adverse_no_gdm = 0.05, cost_adverse = 45000, cost_no_adverse = 5000,
+  utility_adverse = 0.65, utility_no_adverse = 0.90,
+  utility_gdm_treated = 0.82, detection_rate_clinical = 0.25
+)
+
+# North/East India: prevalence = 8%
+results_north <- run_gdm_model(
+  prev_gdm = 0.08,
+  sens_ogtt = 0.90, spec_ogtt = 0.85, prop_high_risk = 0.60,
+  prev_gdm_high_risk = 0.18, prev_gdm_low_risk = 0.03,
+  cost_ogtt = 250, cost_risk_assessment = 50, cost_gdm_treatment = 8000,
+  p_adverse_gdm_treated = 0.10, p_adverse_gdm_untreated = 0.35,
+  p_adverse_no_gdm = 0.05, cost_adverse = 45000, cost_no_adverse = 5000,
+  utility_adverse = 0.65, utility_no_adverse = 0.90,
+  utility_gdm_treated = 0.82, detection_rate_clinical = 0.25
+)
+
+# ICERs
+icer_south <- (results_south$Total_Cost[1] - results_south$Total_Cost[3]) /
+              (results_south$Total_QALYs[1] - results_south$Total_QALYs[3])
+icer_north <- (results_north$Total_Cost[1] - results_north$Total_Cost[3]) /
+              (results_north$Total_QALYs[1] - results_north$Total_QALYs[3])
+
+cat("ICER at 20% prevalence (South India): ₹", format(round(icer_south), big.mark = ","), "per QALY\n")
+cat("ICER at 8% prevalence (North/East): ₹", format(round(icer_north), big.mark = ","), "per QALY\n")
+```
+
+**Interpretation:** When GDM prevalence is higher (as in South India), universal screening becomes more cost-effective because each screening test is more likely to detect a true case. The number needed to screen to find one case is lower, so the screening cost per detected case drops. At lower prevalence, more screening resources are spent on women who do not have GDM, making the programme relatively less efficient — but it may still be cost-effective depending on the WTP threshold. This has direct policy implications: states like Andhra Pradesh, Tamil Nadu, and Kerala may have a stronger economic case for universal screening than states like Assam or Manipur.
+
+## Task 2 Solution: Doubling the OGTT Cost
+
+```{r}
+#| label: task2-solution
+#| echo: true
+
+results_expensive <- run_gdm_model(
+  prev_gdm = 0.12,
+  sens_ogtt = 0.90, spec_ogtt = 0.85, prop_high_risk = 0.60,
+  prev_gdm_high_risk = 0.18, prev_gdm_low_risk = 0.03,
+  cost_ogtt = 500, cost_risk_assessment = 50, cost_gdm_treatment = 8000,
+  p_adverse_gdm_treated = 0.10, p_adverse_gdm_untreated = 0.35,
+  p_adverse_no_gdm = 0.05, cost_adverse = 45000, cost_no_adverse = 5000,
+  utility_adverse = 0.65, utility_no_adverse = 0.90,
+  utility_gdm_treated = 0.82, detection_rate_clinical = 0.25
+)
+
+results_expensive$Cost_per_Woman <- round(results_expensive$Total_Cost / 10000)
+results_expensive$QALY_per_Woman <- round(results_expensive$Total_QALYs / 10000, 4)
+
+kable(results_expensive[, c("Strategy", "Cost_per_Woman", "QALY_per_Woman")],
+      col.names = c("Strategy", "Cost per Woman (₹)", "QALY per Woman"),
+      digits = 0,
+      caption = "Results with OGTT cost = ₹500")
+```
+
+**Interpretation:** Doubling the OGTT cost increases the total cost of both universal and risk-based screening, but the incremental cost per QALY gained is still relatively modest because the ₹250 increase per test is small compared to the ₹45,000 cost of an adverse outcome. The model is not highly sensitive to screening test cost because the major cost driver is the downstream management of adverse outcomes, not the test itself. This is a common finding in diagnostic HTA — the test cost is usually a small fraction of the total cost.
+
+## Task 3 Solution: DIPSI vs Fasting OGTT
+
+```{r}
+#| label: task3-solution
+#| echo: true
+
+results_dipsi <- run_gdm_model(
+  prev_gdm = 0.12,
+  sens_ogtt = 0.28, spec_ogtt = 0.98, prop_high_risk = 0.60,
+  prev_gdm_high_risk = 0.18, prev_gdm_low_risk = 0.03,
+  cost_ogtt = 250, cost_risk_assessment = 50, cost_gdm_treatment = 8000,
+  p_adverse_gdm_treated = 0.10, p_adverse_gdm_untreated = 0.35,
+  p_adverse_no_gdm = 0.05, cost_adverse = 45000, cost_no_adverse = 5000,
+  utility_adverse = 0.65, utility_no_adverse = 0.90,
+  utility_gdm_treated = 0.82, detection_rate_clinical = 0.25
+)
+
+n_gdm <- 10000 * 0.12
+cat("=== Test Comparison ===\n")
+cat("Fasting OGTT: detects", round(n_gdm * 0.90), "of", n_gdm, "GDM cases (",
+    round(0.90 * 100), "% sensitivity)\n")
+cat("DIPSI:        detects", round(n_gdm * 0.28), "of", n_gdm, "GDM cases (",
+    round(0.28 * 100), "% sensitivity)\n\n")
+
+cat("Additional GDM cases missed by DIPSI:", round(n_gdm * 0.90) - round(n_gdm * 0.28), "\n")
+cat("These women have a", round(0.35 * 100), "% probability of adverse outcomes\n")
+```
+
+**Interpretation:** DIPSI misses approximately 72% of GDM cases that fasting OGTT would detect. While DIPSI is easier to administer (no fasting required, suitable for rural settings), the clinical cost of missed diagnoses is substantial — each missed case has a 35% chance of adverse outcomes. However, in settings where fasting OGTT is simply not feasible (no lab, no trained phlebotomist, women cannot return fasting), DIPSI with its 28% sensitivity is still better than no screening at all (25% clinical detection). The policy question is not "DIPSI vs OGTT" in isolation, but rather "what is the best achievable screening strategy given local infrastructure constraints."
+
+## Task 4 Solution: Sensitivity Analysis Interpretation
+
+```{r}
+#| label: task4-solution
+#| echo: true
+#| fig-cap: "One-way sensitivity analysis with interpretation"
+
+prev_range <- seq(0.05, 0.25, by = 0.01)
+icer_values <- numeric(length(prev_range))
+
+for (i in seq_along(prev_range)) {
+  res <- run_gdm_model(
+    prev_gdm = prev_range[i],
+    sens_ogtt = 0.90, spec_ogtt = 0.85, prop_high_risk = 0.60,
+    prev_gdm_high_risk = 0.18, prev_gdm_low_risk = 0.03,
+    cost_ogtt = 250, cost_risk_assessment = 50, cost_gdm_treatment = 8000,
+    p_adverse_gdm_treated = 0.10, p_adverse_gdm_untreated = 0.35,
+    p_adverse_no_gdm = 0.05, cost_adverse = 45000, cost_no_adverse = 5000,
+    utility_adverse = 0.65, utility_no_adverse = 0.90,
+    utility_gdm_treated = 0.82, detection_rate_clinical = 0.25
+  )
+  inc_cost <- res$Total_Cost[1] - res$Total_Cost[3]
+  inc_qaly <- res$Total_QALYs[1] - res$Total_QALYs[3]
+  icer_values[i] <- inc_cost / inc_qaly
+}
+
+sa_data <- data.frame(Prevalence = prev_range, ICER = icer_values)
+
+ggplot(sa_data, aes(x = Prevalence * 100, y = ICER)) +
+  geom_line(colour = "steelblue", linewidth = 1.2) +
+  geom_hline(yintercept = 100000, linetype = "dashed", colour = "red") +
+  annotate("text", x = 22, y = 110000, label = "WTP = ₹1,00,000/QALY",
+           colour = "red", size = 3) +
+  geom_vline(xintercept = 12, linetype = "dotted", colour = "grey50") +
+  annotate("text", x = 13, y = max(icer_values) * 0.9,
+           label = "Base case\n(12%)", colour = "grey40", size = 3) +
+  labs(
+    x = "GDM Prevalence (%)",
+    y = "ICER (₹ per QALY)",
+    title = "One-Way Sensitivity Analysis: GDM Prevalence",
+    subtitle = "Universal screening vs no screening"
+  ) +
+  theme_minimal()
+```
+
+**Interpretation:** The ICER decreases as prevalence increases — this is expected because higher prevalence means more true positives per screening test, making the programme more efficient. Across the range of GDM prevalence reported in Indian studies (8–20%), the ICER remains well within commonly used WTP thresholds. Even at the lowest Indian prevalence estimates (~5%), universal screening may still be cost-effective. This suggests that the case for universal screening in India is robust to regional variations in GDM prevalence.
+
+→ **Return to** `gdm-diagnostic-tree.qmd` **for the full model explanation, or continue to Session 4.**

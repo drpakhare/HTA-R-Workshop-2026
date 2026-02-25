@@ -1,0 +1,368 @@
+---
+title: "Probabilistic Sensitivity Analysis"
+subtitle: "Why uncertainty in parameters demands a distribution, not a point estimate"
+author: "R for HTA (Basics) — Workshop 2026"
+institute: "RRC-HTA, AIIMS Bhopal | HTAIn, DHR"
+format:
+  revealjs:
+    theme: [default, ../../custom-theme.scss]
+    slide-number: true
+    footer: "R for HTA (Basics) — RRC-HTA, AIIMS Bhopal"
+    logo: ""
+    transition: fade
+    width: 1280
+    height: 720
+    code-fold: true
+    code-overflow: wrap
+    highlight-style: github
+    fig-align: center
+execute:
+  echo: true
+  eval: false
+  warning: false
+  message: false
+---
+
+## Why Probabilistic Sensitivity Analysis?
+
+When you submit a cost-effectiveness model to NICE, CADTH, or India's NITI Aayog, you make implicit claims:
+
+. . .
+
+*"This transition probability is 0.10. This cost is ₹45,000. This utility weight is 0.72."*
+
+. . .
+
+**But are they really?**
+
+- Clinical trials have limited sample sizes
+- Cost data come from specific regions and time periods
+- Utility estimates vary across populations
+
+. . .
+
+**The question decision-makers now demand:**
+
+If true parameters vary within plausible ranges, does your recommendation change? How confident are you really?
+
+## Point Estimates vs Distributions
+
+**Old approach (still common in Excel):**
+- One transition probability: 0.10
+- One cost: ₹45,000
+- One result: ICER ₹80,000/QALY
+
+. . .
+
+**Modern approach (PSA):**
+- Transition probability drawn from Beta(α, β)
+- Cost drawn from Gamma(shape, rate)
+- Run model 5,000 times → distribution of ICERs
+
+. . .
+
+**Gain:** Not just "the ICER is ₹80,000" but "there is 85% probability the intervention is cost-effective at ₹1,70,000/QALY"
+
+## The PSA Workflow
+
+```{r}
+#| label: fig-psa-workflow
+#| echo: false
+#| eval: true
+#| fig-width: 12
+#| fig-height: 5
+
+library(DiagrammeR)
+
+grViz("
+digraph psa_workflow {
+  graph [rankdir=LR, bgcolor='transparent', fontname='Helvetica']
+  node [shape=box, style='filled,rounded', fontname='Helvetica', fontsize=11]
+
+  A [label='1. Define\nDistributions\nfor each parameter', fillcolor='#4e79a7', fontcolor='white']
+  B [label='2. Sample\nParameters\n(random draw)', fillcolor='#59a14f', fontcolor='white']
+  C [label='3. Run\nModel\n(one iteration)', fillcolor='#f28e2b', fontcolor='white']
+  D [label='4. Store\nResults\n(cost, QALY, ICER)', fillcolor='#e15759', fontcolor='white']
+  E [label='5. Repeat\n1000-10000\ntimes', fillcolor='#76b7b2', fontcolor='white']
+  F [label='6. Summarise\nUncertainty\n(CE plane, CEAC)', fillcolor='#edc948', fontcolor='black']
+
+  A -> B -> C -> D -> E -> F
+  E -> B [style=dashed, label='Loop', fontsize=9]
+}
+")
+```
+
+## Which Distribution for Which Parameter?
+
+```{r}
+#| label: fig-distribution-map
+#| echo: false
+#| eval: true
+#| fig-width: 12
+#| fig-height: 5
+
+grViz("
+digraph dist_map {
+  graph [rankdir=TB, bgcolor='transparent', fontname='Helvetica']
+  node [fontname='Helvetica', fontsize=11, style='filled,rounded', shape=box]
+
+  prob [label='Probabilities &\nUtilities\n(bounded 0-1)', fillcolor='#4e79a7', fontcolor='white', width=2.2]
+  cost [label='Costs\n(non-negative,\nright-skewed)', fillcolor='#59a14f', fontcolor='white', width=2.2]
+  hr [label='Hazard Ratios &\nRelative Risks\n(positive, often <1)', fillcolor='#f28e2b', fontcolor='white', width=2.2]
+
+  beta [label='Beta(α, β)', fillcolor='#d4e6f1', shape=ellipse, width=1.8, fontsize=12]
+  gamma [label='Gamma(shape, rate)', fillcolor='#d5f5e3', shape=ellipse, width=1.8, fontsize=12]
+  lognorm [label='Log-Normal(μ, σ)', fillcolor='#fdebd0', shape=ellipse, width=1.8, fontsize=12]
+
+  prob -> beta
+  cost -> gamma
+  hr -> lognorm
+}
+")
+```
+
+## Beta Distribution for Probabilities
+
+**When:** Transition probabilities, event rates (bounded 0–1)
+
+. . .
+
+**Convert from mean and SE:**
+$$\alpha = \mu \left(\frac{\mu(1-\mu)}{\sigma^2} - 1\right), \quad \beta = (1-\mu) \left(\frac{\mu(1-\mu)}{\sigma^2} - 1\right)$$
+
+. . .
+
+**R code example:**
+
+```r
+# p = 0.10 (transition Early → Moderate), SE = 0.02
+mean_p <- 0.10
+se_p <- 0.02
+
+alpha <- mean_p * (mean_p * (1 - mean_p) / (se_p^2) - 1)
+beta <- (1 - mean_p) * (mean_p * (1 - mean_p) / (se_p^2) - 1)
+
+samples <- rbeta(5000, alpha, beta)
+```
+
+## Gamma Distribution for Costs
+
+**When:** Annual costs (non-negative, right-skewed)
+
+. . .
+
+**Convert from mean and SE:**
+$$\text{shape} = \frac{\mu^2}{\sigma^2}, \quad \text{rate} = \frac{\mu}{\sigma^2}$$
+
+. . .
+
+**R code example:**
+
+```r
+# cost_moderate = ₹45,000, SE = ₹5,000
+mean_cost <- 45000
+se_cost <- 5000
+
+shape <- mean_cost^2 / (se_cost^2)
+rate <- mean_cost / (se_cost^2)
+
+samples <- rgamma(5000, shape = shape, rate = rate)
+```
+
+## Log-Normal Distribution for Hazard Ratios
+
+**When:** Hazard ratios, relative risks (positive, usually < 1)
+
+. . .
+
+**Convert from point estimate and 95% CI:**
+$$\text{SE}_{\log(\text{HR})} = \frac{\log(\text{upper}) - \log(\text{lower})}{3.92}$$
+
+. . .
+
+**R code example:**
+
+```r
+# HR = 0.66, 95% CI (0.55, 0.79)
+hr_mean <- log(0.66)
+log_se <- (log(0.79) - log(0.55)) / 3.92
+
+samples <- rlnorm(5000, meanlog = hr_mean, sdlog = log_se)
+```
+
+## Example: Parameter Distributions
+
+```{r}
+#| label: example-dists
+#| echo: false
+#| eval: true
+#| fig-width: 13
+#| fig-height: 5
+
+library(ggplot2)
+library(dplyr)
+
+set.seed(2026)
+
+# Beta example
+mean_p <- 0.10
+se_p <- 0.02
+var_p <- se_p^2
+alpha_beta <- mean_p * (mean_p * (1 - mean_p) / var_p - 1)
+beta_beta <- (1 - mean_p) * (mean_p * (1 - mean_p) / var_p - 1)
+samples_beta <- rbeta(3000, alpha_beta, beta_beta)
+
+# Gamma example
+mean_cost <- 45000
+se_cost <- 5000
+shape_gamma <- mean_cost^2 / (se_cost^2)
+rate_gamma <- mean_cost / (se_cost^2)
+samples_gamma <- rgamma(3000, shape = shape_gamma, rate = rate_gamma)
+
+# Log-Normal example
+hr_mean <- log(0.66)
+log_se <- (log(0.79) - log(0.55)) / 3.92
+samples_lognormal <- rlnorm(3000, meanlog = hr_mean, sdlog = log_se)
+
+# Combine
+dist_data <- data.frame(
+  Distribution = rep(c("Beta (Probability)", "Gamma (Cost ₹)", "Log-Normal (HR)"),
+                     c(3000, 3000, 3000)),
+  Value = c(samples_beta, samples_gamma, samples_lognormal)
+)
+
+ggplot(dist_data, aes(x = Value, fill = Distribution)) +
+  geom_density(alpha = 0.6, color = NA) +
+  facet_wrap(~ Distribution, scales = "free") +
+  labs(
+    title = "Example Parameter Distributions for PSA",
+    subtitle = "Transition Probability (p) | Cost (₹) | Hazard Ratio (HR)"
+  ) +
+  theme_minimal() +
+  theme(legend.position = "none")
+```
+
+## The PSA Loop (Pseudocode)
+
+```r
+for (i in 1:5000) {
+  # Sample parameters from distributions
+  p_12_sampled <- rbeta(1, alpha_12, beta_12)
+  cost_moderate_sampled <- rgamma(1, shape_m, rate_m)
+  hr_sampled <- rlnorm(1, log_hr_mean, log_hr_se)
+  # ... sample all other parameters ...
+
+  # Run model with these sampled values
+  result <- run_markov(p_12_sampled, cost_moderate_sampled, hr_sampled, ...)
+
+  # Store outcomes
+  results_df[i, "inc_cost"] <- result$inc_cost
+  results_df[i, "inc_qaly"] <- result$inc_qaly
+  results_df[i, "icer"] <- result$inc_cost / result$inc_qaly
+}
+```
+
+. . .
+
+**Outcome:** Data frame with 5,000 rows, each with different inc_cost, inc_qaly, ICER
+
+## Cost-Effectiveness Plane Explained
+
+:::{.columns}
+
+:::{.column width="60%"}
+
+The **CE plane** plots all 5,000 PSA iterations as points:
+- **X-axis:** Incremental QALYs (treatment gained)
+- **Y-axis:** Incremental cost (₹)
+
+:::
+
+:::{.column width="40%"}
+
+**Four quadrants:**
+- **Bottom-right:** Dominant (better + cheaper)
+- **Top-right:** Cost-effective if below WTP line
+- **Top-left:** Dominated (worse + costly)
+- **Bottom-left:** Dominated (worse + cheaper)
+
+:::
+
+:::
+
+. . .
+
+**Red dashed line = WTP threshold (₹1,70,000/QALY in India)**
+
+Points below the line are cost-effective; above are not.
+
+## Cost-Effectiveness Acceptability Curve (CEAC)
+
+**Question answered by CEAC:**
+
+"Across different willingness-to-pay thresholds, what is the probability the intervention is cost-effective?"
+
+. . .
+
+**Method:** For each WTP threshold, calculate:
+
+$$\text{Prob}_{\text{CE}} = \frac{\text{# iterations with ICER < WTP}}{\text{total iterations}}$$
+
+. . .
+
+**Reading the CEAC:**
+- At ₹0/QALY threshold: 0% (almost never cost-effective)
+- At ₹1,70,000/QALY: 85% (highly likely)
+- At ₹5,00,000/QALY: >95% (very confident)
+
+. . .
+
+This **directly answers** decision-makers' uncertainty.
+
+## PSA in Excel vs R
+
+**Excel approach:**
+- Create 5,000 rows of random numbers for each parameter
+- Use VLOOKUP or INDEX/MATCH to match to distributions
+- Copy model formula down 5,000 times
+- Hope formatting doesn't break...
+
+. . .
+
+**R approach:**
+```r
+for (i in 1:5000) {
+  params_sampled <- c(rbeta(...), rgamma(...), rlnorm(...))
+  results[i] <- run_model(params_sampled)
+}
+```
+
+. . .
+
+**Advantages of R:**
+- Transparent and reproducible
+- Far fewer manual steps
+- Easy to modify or re-run
+- Direct integration with visualization
+
+## Key Takeaways: PSA
+
+::::{.key-insight}
+
+1. **PSA answers uncertainty:** Not just "what is the ICER?" but "given parameter uncertainty, what is the probability the intervention is cost-effective?"
+
+2. **Choose distributions carefully:** Beta for probabilities, Gamma for costs, Log-Normal for relative effects
+
+3. **Parameterize correctly:** Converting mean/SE to shape parameters is critical (and error-prone in Excel)
+
+4. **Interpret results properly:**
+   - CE plane shows scatter of outcomes
+   - CEAC shows decision robustness across WTP thresholds
+
+5. **This is now the standard:** NICE, CADTH, NITI Aayog all require PSA in submissions
+
+::::
+
+---
+
+**Next:** Session 7 — Using Generative AI for HTA coding (AI as your R assistant)

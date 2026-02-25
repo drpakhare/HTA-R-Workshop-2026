@@ -1,0 +1,936 @@
+---
+title: "Solutions: Probabilistic Sensitivity Analysis"
+subtitle: "Worked solutions and interpretations for all exercises"
+author: "HTA in R Workshop"
+date: "`r Sys.Date()`"
+format:
+  html:
+    toc: true
+    toc-depth: 2
+    code-fold: false
+    code-line-numbers: true
+    theme: cosmo
+    highlight-style: github
+---
+
+## Setup: Functions and Dependencies
+
+```{r}
+#| label: setup-solutions
+#| message: false
+
+library(ggplot2)
+library(dplyr)
+library(tidyr)
+library(gridExtra)
+
+set.seed(2026)
+
+# Helper functions
+convert_beta_params <- function(mean, se) {
+  var <- se^2
+  alpha <- mean * (mean * (1 - mean) / var - 1)
+  beta <- (1 - mean) * (mean * (1 - mean) / var - 1)
+  return(c(alpha = alpha, beta = beta))
+}
+
+convert_gamma_params <- function(mean, se) {
+  var <- se^2
+  shape <- mean^2 / var
+  rate <- mean / var
+  return(c(shape = shape, rate = rate))
+}
+
+# CKD Markov PSA Function
+run_markov_psa <- function(
+    p_12, p_23, p_1d, p_2d, p_3d,
+    hr_treatment,
+    cost_early, cost_moderate, cost_advanced, cost_ace, cost_screening,
+    util_early, util_moderate, util_advanced,
+    n_years = 20) {
+
+  n_cohort <- 1000
+
+  states_standard <- matrix(0, nrow = n_years + 1, ncol = 4)
+  colnames(states_standard) <- c("Early", "Moderate", "Advanced", "Dead")
+
+  states_intervention <- matrix(0, nrow = n_years + 1, ncol = 4)
+  colnames(states_intervention) <- c("Early", "Moderate", "Advanced", "Dead")
+
+  states_standard[1, 1] <- n_cohort
+  states_intervention[1, 1] <- n_cohort
+
+  for (year in 1:n_years) {
+    early_standard <- states_standard[year, 1]
+    moderate_standard <- states_standard[year, 2]
+    advanced_standard <- states_standard[year, 3]
+
+    states_standard[year + 1, 1] <- early_standard * (1 - p_12 - p_1d)
+    states_standard[year + 1, 2] <- early_standard * p_12 + moderate_standard * (1 - p_23 - p_2d)
+    states_standard[year + 1, 3] <- moderate_standard * p_23 + advanced_standard * (1 - p_3d)
+    states_standard[year + 1, 4] <- early_standard * p_1d +
+                                     moderate_standard * p_2d +
+                                     advanced_standard * p_3d +
+                                     states_standard[year, 4]
+
+    early_intervention <- states_intervention[year, 1]
+    moderate_intervention <- states_intervention[year, 2]
+    advanced_intervention <- states_intervention[year, 3]
+
+    p_12_tx <- 1 - (1 - p_12)^hr_treatment
+    p_23_tx <- 1 - (1 - p_23)^hr_treatment
+
+    states_intervention[year + 1, 1] <- early_intervention * (1 - p_12_tx - p_1d)
+    states_intervention[year + 1, 2] <- early_intervention * p_12_tx +
+                                         moderate_intervention * (1 - p_23_tx - p_2d)
+    states_intervention[year + 1, 3] <- moderate_intervention * p_23_tx +
+                                         advanced_intervention * (1 - p_3d)
+    states_intervention[year + 1, 4] <- early_intervention * p_1d +
+                                         moderate_intervention * p_2d +
+                                         advanced_intervention * p_3d +
+                                         states_intervention[year, 4]
+  }
+
+  cost_standard <- sum(
+    states_standard[-1, 1] * cost_early +
+    states_standard[-1, 2] * cost_moderate +
+    states_standard[-1, 3] * cost_advanced +
+    states_standard[-1, 1] * cost_screening
+  )
+
+  qaly_standard <- sum(
+    states_standard[-1, 1] * util_early +
+    states_standard[-1, 2] * util_moderate +
+    states_standard[-1, 3] * util_advanced
+  )
+
+  cost_intervention <- sum(
+    states_intervention[-1, 1] * cost_early +
+    states_intervention[-1, 2] * cost_moderate +
+    states_intervention[-1, 3] * cost_advanced +
+    states_intervention[-1, 1] * cost_screening +
+    states_intervention[-1, 1] * cost_ace
+  )
+
+  qaly_intervention <- sum(
+    states_intervention[-1, 1] * util_early +
+    states_intervention[-1, 2] * util_moderate +
+    states_intervention[-1, 3] * util_advanced
+  )
+
+  return(list(
+    cost_standard = cost_standard,
+    cost_intervention = cost_intervention,
+    qaly_standard = qaly_standard,
+    qaly_intervention = qaly_intervention
+  ))
+}
+```
+
+---
+
+## Task 1: Impact of PSA Sample Size
+
+### Objective
+
+Understand how the number of PSA iterations affects the stability of the cost-effectiveness acceptability curve (CEAC).
+
+### Solution
+
+We run two PSA analyses: one with 1,000 iterations and one with 5,000 iterations. By comparing their CEACs, we can see that fewer iterations introduce random noise into the curve.
+
+#### Parameter Definitions
+
+```{r}
+#| label: task1-params
+
+# Transition probabilities
+p_12_mean <- 0.10
+p_23_mean <- 0.12
+p_1d_mean <- 0.02
+p_2d_mean <- 0.04
+p_3d_mean <- 0.15
+p_se <- 0.02
+
+beta_12 <- convert_beta_params(p_12_mean, p_se)
+beta_23 <- convert_beta_params(p_23_mean, p_se)
+beta_1d <- convert_beta_params(p_1d_mean, p_se)
+beta_2d <- convert_beta_params(p_2d_mean, p_se)
+beta_3d <- convert_beta_params(p_3d_mean, p_se)
+
+# Treatment HR
+hr_mean <- 0.66
+hr_lower <- 0.55
+hr_upper <- 0.79
+log_hr_se <- (log(hr_upper) - log(hr_lower)) / 3.92
+log_hr_mean <- log(hr_mean)
+
+# Costs
+cost_early_mean <- 12000
+cost_early_se <- 1500
+cost_moderate_mean <- 45000
+cost_moderate_se <- 5000
+cost_advanced_mean <- 350000
+cost_advanced_se <- 50000
+cost_ace_mean <- 6000
+cost_ace_se <- 800
+cost_screening_mean <- 500
+cost_screening_se <- 100
+
+gamma_early <- convert_gamma_params(cost_early_mean, cost_early_se)
+gamma_moderate <- convert_gamma_params(cost_moderate_mean, cost_moderate_se)
+gamma_advanced <- convert_gamma_params(cost_advanced_mean, cost_advanced_se)
+gamma_ace <- convert_gamma_params(cost_ace_mean, cost_ace_se)
+gamma_screening <- convert_gamma_params(cost_screening_mean, cost_screening_se)
+
+# Utilities
+util_early_mean <- 0.85
+util_early_se <- 0.05
+util_moderate_mean <- 0.72
+util_moderate_se <- 0.06
+util_advanced_mean <- 0.55
+util_advanced_se <- 0.08
+
+beta_util_early <- convert_beta_params(util_early_mean, util_early_se)
+beta_util_moderate <- convert_beta_params(util_moderate_mean, util_moderate_se)
+beta_util_advanced <- convert_beta_params(util_advanced_mean, util_advanced_se)
+```
+
+#### PSA with 1,000 Iterations
+
+```{r}
+#| label: task1-psa-1000
+
+n_sim_1000 <- 1000
+
+psa_results_1000 <- data.frame(
+  iteration = 1:n_sim_1000,
+  cost_standard = NA,
+  cost_intervention = NA,
+  qaly_standard = NA,
+  qaly_intervention = NA,
+  inc_cost = NA,
+  inc_qaly = NA,
+  icer = NA
+)
+
+cat("Running CKD PSA with 1,000 iterations...\n")
+
+for (i in 1:n_sim_1000) {
+  p_12_sampled <- rbeta(1, beta_12["alpha"], beta_12["beta"])
+  p_23_sampled <- rbeta(1, beta_23["alpha"], beta_23["beta"])
+  p_1d_sampled <- rbeta(1, beta_1d["alpha"], beta_1d["beta"])
+  p_2d_sampled <- rbeta(1, beta_2d["alpha"], beta_2d["beta"])
+  p_3d_sampled <- rbeta(1, beta_3d["alpha"], beta_3d["beta"])
+
+  hr_sampled <- rlnorm(1, log_hr_mean, log_hr_se)
+
+  cost_early_sampled <- rgamma(1, gamma_early["shape"], gamma_early["rate"])
+  cost_moderate_sampled <- rgamma(1, gamma_moderate["shape"], gamma_moderate["rate"])
+  cost_advanced_sampled <- rgamma(1, gamma_advanced["shape"], gamma_advanced["rate"])
+  cost_ace_sampled <- rgamma(1, gamma_ace["shape"], gamma_ace["rate"])
+  cost_screening_sampled <- rgamma(1, gamma_screening["shape"], gamma_screening["rate"])
+
+  util_early_sampled <- rbeta(1, beta_util_early["alpha"], beta_util_early["beta"])
+  util_moderate_sampled <- rbeta(1, beta_util_moderate["alpha"], beta_util_moderate["beta"])
+  util_advanced_sampled <- rbeta(1, beta_util_advanced["alpha"], beta_util_advanced["beta"])
+
+  result <- run_markov_psa(
+    p_12 = p_12_sampled,
+    p_23 = p_23_sampled,
+    p_1d = p_1d_sampled,
+    p_2d = p_2d_sampled,
+    p_3d = p_3d_sampled,
+    hr_treatment = hr_sampled,
+    cost_early = cost_early_sampled,
+    cost_moderate = cost_moderate_sampled,
+    cost_advanced = cost_advanced_sampled,
+    cost_ace = cost_ace_sampled,
+    cost_screening = cost_screening_sampled,
+    util_early = util_early_sampled,
+    util_moderate = util_moderate_sampled,
+    util_advanced = util_advanced_sampled
+  )
+
+  psa_results_1000$cost_standard[i] <- result$cost_standard
+  psa_results_1000$cost_intervention[i] <- result$cost_intervention
+  psa_results_1000$qaly_standard[i] <- result$qaly_standard
+  psa_results_1000$qaly_intervention[i] <- result$qaly_intervention
+  psa_results_1000$inc_cost[i] <- result$cost_intervention - result$cost_standard
+  psa_results_1000$inc_qaly[i] <- result$qaly_intervention - result$qaly_standard
+  psa_results_1000$icer[i] <- psa_results_1000$inc_cost[i] / psa_results_1000$inc_qaly[i]
+
+  if (i %% 500 == 0) {
+    cat(sprintf("Completed %d of %d iterations\n", i, n_sim_1000))
+  }
+}
+
+cat("PSA with 1,000 iterations complete.\n")
+```
+
+#### PSA with 5,000 Iterations (Baseline)
+
+```{r}
+#| label: task1-psa-5000
+
+n_sim_5000 <- 5000
+
+psa_results_5000 <- data.frame(
+  iteration = 1:n_sim_5000,
+  cost_standard = NA,
+  cost_intervention = NA,
+  qaly_standard = NA,
+  qaly_intervention = NA,
+  inc_cost = NA,
+  inc_qaly = NA,
+  icer = NA
+)
+
+cat("Running CKD PSA with 5,000 iterations...\n")
+
+for (i in 1:n_sim_5000) {
+  p_12_sampled <- rbeta(1, beta_12["alpha"], beta_12["beta"])
+  p_23_sampled <- rbeta(1, beta_23["alpha"], beta_23["beta"])
+  p_1d_sampled <- rbeta(1, beta_1d["alpha"], beta_1d["beta"])
+  p_2d_sampled <- rbeta(1, beta_2d["alpha"], beta_2d["beta"])
+  p_3d_sampled <- rbeta(1, beta_3d["alpha"], beta_3d["beta"])
+
+  hr_sampled <- rlnorm(1, log_hr_mean, log_hr_se)
+
+  cost_early_sampled <- rgamma(1, gamma_early["shape"], gamma_early["rate"])
+  cost_moderate_sampled <- rgamma(1, gamma_moderate["shape"], gamma_moderate["rate"])
+  cost_advanced_sampled <- rgamma(1, gamma_advanced["shape"], gamma_advanced["rate"])
+  cost_ace_sampled <- rgamma(1, gamma_ace["shape"], gamma_ace["rate"])
+  cost_screening_sampled <- rgamma(1, gamma_screening["shape"], gamma_screening["rate"])
+
+  util_early_sampled <- rbeta(1, beta_util_early["alpha"], beta_util_early["beta"])
+  util_moderate_sampled <- rbeta(1, beta_util_moderate["alpha"], beta_util_moderate["beta"])
+  util_advanced_sampled <- rbeta(1, beta_util_advanced["alpha"], beta_util_advanced["beta"])
+
+  result <- run_markov_psa(
+    p_12 = p_12_sampled,
+    p_23 = p_23_sampled,
+    p_1d = p_1d_sampled,
+    p_2d = p_2d_sampled,
+    p_3d = p_3d_sampled,
+    hr_treatment = hr_sampled,
+    cost_early = cost_early_sampled,
+    cost_moderate = cost_moderate_sampled,
+    cost_advanced = cost_advanced_sampled,
+    cost_ace = cost_ace_sampled,
+    cost_screening = cost_screening_sampled,
+    util_early = util_early_sampled,
+    util_moderate = util_moderate_sampled,
+    util_advanced = util_advanced_sampled
+  )
+
+  psa_results_5000$cost_standard[i] <- result$cost_standard
+  psa_results_5000$cost_intervention[i] <- result$cost_intervention
+  psa_results_5000$qaly_standard[i] <- result$qaly_standard
+  psa_results_5000$qaly_intervention[i] <- result$qaly_intervention
+  psa_results_5000$inc_cost[i] <- result$cost_intervention - result$cost_standard
+  psa_results_5000$inc_qaly[i] <- result$qaly_intervention - result$qaly_standard
+  psa_results_5000$icer[i] <- psa_results_5000$inc_cost[i] / psa_results_5000$inc_qaly[i]
+
+  if (i %% 1000 == 0) {
+    cat(sprintf("Completed %d of %d iterations\n", i, n_sim_5000))
+  }
+}
+
+cat("PSA with 5,000 iterations complete.\n")
+```
+
+#### Calculate and Compare CEACs
+
+```{r}
+#| label: task1-ceac-comparison
+#| fig-width: 14
+#| fig-height: 6
+
+# Define WTP range
+wtp_range <- seq(0, 500000, by = 10000)
+
+# Calculate CEAC for 1,000 iterations
+ceac_1000 <- data.frame(
+  wtp = wtp_range,
+  prob_cost_effective = NA,
+  n_sim = 1000
+)
+
+for (j in 1:nrow(ceac_1000)) {
+  nmb_intervention <- psa_results_1000$inc_qaly * ceac_1000$wtp[j] - psa_results_1000$inc_cost
+  ceac_1000$prob_cost_effective[j] <- mean(nmb_intervention > 0)
+}
+
+# Calculate CEAC for 5,000 iterations
+ceac_5000 <- data.frame(
+  wtp = wtp_range,
+  prob_cost_effective = NA,
+  n_sim = 5000
+)
+
+for (j in 1:nrow(ceac_5000)) {
+  nmb_intervention <- psa_results_5000$inc_qaly * ceac_5000$wtp[j] - psa_results_5000$inc_cost
+  ceac_5000$prob_cost_effective[j] <- mean(nmb_intervention > 0)
+}
+
+# Combine for plotting
+ceac_combined <- rbind(ceac_1000, ceac_5000)
+ceac_combined$n_sim <- as.factor(ceac_combined$n_sim)
+
+# Plot side-by-side CEACs
+ceac_comparison <- ggplot(ceac_combined, aes(x = wtp, y = prob_cost_effective, color = n_sim, linewidth = n_sim)) +
+  geom_line() +
+  geom_vline(xintercept = 170000, color = "gray50", linetype = "dashed", linewidth = 0.8) +
+  scale_color_manual(
+    name = "PSA Sample Size",
+    values = c("1000" = "orange", "5000" = "steelblue"),
+    labels = c("1000" = "1,000 iterations", "5000" = "5,000 iterations")
+  ) +
+  scale_linewidth_manual(
+    name = "PSA Sample Size",
+    values = c("1000" = 0.8, "5000" = 1.1),
+    labels = c("1000" = "1,000 iterations", "5000" = "5,000 iterations"),
+    guide = "none"
+  ) +
+  labs(
+    title = "Impact of PSA Sample Size on CEAC Stability",
+    subtitle = "1,000 vs 5,000 iterations",
+    x = "Willingness-to-Pay Threshold (₹ per QALY)",
+    y = "Probability That Intervention is Cost-Effective"
+  ) +
+  scale_x_continuous(labels = scales::comma_format(prefix = "₹")) +
+  scale_y_continuous(limits = c(0, 1), labels = scales::percent_format()) +
+  theme_minimal() +
+  theme(
+    plot.title = element_text(face = "bold", size = 13),
+    panel.grid.major = element_line(color = "gray95")
+  )
+
+print(ceac_comparison)
+```
+
+#### Summary Statistics at ₹170,000/QALY
+
+```{r}
+#| label: task1-summary
+
+prob_1000 <- mean((psa_results_1000$inc_qaly * 170000 - psa_results_1000$inc_cost) > 0)
+prob_5000 <- mean((psa_results_5000$inc_qaly * 170000 - psa_results_5000$inc_cost) > 0)
+
+cat("Sample Size Comparison at WTP = ₹170,000/QALY\n")
+cat("=============================================\n\n")
+cat("With 1,000 iterations:\n")
+cat("  Probability of cost-effectiveness: ", sprintf("%.1f%%\n", prob_1000 * 100))
+cat("\nWith 5,000 iterations:\n")
+cat("  Probability of cost-effectiveness: ", sprintf("%.1f%%\n", prob_5000 * 100))
+cat("\nDifference: ", sprintf("%.1f percentage points\n", abs(prob_1000 - prob_5000) * 100))
+```
+
+### Interpretation
+
+**Visual Observation:** The 1,000-iteration CEAC is noticeably "rougher" or less smooth than the 5,000-iteration curve. This is because with fewer samples, random Monte Carlo error introduces jagged ups and downs. The 5,000-iteration curve is smoother, suggesting more stability.
+
+**Probability at Key Threshold:** At ₹170,000/QALY, the two curves give very similar probability estimates (both in the 65-75% range in a typical run), but if you re-run the 1,000-iteration PSA multiple times with different seeds, you will see larger variation than with 5,000 iterations.
+
+**Practical Recommendation:**
+
+- **Minimum:** 5,000 iterations is the practical minimum for credible cost-effectiveness results.
+- **Better:** 10,000 iterations is recommended if computational time permits.
+- **Gold standard:** 50,000 iterations is sometimes used when extreme precision is needed, but the marginal benefit beyond 10,000 is small.
+
+The rule of thumb: **As sample size increases, Monte Carlo error decreases proportionally to 1/√n.** So to halve the error, you need 4× as many iterations.
+
+---
+
+## Task 2: Impact of Parameter Uncertainty
+
+### Objective
+
+Understand how uncertainty in parameter estimates propagates to uncertainty in the cost-effectiveness results.
+
+### Solution
+
+We re-run the PSA with doubled standard errors on all transition probabilities (from 0.02 to 0.04). This represents a scenario where our clinical estimates are less certain.
+
+#### PSA with Doubled Uncertainty
+
+```{r}
+#| label: task2-high-uncertainty-params
+
+# Double the SE for transition probabilities
+p_12_mean <- 0.10
+p_23_mean <- 0.12
+p_1d_mean <- 0.02
+p_2d_mean <- 0.04
+p_3d_mean <- 0.15
+p_se_high <- 0.04  # Doubled from 0.02
+
+beta_12_high <- convert_beta_params(p_12_mean, p_se_high)
+beta_23_high <- convert_beta_params(p_23_mean, p_se_high)
+beta_1d_high <- convert_beta_params(p_1d_mean, p_se_high)
+beta_2d_high <- convert_beta_params(p_2d_mean, p_se_high)
+beta_3d_high <- convert_beta_params(p_3d_mean, p_se_high)
+
+# Keep costs and utilities at baseline uncertainty
+# (only changing transition probabilities for clarity)
+
+# Run PSA with 5,000 iterations and HIGH uncertainty
+n_sim_high_unc <- 5000
+
+psa_results_high_unc <- data.frame(
+  iteration = 1:n_sim_high_unc,
+  cost_standard = NA,
+  cost_intervention = NA,
+  qaly_standard = NA,
+  qaly_intervention = NA,
+  inc_cost = NA,
+  inc_qaly = NA,
+  icer = NA
+)
+
+cat("Running CKD PSA with doubled parameter uncertainty...\n")
+
+for (i in 1:n_sim_high_unc) {
+  # High uncertainty for transition probabilities
+  p_12_sampled <- rbeta(1, beta_12_high["alpha"], beta_12_high["beta"])
+  p_23_sampled <- rbeta(1, beta_23_high["alpha"], beta_23_high["beta"])
+  p_1d_sampled <- rbeta(1, beta_1d_high["alpha"], beta_1d_high["beta"])
+  p_2d_sampled <- rbeta(1, beta_2d_high["alpha"], beta_2d_high["beta"])
+  p_3d_sampled <- rbeta(1, beta_3d_high["alpha"], beta_3d_high["beta"])
+
+  # Baseline uncertainties for other parameters
+  hr_sampled <- rlnorm(1, log_hr_mean, log_hr_se)
+  cost_early_sampled <- rgamma(1, gamma_early["shape"], gamma_early["rate"])
+  cost_moderate_sampled <- rgamma(1, gamma_moderate["shape"], gamma_moderate["rate"])
+  cost_advanced_sampled <- rgamma(1, gamma_advanced["shape"], gamma_advanced["rate"])
+  cost_ace_sampled <- rgamma(1, gamma_ace["shape"], gamma_ace["rate"])
+  cost_screening_sampled <- rgamma(1, gamma_screening["shape"], gamma_screening["rate"])
+  util_early_sampled <- rbeta(1, beta_util_early["alpha"], beta_util_early["beta"])
+  util_moderate_sampled <- rbeta(1, beta_util_moderate["alpha"], beta_util_moderate["beta"])
+  util_advanced_sampled <- rbeta(1, beta_util_advanced["alpha"], beta_util_advanced["beta"])
+
+  result <- run_markov_psa(
+    p_12 = p_12_sampled,
+    p_23 = p_23_sampled,
+    p_1d = p_1d_sampled,
+    p_2d = p_2d_sampled,
+    p_3d = p_3d_sampled,
+    hr_treatment = hr_sampled,
+    cost_early = cost_early_sampled,
+    cost_moderate = cost_moderate_sampled,
+    cost_advanced = cost_advanced_sampled,
+    cost_ace = cost_ace_sampled,
+    cost_screening = cost_screening_sampled,
+    util_early = util_early_sampled,
+    util_moderate = util_moderate_sampled,
+    util_advanced = util_advanced_sampled
+  )
+
+  psa_results_high_unc$cost_standard[i] <- result$cost_standard
+  psa_results_high_unc$cost_intervention[i] <- result$cost_intervention
+  psa_results_high_unc$qaly_standard[i] <- result$qaly_standard
+  psa_results_high_unc$qaly_intervention[i] <- result$qaly_intervention
+  psa_results_high_unc$inc_cost[i] <- result$cost_intervention - result$cost_standard
+  psa_results_high_unc$inc_qaly[i] <- result$qaly_intervention - result$qaly_standard
+  psa_results_high_unc$icer[i] <- psa_results_high_unc$inc_cost[i] / psa_results_high_unc$inc_qaly[i]
+
+  if (i %% 1000 == 0) {
+    cat(sprintf("Completed %d of %d iterations\n", i, n_sim_high_unc))
+  }
+}
+
+cat("PSA with high uncertainty complete.\n")
+```
+
+#### Visual Comparison: Cost-Effectiveness Planes
+
+```{r}
+#| label: task2-ce-planes
+#| fig-width: 14
+#| fig-height: 6
+
+# Baseline CE plane
+ce_baseline <- ggplot(psa_results_5000, aes(x = inc_qaly, y = inc_cost)) +
+  geom_abline(intercept = 0, slope = 170000, color = "red", linewidth = 1, linetype = "dashed") +
+  geom_point(alpha = 0.4, color = "steelblue", size = 2) +
+  geom_hline(yintercept = 0, color = "gray70", linewidth = 0.5) +
+  geom_vline(xintercept = 0, color = "gray70", linewidth = 0.5) +
+  labs(
+    title = "Baseline Parameter Uncertainty",
+    subtitle = "Transition prob SE = 0.02",
+    x = "Incremental QALYs",
+    y = "Incremental Cost (₹)"
+  ) +
+  scale_y_continuous(labels = scales::comma_format(prefix = "₹")) +
+  scale_x_continuous(labels = scales::comma_format()) +
+  xlim(-5, 15) +
+  ylim(-100000, 400000) +
+  theme_minimal() +
+  theme(
+    plot.title = element_text(face = "bold", size = 12),
+    plot.subtitle = element_text(size = 11),
+    panel.grid.major = element_line(color = "gray95")
+  )
+
+# High uncertainty CE plane
+ce_high_unc <- ggplot(psa_results_high_unc, aes(x = inc_qaly, y = inc_cost)) +
+  geom_abline(intercept = 0, slope = 170000, color = "red", linewidth = 1, linetype = "dashed") +
+  geom_point(alpha = 0.4, color = "darkgreen", size = 2) +
+  geom_hline(yintercept = 0, color = "gray70", linewidth = 0.5) +
+  geom_vline(xintercept = 0, color = "gray70", linewidth = 0.5) +
+  labs(
+    title = "Doubled Parameter Uncertainty",
+    subtitle = "Transition prob SE = 0.04",
+    x = "Incremental QALYs",
+    y = "Incremental Cost (₹)"
+  ) +
+  scale_y_continuous(labels = scales::comma_format(prefix = "₹")) +
+  scale_x_continuous(labels = scales::comma_format()) +
+  xlim(-5, 15) +
+  ylim(-100000, 400000) +
+  theme_minimal() +
+  theme(
+    plot.title = element_text(face = "bold", size = 12),
+    plot.subtitle = element_text(size = 11),
+    panel.grid.major = element_line(color = "gray95")
+  )
+
+# Print side-by-side
+grid.arrange(ce_baseline, ce_high_unc, ncol = 2)
+```
+
+#### Visual Comparison: CEACs
+
+```{r}
+#| label: task2-ceac-comparison
+#| fig-width: 14
+#| fig-height: 6
+
+# Calculate CEAC for high uncertainty
+ceac_high_unc <- data.frame(
+  wtp = wtp_range,
+  prob_cost_effective = NA,
+  uncertainty = "High (SE = 0.04)"
+)
+
+for (j in 1:nrow(ceac_high_unc)) {
+  nmb_intervention <- psa_results_high_unc$inc_qaly * ceac_high_unc$wtp[j] - psa_results_high_unc$inc_cost
+  ceac_high_unc$prob_cost_effective[j] <- mean(nmb_intervention > 0)
+}
+
+# Add baseline
+ceac_baseline_df <- data.frame(
+  wtp = wtp_range,
+  prob_cost_effective = NA,
+  uncertainty = "Baseline (SE = 0.02)"
+)
+
+for (j in 1:nrow(ceac_baseline_df)) {
+  nmb_intervention <- psa_results_5000$inc_qaly * ceac_baseline_df$wtp[j] - psa_results_5000$inc_cost
+  ceac_baseline_df$prob_cost_effective[j] <- mean(nmb_intervention > 0)
+}
+
+ceac_unc_combined <- rbind(ceac_baseline_df, ceac_high_unc)
+
+# Plot
+ceac_unc_comparison <- ggplot(ceac_unc_combined, aes(x = wtp, y = prob_cost_effective, color = uncertainty, linewidth = uncertainty)) +
+  geom_line() +
+  geom_vline(xintercept = 170000, color = "gray50", linetype = "dashed", linewidth = 0.8) +
+  scale_color_manual(
+    name = "Parameter Uncertainty",
+    values = c("Baseline (SE = 0.02)" = "steelblue", "High (SE = 0.04)" = "darkgreen")
+  ) +
+  scale_linewidth_manual(
+    name = "Parameter Uncertainty",
+    values = c("Baseline (SE = 0.02)" = 1.1, "High (SE = 0.04)" = 0.8),
+    guide = "none"
+  ) +
+  labs(
+    title = "Impact of Parameter Uncertainty on CEAC",
+    subtitle = "Higher uncertainty = flatter, less decisive curve",
+    x = "Willingness-to-Pay Threshold (₹ per QALY)",
+    y = "Probability That Intervention is Cost-Effective"
+  ) +
+  scale_x_continuous(labels = scales::comma_format(prefix = "₹")) +
+  scale_y_continuous(limits = c(0, 1), labels = scales::percent_format()) +
+  theme_minimal() +
+  theme(
+    plot.title = element_text(face = "bold", size = 13),
+    panel.grid.major = element_line(color = "gray95")
+  )
+
+print(ceac_unc_comparison)
+```
+
+#### Summary Statistics
+
+```{r}
+#| label: task2-summary
+
+# Quantify the scatter width on the CE plane
+sd_inc_cost_baseline <- sd(psa_results_5000$inc_cost)
+sd_inc_qaly_baseline <- sd(psa_results_5000$inc_qaly)
+
+sd_inc_cost_high <- sd(psa_results_high_unc$inc_cost)
+sd_inc_qaly_high <- sd(psa_results_high_unc$inc_qaly)
+
+# Probability at ₹170,000/QALY
+prob_baseline <- mean((psa_results_5000$inc_qaly * 170000 - psa_results_5000$inc_cost) > 0)
+prob_high <- mean((psa_results_high_unc$inc_qaly * 170000 - psa_results_high_unc$inc_cost) > 0)
+
+cat("Parameter Uncertainty Comparison\n")
+cat("==================================\n\n")
+
+cat("Baseline (SE = 0.02):\n")
+cat("  SD Incremental Cost:   ₹", format(round(sd_inc_cost_baseline), big.mark=","), "\n")
+cat("  SD Incremental QALY:   ", format(round(sd_inc_qaly_baseline, 2), big.mark=","), "\n")
+cat("  P(cost-effective):     ", sprintf("%.1f%%\n", prob_baseline * 100))
+
+cat("\nHigh Uncertainty (SE = 0.04):\n")
+cat("  SD Incremental Cost:   ₹", format(round(sd_inc_cost_high), big.mark=","), "\n")
+cat("  SD Incremental QALY:   ", format(round(sd_inc_qaly_high, 2), big.mark=","), "\n")
+cat("  P(cost-effective):     ", sprintf("%.1f%%\n", prob_high * 100))
+
+cat("\nKey Observation:\n")
+cat("  Higher uncertainty increases variability in cost-effectiveness results,\n")
+cat("  making the decision less confident. At ₹170,000/QALY, the probability\n")
+cat("  of cost-effectiveness drops from ", sprintf("%.1f%% to %.1f%%.\n", prob_baseline*100, prob_high*100))
+```
+
+### Interpretation
+
+**What Changed:**
+
+1. **CE Plane Scatter:** With doubled uncertainty in transition probabilities, the cloud of 5,000 points on the CE plane is noticeably wider and more dispersed. The spread along both the x-axis (QALY) and y-axis (cost) is greater.
+
+2. **CEAC Shape:** The high-uncertainty CEAC is flatter and less steep. While the baseline CEAC might rise from 60% to 75% over the WTP range, the high-uncertainty curve might only rise from 55% to 70%. This reflects less confidence in which strategy is optimal.
+
+3. **Decision Confidence:** At the key threshold of ₹170,000/QALY, the probability that the intervention is cost-effective decreases with higher parameter uncertainty. This is intuitive: less certain parameters = less certain results.
+
+**Key Message:**
+
+This exercise demonstrates a critical principle in HTA: **Good parameter estimates are not optional.** If your transition probabilities come from a small trial with wide confidence intervals, your cost-effectiveness conclusions will be correspondingly uncertain. Conversely, large, well-powered studies produce narrow parameter uncertainty and lead to more confident policy recommendations. This is why major HTA agencies invest in high-quality evidence synthesis and are willing to fund additional research when parameter uncertainty is high.
+
+---
+
+## Task 3: Expected Value of Perfect Information (EVPI)
+
+### Objective
+
+Calculate and interpret the Expected Value of Perfect Information at ₹170,000/QALY, which represents the maximum value of eliminating all parameter uncertainty.
+
+### Solution
+
+```{r}
+#| label: task3-evpi-calculation
+
+# Use the baseline 5,000-iteration PSA results
+wtp_decision <- 170000
+
+# Calculate NMB for each strategy at each iteration
+nmb_standard <- psa_results_5000$qaly_standard * wtp_decision - psa_results_5000$cost_standard
+nmb_intervention <- psa_results_5000$qaly_intervention * wtp_decision - psa_results_5000$cost_intervention
+
+# The maximum NMB for each iteration (best strategy if we knew all parameters perfectly)
+max_nmb_per_iteration <- pmax(nmb_standard, nmb_intervention)
+
+# The mean NMB for each strategy (best decision based on mean outcomes)
+mean_nmb_standard <- mean(nmb_standard)
+mean_nmb_intervention <- mean(nmb_intervention)
+optimal_strategy <- if (mean_nmb_intervention > mean_nmb_standard) "Intervention" else "Standard Care"
+max_mean_nmb <- max(mean_nmb_standard, mean_nmb_intervention)
+
+# Expected value of perfect information (EVPI)
+evpi_per_patient <- mean(max_nmb_per_iteration) - max_mean_nmb
+
+# Population-level EVPI
+target_population <- 100000
+evpi_population <- evpi_per_patient * target_population
+
+cat("\n")
+cat("========================================================================\n")
+cat("EXPECTED VALUE OF PERFECT INFORMATION (EVPI)\n")
+cat("========================================================================\n")
+cat("WTP Threshold: ₹170,000 per QALY\n")
+cat("Analysis: CKD Markov Model (5,000 PSA iterations)\n\n")
+
+cat("Current Decision (based on mean outcomes):\n")
+cat("  Mean NMB (Standard Care):   ₹", format(round(mean_nmb_standard), big.mark=","), " per patient\n")
+cat("  Mean NMB (Intervention):    ₹", format(round(mean_nmb_intervention), big.mark=","), " per patient\n")
+cat("  Optimal strategy:           ", optimal_strategy, "\n\n")
+
+cat("Perfect Information Scenario:\n")
+cat("  If we knew all parameters perfectly, we would choose the optimal\n")
+cat("  strategy in each scenario iteration.\n")
+cat("  Average NMB with perfect info: ₹", format(round(mean(max_nmb_per_iteration)), big.mark=","), " per patient\n\n")
+
+cat("EVPI Calculation:\n")
+cat("  EVPI = E[max(NMB)] - max(E[NMB])\n")
+cat("  EVPI = ", format(round(mean(max_nmb_per_iteration)), big.mark=","),
+    " - ", format(round(max_mean_nmb), big.mark=","), "\n")
+cat("  EVPI = ₹", format(round(evpi_per_patient), big.mark=","), " per patient\n\n")
+
+cat("Population-level Results:\n")
+cat("  Target population size:     ", format(target_population, big.mark=","), " patients\n")
+cat("  Total EVPI:                 ₹", format(round(evpi_population), big.mark=","), "\n\n")
+
+cat("========================================================================\n")
+```
+
+#### Visualising EVPI
+
+```{r}
+#| label: task3-evpi-visualization
+#| fig-width: 12
+#| fig-height: 7
+
+# Create data for visualization
+# Show the difference between "mean strategy" and "perfect information" across iterations
+
+sample_iterations <- sample(1:n_sim_5000, 100)  # Show 100 iterations for clarity
+
+vis_data <- data.frame(
+  iteration = sample_iterations,
+  nmb_standard = nmb_standard[sample_iterations],
+  nmb_intervention = nmb_intervention[sample_iterations],
+  max_nmb = max_nmb_per_iteration[sample_iterations]
+)
+
+# Determine current choice vs. perfect choice
+vis_data$current_choice <- ifelse(mean_nmb_intervention > mean_nmb_standard, "Intervention", "Standard")
+vis_data$actual_best <- ifelse(vis_data$nmb_intervention > vis_data$nmb_standard, "Intervention", "Standard")
+vis_data$mistake <- vis_data$current_choice != vis_data$actual_best
+
+# Calculate regret for each iteration where wrong choice was made
+vis_data$regret <- ifelse(
+  vis_data$mistake,
+  vis_data$max_nmb - ifelse(vis_data$current_choice == "Intervention",
+                            vis_data$nmb_intervention,
+                            vis_data$nmb_standard),
+  0
+)
+
+# Plot
+evpi_plot <- ggplot(vis_data, aes(x = factor(iteration), y = regret, fill = mistake)) +
+  geom_bar(stat = "identity", color = NA) +
+  scale_fill_manual(
+    name = "Decision Error",
+    values = c("FALSE" = "steelblue", "TRUE" = "darkred"),
+    labels = c("FALSE" = "Correct decision", "TRUE" = "Incorrect decision")
+  ) +
+  labs(
+    title = "EVPI: Opportunity Cost of Parameter Uncertainty",
+    subtitle = paste("Sample of 100 PSA iterations. Current decision:", optimal_strategy),
+    x = "Iteration",
+    y = "Regret / Opportunity Cost (₹)",
+    caption = "EVPI = average of these regrets across all 5,000 iterations"
+  ) +
+  scale_y_continuous(labels = scales::comma_format(prefix = "₹")) +
+  theme_minimal() +
+  theme(
+    plot.title = element_text(face = "bold", size = 13),
+    axis.text.x = element_blank(),
+    axis.ticks.x = element_blank(),
+    panel.grid.major.x = element_blank()
+  )
+
+print(evpi_plot)
+```
+
+#### Sensitivity Analysis: EVPI Across WTP Range
+
+```{r}
+#| label: task3-evpi-range
+#| fig-width: 11
+#| fig-height: 6
+
+# Calculate EVPI at a range of WTP thresholds
+wtp_range_evpi <- seq(50000, 500000, by = 10000)
+evpi_results <- data.frame(
+  wtp = wtp_range_evpi,
+  evpi = NA
+)
+
+for (w in 1:length(wtp_range_evpi)) {
+  wtp_w <- wtp_range_evpi[w]
+
+  nmb_std_w <- psa_results_5000$qaly_standard * wtp_w - psa_results_5000$cost_standard
+  nmb_int_w <- psa_results_5000$qaly_intervention * wtp_w - psa_results_5000$cost_intervention
+
+  max_nmb_w <- pmax(nmb_std_w, nmb_int_w)
+  mean_nmb_std_w <- mean(nmb_std_w)
+  mean_nmb_int_w <- mean(nmb_int_w)
+
+  evpi_w <- mean(max_nmb_w) - max(mean_nmb_std_w, mean_nmb_int_w)
+  evpi_results$evpi[w] <- evpi_w
+}
+
+# Plot EVPI curve
+evpi_curve <- ggplot(evpi_results, aes(x = wtp, y = evpi)) +
+  geom_line(color = "steelblue", linewidth = 1.2) +
+  geom_area(fill = "steelblue", alpha = 0.3) +
+  geom_vline(xintercept = 170000, color = "red", linetype = "dashed", linewidth = 1,
+             label = "Current threshold: ₹170,000/QALY") +
+  labs(
+    title = "EVPI Across Willingness-to-Pay Thresholds",
+    subtitle = "The value of eliminating all parameter uncertainty at different policy thresholds",
+    x = "Willingness-to-Pay Threshold (₹ per QALY)",
+    y = "Expected Value of Perfect Information (₹ per patient)"
+  ) +
+  scale_x_continuous(labels = scales::comma_format(prefix = "₹")) +
+  scale_y_continuous(labels = scales::comma_format(prefix = "₹")) +
+  theme_minimal() +
+  theme(
+    plot.title = element_text(face = "bold", size = 13),
+    panel.grid.major = element_line(color = "gray95")
+  )
+
+print(evpi_curve)
+
+# Find the WTP with maximum EVPI
+max_evpi_idx <- which.max(evpi_results$evpi)
+wtp_max_evpi <- evpi_results$wtp[max_evpi_idx]
+max_evpi_value <- evpi_results$evpi[max_evpi_idx]
+
+cat("\n\nEVPI Summary Across WTP Range:\n")
+cat("========================================\n")
+cat("Maximum EVPI occurs at WTP = ₹", format(wtp_max_evpi, big.mark=","), "/QALY\n")
+cat("  Maximum EVPI value: ₹", format(round(max_evpi_value), big.mark=","), " per patient\n\n")
+
+cat("At the current threshold (₹170,000/QALY):\n")
+cat("  EVPI = ₹", format(round(evpi_results$evpi[which.min(abs(evpi_results$wtp - 170000))]), big.mark=","), " per patient\n")
+```
+
+### Interpretation and Key Messages
+
+**What EVPI Tells Us:**
+
+EVPI represents the maximum amount a decision maker should be willing to pay for additional research to reduce parameter uncertainty to zero. It answers: "How much is certainty worth?"
+
+**In This Case:**
+
+1. **At ₹170,000/QALY:** The EVPI is approximately ₹_____ per patient (varies by random seed, typically ₹2,000-₹5,000). For a population of 100,000 patients, this could represent ₹200-₹500 million in potential research value.
+
+2. **Interpretation:**
+   - If EVPI is **low** (< 1% of mean treatment cost), the current evidence is sufficient. Further research adds little value.
+   - If EVPI is **high** (> 5-10% of mean treatment cost), decision makers should seriously consider funding additional studies.
+
+3. **Policy Decision:** If policymakers are considering a treatment for 100,000 patients:
+   - If EVPI is ₹500 million, spending ₹200 million on additional clinical trials to reduce parameter uncertainty may be justified.
+   - If EVPI is ₹20 million, the same trial investment is unlikely to be worthwhile.
+
+**Real-World Application:**
+
+This is exactly what agencies like NICE use to decide whether to recommend "provisional funding pending further research." If uncertainty is high (high EVPI), they may fund the technology conditionally, requiring researchers to gather additional data. If uncertainty is low (low EVPI), the recommendation stands.
+
+---
+
+## Summary of Key Takeaways
+
+| Task | Key Finding | Implication |
+|------|-------------|-------------|
+| **Task 1** | Sample size affects CEAC smoothness, not probability estimates much | Use ≥5,000 iterations minimum; prefer 10,000+ |
+| **Task 2** | Wider parameter uncertainty → wider CE scatter → flatter CEAC → less confident decision | Invest in good parameter estimates; don't accept wide uncertainty |
+| **Task 3** | EVPI quantifies the value of eliminating uncertainty | Use to justify research prioritization and conditional funding |
+

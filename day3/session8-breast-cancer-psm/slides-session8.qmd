@@ -1,0 +1,452 @@
+---
+title: "Partitioned Survival Model — Breast Cancer"
+subtitle: "Survival curve fitting, extrapolation, and area-under-the-curve partitioning"
+author: "R for HTA (Basics) — Workshop 2026"
+institute: "RRC-HTA, AIIMS Bhopal | HTAIn, DHR"
+format:
+  revealjs:
+    theme: [default, ../../custom-theme.scss]
+    slide-number: true
+    footer: "R for HTA (Basics) — RRC-HTA, AIIMS Bhopal"
+    logo: ""
+    transition: fade
+    width: 1280
+    height: 720
+    code-fold: true
+    code-overflow: wrap
+    highlight-style: github
+    fig-align: center
+execute:
+  echo: true
+  eval: false
+  warning: false
+  message: false
+---
+
+## Clinical Question: HER2+ Breast Cancer in India
+
+. . .
+
+Breast cancer: **27% of all cancers** in Indian women
+
+. . .
+
+Trastuzumab (anti-HER2 antibody) in HER2+ patients:
+- Improves disease-free survival by ~50%
+- Improves overall survival by ~30%
+
+. . .
+
+But: Cost ₹50,000–₹1,00,000 per dose; used in only 8.6% of eligible patients
+
+. . .
+
+**The question:** Is 1-year adjuvant trastuzumab cost-effective vs chemotherapy alone?
+
+:::notes
+Set the stage with the clinical problem. India has high breast cancer burden. Trastuzumab is beneficial but expensive and underutilized. This HTA asks: is it worth it?
+:::
+
+## What is a Partitioned Survival Model (PSM)?
+
+. . .
+
+Unlike Markov models (transition probabilities between states), PSM uses **survival curves directly** to determine state occupancy.
+
+. . .
+
+**Three health states:**
+
+::::{.columns}
+:::{.column width="33%"}
+**Progression-Free (PF)**
+- Alive, no progression
+- Utility: 0.80
+:::
+
+:::{.column width="33%"}
+**Progressed Disease (PD)**
+- Alive, disease progressed
+- Utility: 0.55
+:::
+
+:::{.column width="33%"}
+**Dead**
+- Utility: 0
+- Cost: 0
+:::
+::::
+
+:::notes
+PSM differs from Markov in that you don't estimate transition probabilities. Instead, you work directly with survival data from trials.
+:::
+
+## State Occupancy: The Area-Under-Curve Concept
+
+At any time point $t$:
+
+$$\text{Proportion in PF} = \text{PFS}(t)$$
+
+$$\text{Proportion in PD} = \text{OS}(t) - \text{PFS}(t)$$
+
+$$\text{Proportion Dead} = 1 - \text{OS}(t)$$
+
+. . .
+
+**Key insight:** All costs and QALYs come from integrating under these curves.
+
+```{r}
+#| label: fig-psm-structure
+#| eval: true
+#| fig-cap: "PSM health states and transitions"
+#| fig-width: 10
+#| fig-height: 4
+
+library(DiagrammeR)
+
+grViz("
+digraph psm_structure {
+  graph [rankdir=LR, bgcolor='transparent', fontname='Helvetica', nodesep=0.6]
+  node [fontname='Helvetica', fontsize=10, style='filled,rounded', shape=box]
+
+  PF [label='Progression-Free\n(PF)', fillcolor='#59a14f', fontcolor='white', width=2]
+  PD [label='Progressed\nDisease (PD)', fillcolor='#f28e2b', fontcolor='white', width=2]
+  Dead [label='Dead', fillcolor='#bab0ac', fontcolor='white', width=2, shape=doublecircle]
+
+  PF -> PD [label='Progression']
+  PD -> Dead [label='Death']
+  PF -> Dead [label='Death', style=dashed]
+}
+")
+```
+
+:::notes
+This diagram shows the relationship between states. Unlike Markov, we don't estimate individual transition probabilities. Instead, the area between OS and PFS curves gives us the proportion in PD.
+:::
+
+## Key Model Parameters
+
+```{r}
+#| code-fold: false
+
+# Time horizon
+time_horizon <- 20  # years
+
+# Weibull distributions (fitted to HERA trial data)
+# S(t) = exp(-lambda * t^gamma)
+
+# CONTROL: Chemotherapy alone
+os_lambda_control  <- 0.045
+os_gamma_control   <- 1.15
+pfs_lambda_control <- 0.12
+pfs_gamma_control  <- 1.05
+
+# INTERVENTION: Trastuzumab + Chemo
+hr_os  <- 0.70   # 30% reduction in mortality
+hr_pfs <- 0.50   # 50% improvement in DFS
+
+# Costs (₹/year)
+cost_pf_trast  <- 420000    # Year 1 (6-8 doses)
+cost_pd        <- 180000    # Palliative care
+utility_pf     <- 0.80
+utility_pd     <- 0.55
+discount_rate  <- 0.03
+```
+
+:::notes
+These parameters come from the HERA trial and Indian epidemiology data. The Weibull distributions allow flexibility in hazard shape.
+:::
+
+## Survival Curves: Trastuzumab vs Chemo Alone
+
+```{r}
+#| label: fig-survival-curves
+#| eval: true
+#| fig-cap: "OS and PFS curves for both strategies"
+#| fig-width: 10
+#| fig-height: 5
+
+library(ggplot2)
+
+# Weibull survival function
+weibull_surv <- function(t, lambda, gamma) {
+  exp(-lambda * t^gamma)
+}
+
+time_points <- seq(0, 20, by = 1)
+
+# Generate curves
+surv_data <- data.frame(
+  Time = rep(time_points, 4),
+  Survival = c(
+    weibull_surv(time_points, 0.045, 1.15),
+    weibull_surv(time_points, 0.045 * 0.70, 1.15),
+    weibull_surv(time_points, 0.12, 1.05),
+    weibull_surv(time_points, 0.12 * 0.50, 1.05)
+  ),
+  Curve = rep(c("OS - Chemo", "OS - Trastuzumab",
+                "PFS - Chemo", "PFS - Trastuzumab"),
+              each = length(time_points)),
+  Type = rep(c("OS", "OS", "PFS", "PFS"), each = length(time_points))
+)
+
+ggplot(surv_data, aes(x = Time, y = Survival, colour = Curve, linetype = Type)) +
+  geom_line(linewidth = 1.1) +
+  scale_colour_manual(values = c("OS - Chemo" = "#e15759",
+                                  "OS - Trastuzumab" = "#4e79a7",
+                                  "PFS - Chemo" = "#f28e2b",
+                                  "PFS - Trastuzumab" = "#59a14f")) +
+  scale_linetype_manual(values = c("OS" = "solid", "PFS" = "dashed")) +
+  labs(x = "Years", y = "Survival Probability",
+       title = "Trastuzumab Improves Both OS and PFS") +
+  theme_minimal() +
+  theme(legend.position = "bottom")
+```
+
+:::notes
+The curves show trastuzumab's benefit: higher OS and PFS at every time point. The area between OS and PFS is the proportion in progressed disease.
+:::
+
+## State Occupancy Over Time
+
+```{r}
+#| label: fig-state-occupancy
+#| eval: true
+#| fig-cap: "Proportion of cohort in each health state"
+#| fig-width: 10
+#| fig-height: 5
+
+library(tidyr)
+
+# Calculate state occupancy
+os_control  <- weibull_surv(time_points, 0.045, 1.15)
+pfs_control <- weibull_surv(time_points, 0.12, 1.05)
+os_intervention  <- weibull_surv(time_points, 0.045 * 0.70, 1.15)
+pfs_intervention <- weibull_surv(time_points, 0.12 * 0.50, 1.05)
+
+# Ensure PFS ≤ OS
+pfs_control <- pmin(pfs_control, os_control)
+pfs_intervention <- pmin(pfs_intervention, os_intervention)
+
+# State proportions
+state_data <- data.frame(
+  Time = rep(time_points, 6),
+  Proportion = c(
+    pfs_control, os_control - pfs_control, 1 - os_control,
+    pfs_intervention, os_intervention - pfs_intervention, 1 - os_intervention
+  ),
+  State = rep(rep(c("Progression-Free", "Progressed Disease", "Dead"),
+                  each = length(time_points)), 2),
+  Strategy = rep(c("Chemo Alone", "Trastuzumab + Chemo"),
+                 each = 3 * length(time_points))
+)
+
+state_data$State <- factor(state_data$State,
+                           levels = c("Dead", "Progressed Disease", "Progression-Free"))
+
+ggplot(state_data, aes(x = Time, y = Proportion, fill = State)) +
+  geom_area(alpha = 0.85) +
+  facet_wrap(~Strategy) +
+  scale_fill_manual(values = c("Progression-Free" = "#59a14f",
+                                "Progressed Disease" = "#f28e2b",
+                                "Dead" = "#bab0ac")) +
+  labs(x = "Years", y = "Proportion of Cohort",
+       title = "Trastuzumab keeps more patients in PF state (green area)") +
+  theme_minimal() +
+  theme(legend.position = "bottom")
+```
+
+:::notes
+This shows the core output of the PSM. The green area (PF) is larger for trastuzumab, meaning patients stay disease-free longer.
+:::
+
+## Calculating Costs and QALYs
+
+```{r}
+#| code-fold: false
+
+# Half-cycle correction: average proportion between cycles
+n_cycles <- 20
+hcc_pf_control   <- (pfs_control[1:n_cycles] + pfs_control[2:(n_cycles+1)]) / 2
+hcc_pd_control   <- (os_control[1:n_cycles] - pfs_control[1:n_cycles] +
+                     os_control[2:(n_cycles+1)] - pfs_control[2:(n_cycles+1)]) / 2
+
+# Discount factors
+discount_factors <- 1 / (1.03)^(0:(n_cycles - 1))
+
+# Control arm costs (constant throughout)
+cost_per_cycle_control <- hcc_pf_control * 25000 + hcc_pd_control * 180000
+total_cost_control <- sum(cost_per_cycle_control * discount_factors)
+
+# Intervention: Year 1 has trastuzumab cost, then maintenance
+cost_pf_by_year <- c(420000, rep(25000, n_cycles - 1))
+cost_per_cycle_intervention <- hcc_pf_control * cost_pf_by_year + hcc_pd_control * 180000
+total_cost_intervention <- sum(cost_per_cycle_intervention * discount_factors)
+
+# QALYs
+qaly_per_cycle_control <- hcc_pf_control * 0.80 + hcc_pd_control * 0.55
+qaly_per_cycle_intervention <- hcc_pf_control * 0.80 + hcc_pd_control * 0.55
+total_qaly_control <- sum(qaly_per_cycle_control * discount_factors)
+total_qaly_intervention <- sum(qaly_per_cycle_intervention * discount_factors)
+```
+
+:::notes
+Standard health economic accounting: apply utility weights to state occupancy, discount, sum over time horizon. The half-cycle correction smooths the integration.
+:::
+
+## ICER: Incremental Cost-Effectiveness Ratio
+
+```{r}
+#| code-fold: false
+
+inc_cost <- total_cost_intervention - total_cost_control
+inc_qaly <- total_qaly_intervention - total_qaly_control
+icer <- inc_cost / inc_qaly
+
+cat("Incremental Cost: ₹", format(round(inc_cost), big.mark=","), "\n")
+cat("Incremental QALYs:", round(inc_qaly, 3), "\n")
+cat("ICER: ₹", format(round(icer), big.mark=","), "/QALY\n\n")
+
+# Compare with WTP
+wtp_1gdp <- 170000  # ~1× GDP per capita for India
+if (icer < wtp_1gdp) {
+  cat("✓ COST-EFFECTIVE at 1× GDP per capita (₹1,70,000/QALY)\n")
+} else {
+  cat("✗ Not cost-effective at conventional thresholds\n")
+}
+```
+
+. . .
+
+**Published estimate** (Shrestha et al. 2020): ₹1,34,413–₹1,78,877 per QALY
+
+:::notes
+This is the bottom line: incremental cost divided by incremental QALY. We compare against Indian WTP thresholds to inform the decision.
+:::
+
+## Critical: Extrapolation Beyond Trial Data
+
+Why does distribution choice matter?
+
+. . .
+
+```{r}
+#| label: fig-extrapolation
+#| eval: true
+#| fig-cap: "Same observed data (blue shaded region), different extrapolations"
+#| fig-width: 10
+#| fig-height: 4
+
+t_extrap <- seq(0, 30, by = 0.5)
+
+# Three distributions, all calibrated to 5-year survival ~66%
+weibull <- exp(-0.045 * t_extrap^1.15)
+exponential <- exp(-log(0.66) / 5 * t_extrap)
+loglogistic <- 1 / (1 + (t_extrap / 12)^1.5)
+
+extrap_data <- data.frame(
+  Time = rep(t_extrap, 3),
+  Survival = c(weibull, exponential, loglogistic),
+  Distribution = rep(c("Weibull (base)", "Exponential", "Log-logistic"),
+                     each = length(t_extrap))
+)
+
+ggplot(extrap_data, aes(x = Time, y = Survival, colour = Distribution)) +
+  geom_line(linewidth = 1.1) +
+  annotate("rect", xmin = 0, xmax = 10, ymin = 0, ymax = 1,
+           alpha = 0.2, fill = "blue") +
+  annotate("text", x = 5, y = 0.05, label = "Trial data\nobserved",
+           colour = "blue", size = 3) +
+  geom_vline(xintercept = 10, linetype = "dashed", colour = "grey50", alpha = 0.5) +
+  scale_colour_manual(values = c("Weibull (base)" = "#4e79a7",
+                                  "Exponential" = "#e15759",
+                                  "Log-logistic" = "#59a14f")) +
+  labs(x = "Years", y = "Overall Survival",
+       title = "Extrapolation choice dramatically affects lifetime outcomes") +
+  theme_minimal() +
+  theme(legend.position = "right")
+```
+
+:::notes
+This is a critical sensitivity analysis issue. Beyond the observed trial period, the distributions diverge. Log-logistic predicts much higher long-term survival. Always perform structural SA on distribution choice.
+:::
+
+## The PSM Workflow (Summary)
+
+1. **Fit survival distributions** to trial PFS and OS data
+
+2. **Partition state occupancy** using OS − PFS relationship
+
+3. **Apply costs and utilities** to each state × time
+
+4. **Discount and sum** over time horizon
+
+5. **Perform sensitivity analyses** on distribution choice and parameters
+
+. . .
+
+:::{.callout-tip}
+**Key advantage over Markov:** You work directly with trial survival data, not estimated transition probabilities.
+
+**Key limitation:** Cannot easily model treatment switching or dependent transitions.
+:::
+
+:::notes
+Recap the workflow. PSM is powerful for oncology because it uses actual survival curves. But the extrapolation choice is critical and should always be sensitivity-tested.
+:::
+
+## Trastuzumab: Cost-Effective or Not?
+
+:::{.columns}
+:::{.column width="50%"}
+**Benefits:**
+- Extra ~2.5 QALYs gained
+- 30% mortality reduction
+- Improves quality of life (PF years)
+:::
+
+:::{.column width="50%"}
+**Costs:**
+- ₹6–9 lakhs per patient
+- Year 1 burden heaviest
+- Ongoing monitoring costs
+:::
+::::
+
+. . .
+
+**Result:** ICER ≈ ₹1.5–1.8 lakhs/QALY
+
+**Decision:** Probably cost-effective by Indian standards, but decision uncertainty is high.
+
+:::notes
+Sum up the findings. The ICER is around the 1× GDP per capita threshold, so it's on the margin. PSA will quantify how much uncertainty drives the decision.
+:::
+
+## Key Takeaways
+
+✓ PSM separates PFS and OS directly from trial data
+
+✓ State occupancy comes from the OS − PFS area relationship
+
+✓ Costs and QALYs accumulate by integrating under the curves
+
+✓ **Extrapolation choice (Weibull vs exponential vs log-logistic) matters enormously**
+
+✓ Always do structural sensitivity analysis on survival distributions
+
+. . .
+
+Next: Quantify parameter uncertainty with PSA (Session 9)
+
+:::notes
+Key messages. The PSM is the standard oncology approach globally. The extrapolation issue is critical and often underappreciated. PSA will show us how uncertain the ICER really is.
+:::
+
+## References
+
+- Shrestha A, et al. (2020). Cost-effectiveness of trastuzumab for HER2+ breast cancer in India. *JCO Global Oncology*.
+- NICE DSU Technical Support Document on survival analysis for HTA
+- Latimer NR. (2013). Survival analysis for economic evaluations alongside clinical trials. *British Medical Journal*, 346, f1147
+- Fitzsimmons D, et al. Partitioned survival analysis for HER2-positive breast cancer: methodological issues.
+

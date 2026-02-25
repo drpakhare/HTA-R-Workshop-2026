@@ -1,0 +1,402 @@
+---
+title: "DES vs BMS Therapeutic Decision Tree"
+subtitle: "Drug-eluting vs bare metal stents for coronary artery disease"
+author: "R for HTA (Basics) — Workshop 2026"
+institute: "RRC-HTA, AIIMS Bhopal | HTAIn, DHR"
+format:
+  revealjs:
+    theme: [default, ../../custom-theme.scss]
+    slide-number: true
+    footer: "R for HTA (Basics) — RRC-HTA, AIIMS Bhopal"
+    logo: ""
+    transition: fade
+    width: 1280
+    height: 720
+    code-fold: true
+    code-overflow: wrap
+    highlight-style: github
+    fig-align: center
+execute:
+  echo: true
+  eval: false
+  warning: false
+  message: false
+---
+
+## The Clinical Question
+
+Coronary artery disease (CAD) is a leading cause of mortality in India.
+
+. . .
+
+Percutaneous coronary intervention (PCI) with stent placement is standard.
+
+. . .
+
+**The choice: Drug-eluting stents (DES) vs bare metal stents (BMS)** has major cost and outcome implications.
+
+## The Indian Context
+
+**NPPA Price Ceilings (2025):**
+
+- BMS: ~₹10,693
+- DES: ~₹38,933
+
+. . .
+
+**The HTA Question**
+
+At current Indian price ceilings, is **DES cost-effective compared to BMS** over 5 years?
+
+## DES vs BMS: The Tradeoff
+
+**DES (Drug-Eluting Stent)**
+- Higher initial cost
+- Lower restenosis rate (fewer repeat procedures)
+- Lower MACE rate (fewer MI/deaths)
+
+. . .
+
+**BMS (Bare Metal Stent)**
+- Lower initial cost
+- Higher restenosis rate (15–20% need repeat intervention)
+- Higher MACE rate
+
+. . .
+
+**The question:** Do DES's downstream savings outweigh the upfront cost?
+
+## Key Parameters
+
+```{r}
+#| label: fig-params-des-bms
+#| echo: false
+#| eval: true
+
+library(knitr)
+params <- data.frame(
+  Parameter = c("DES stent cost", "BMS stent cost", "Procedure cost",
+                 "DES restenosis", "BMS restenosis", "DES MACE (5yr)", "BMS MACE (5yr)"),
+  Value = c("₹38,933", "₹10,693", "₹120,000 (both)",
+            "8%", "20%", "8%", "15%")
+)
+kable(params, col.names = c("Parameter", "Value"))
+```
+
+All **sourced from Indian data and NPPA 2025 guidelines**.
+
+## The Decision Tree Structure
+
+```{r}
+#| label: fig-des-bms-tree
+#| eval: true
+#| fig-cap: "DES vs BMS decision tree for PCI"
+
+library(DiagrammeR)
+
+grViz("
+digraph des_bms {
+  graph [rankdir=LR, bgcolor='transparent', fontname='Helvetica', nodesep=0.3]
+  node [fontname='Helvetica', fontsize=9]
+
+  D [label='PCI Stent\nChoice', shape=square, style=filled, fillcolor='#4e79a7', fontcolor='white']
+
+  DES [label='DES\n₹38,933', shape=box, style='filled,rounded', fillcolor='#4e79a7', fontcolor='white']
+  BMS [label='BMS\n₹10,693', shape=box, style='filled,rounded', fillcolor='#e15759', fontcolor='white']
+
+  DS [label='Success\n(97%)', shape=circle, style=filled, fillcolor='#d4e6f1', fontsize=8]
+  DR [label='Restenosis\n(8%)', shape=circle, style=filled, fillcolor='#fdebd0', fontsize=8]
+  DNR [label='No Restenosis\n(92%)', shape=circle, style=filled, fillcolor='#d5f5e3', fontsize=8]
+  DM [label='MACE\n(8%)', shape=box, style='filled,rounded', fillcolor='#f5b7b1', fontsize=8]
+  DW [label='Well', shape=box, style='filled,rounded', fillcolor='#d5f5e3', fontsize=8]
+
+  BS [label='Success\n(96%)', shape=circle, style=filled, fillcolor='#d4e6f1', fontsize=8]
+  BR [label='Restenosis\n(20%)', shape=circle, style=filled, fillcolor='#fdebd0', fontsize=8]
+  BNR [label='No Restenosis\n(80%)', shape=circle, style=filled, fillcolor='#d5f5e3', fontsize=8]
+  BM [label='MACE\n(15%)', shape=box, style='filled,rounded', fillcolor='#f5b7b1', fontsize=8]
+  BW [label='Well', shape=box, style='filled,rounded', fillcolor='#d5f5e3', fontsize=8]
+
+  D -> DES
+  D -> BMS
+
+  DES -> DS
+  DS -> DR
+  DS -> DNR
+  DR -> DM
+  DR -> DW
+  DNR -> DM
+  DNR -> DW
+
+  BMS -> BS
+  BS -> BR
+  BS -> BNR
+  BR -> BM
+  BR -> BW
+  BNR -> BM
+  BNR -> BW
+}
+")
+```
+
+## Initial PCI Cost
+
+```{r}
+#| label: initial-costs
+#| echo: true
+#| eval: false
+
+# Total initial PCI cost per patient
+initial_cost_des <- cost_procedure + cost_des_stent  # ₹120,000 + ₹38,933
+initial_cost_bms <- cost_procedure + cost_bms_stent  # ₹120,000 + ₹10,693
+
+# Cost difference
+upfront_difference <- initial_cost_des - initial_cost_bms
+# ₹28,240 per stent
+```
+
+**Upfront cost:** DES is ~₹28,240 more expensive per patient.
+
+The question: **Does this pay for itself downstream?**
+
+## Tree Tracing: DES Arm
+
+```{r}
+#| label: tree-tracing-des
+#| echo: true
+#| eval: false
+
+# Per 1,000 patients
+des_success <- 1000 * 0.97           # 970 patients
+des_failure <- 1000 * 0.03           # 30 patients (CABG)
+
+des_restenosis <- des_success * 0.08    # 77 restenosis
+des_no_restenosis <- des_success * 0.92 # 893 no restenosis
+
+# MACE among those with restenosis
+des_mace_restenosis <- 77 * 0.15     # 12 MI/cardiac death
+
+# MACE among those without restenosis
+des_mace_no_restenosis <- 893 * 0.08 # 71 MI/cardiac death
+
+des_total_mace <- 12 + 71            # 83 total MACE events
+```
+
+## Tree Tracing: BMS Arm
+
+```{r}
+#| label: tree-tracing-bms
+#| echo: true
+#| eval: false
+
+# Per 1,000 patients
+bms_success <- 1000 * 0.96           # 960 patients
+bms_failure <- 1000 * 0.04           # 40 patients
+
+bms_restenosis <- bms_success * 0.20    # 192 restenosis (much higher!)
+bms_no_restenosis <- bms_success * 0.80 # 768 no restenosis
+
+# MACE outcomes
+bms_mace_restenosis <- 192 * 0.25    # 48 MI/cardiac death
+bms_mace_no_restenosis <- 768 * 0.15 # 115 MI/cardiac death
+
+bms_total_mace <- 48 + 115           # 163 total MACE events
+```
+
+## Patient Flow Comparison
+
+Over 5 years per 1,000 patients:
+
+**DES:**
+- Successful with no complications: ~893
+- Restenosis requiring intervention: ~77
+- MACE (MI or cardiac death): ~83
+
+. . .
+
+**BMS:**
+- Successful with no complications: ~768
+- Restenosis requiring intervention: ~192 (2.5x higher!)
+- MACE: ~163 (2x higher!)
+
+## Cost Calculation: DES
+
+```{r}
+#| label: costs-des
+#| echo: true
+#| eval: false
+
+# Initial PCI
+cost_initial_des <- des_success * initial_cost_des +
+                    des_failure * cost_cabg
+
+# Medications (5 years)
+cost_medication_des <- n_cohort * cost_dapt_des_annual +  # Year 1
+                      n_cohort * cost_followup_annual * 4  # Years 2-5
+
+# Restenosis management (repeat PCI or CABG)
+cost_restenosis_des <- des_restenosis * (
+  0.80 * cost_repeat_pci +     # 80% repeat PCI
+  0.20 * cost_cabg              # 20% CABG
+)
+
+# MACE management
+cost_mace_des <- des_mi * cost_mi_management +
+                 des_cardiac_death * cost_cardiac_death
+
+total_cost_des <- cost_initial_des + cost_medication_des +
+                  cost_restenosis_des + cost_mace_des
+```
+
+## Cost Calculation: BMS
+
+```{r}
+#| label: costs-bms
+#| echo: true
+#| eval: false
+
+# Initial PCI (lower stent cost)
+cost_initial_bms <- bms_success * initial_cost_bms +
+                    bms_failure * cost_cabg
+
+# Medications (shorter DAPT)
+cost_medication_bms <- n_cohort * cost_dapt_bms_annual +
+                       n_cohort * cost_followup_annual * 4
+
+# Restenosis management (higher rate!)
+cost_restenosis_bms <- bms_restenosis * (
+  0.80 * cost_repeat_pci +
+  0.20 * cost_cabg
+)
+
+# MACE management (higher rate!)
+cost_mace_bms <- bms_mi * cost_mi_management +
+                 bms_cardiac_death * cost_cardiac_death
+
+total_cost_bms <- cost_initial_bms + cost_medication_bms +
+                  cost_restenosis_bms + cost_mace_bms
+```
+
+## QALY Calculation
+
+```{r}
+#| label: qalys
+#| echo: true
+#| eval: false
+
+# DES: QALYs over 5 years
+qaly_des_well <- 893 * 0.85 * 5         # No complications
+qaly_des_restenosis <- 77 * (0.78 * 4)  # After intervention
+qaly_des_mace <- 83 * (0.65 * 3)        # Post-MI survival
+qaly_des_death <- (83 * 0.3) * 0         # Death contributes 0 QALYs
+
+total_qaly_des <- qaly_des_well + qaly_des_restenosis + qaly_des_mace
+
+# BMS: QALYs (similar structure, with higher MACE)
+# ...similar calculations but with higher adverse event rates
+```
+
+Higher MACE in BMS arm → Lower QALYs in BMS.
+
+## ICER Result
+
+```{r}
+#| label: icer
+#| echo: true
+#| eval: false
+
+inc_cost <- total_cost_des - total_cost_bms
+inc_qaly <- total_qaly_des - total_qaly_bms
+
+icer <- inc_cost / inc_qaly
+
+# Interpret against India's WTP thresholds
+wtp_1gdp <- 170000   # ~1x GDP per capita
+wtp_3gdp <- 510000   # ~3x GDP per capita
+
+if (icer < wtp_1gdp) {
+  cat("DES is HIGHLY cost-effective")
+} else if (icer < wtp_3gdp) {
+  cat("DES is cost-effective")
+} else {
+  cat("DES is NOT cost-effective")
+}
+```
+
+## Number Needed to Treat (NNT)
+
+**How many patients need DES to prevent one adverse event?**
+
+```{r}
+#| label: nnt
+#| echo: true
+#| eval: false
+
+# Prevent one restenosis event
+nnt_restenosis <- 1 / (0.20 - 0.08)  # NNT = 8.3
+
+# Prevent one MACE event
+nnt_mace <- 1 / ((163 - 83) / 1000)  # NNT = 12.5
+
+cat("NNT to prevent 1 restenosis:", round(nnt_restenosis, 1), "\n")
+cat("NNT to prevent 1 MACE:", round(nnt_mace, 1), "\n")
+```
+
+**For every 8-13 DES stents placed instead of BMS, you prevent one adverse event.**
+
+## The Key Insight
+
+DES costs more upfront (₹28,240 per stent).
+
+. . .
+
+**BUT:**
+- Fewer repeat revascularisations
+- Fewer MI events
+- Fewer cardiac deaths
+
+. . .
+
+**Downstream savings may outweigh upfront cost** — depending on:
+- Restenosis rate differential
+- Cost of managing complications
+- Strength of evidence from Indian data
+
+## Therapeutic Decision Trees
+
+This model structure applies to **any treatment choice**:
+
+- **Drug A vs Drug B** (cost vs efficacy)
+- **Surgery vs Medical** (invasive vs conservative)
+- **Screening intensity** (more tests vs fewer tests)
+
+. . .
+
+Each branches on:
+1. Procedural success/failure
+2. Complication rates
+3. Long-term outcomes (MACE, relapse, etc.)
+
+## Why R Excels Here
+
+**In Excel:** If NPPA revises DES price from ₹38,933 to ₹35,000, you manually update cells and pray you didn't break formulas.
+
+. . .
+
+**In R:** Change one number at the top → entire model re-calculates in milliseconds.
+
+. . .
+
+This is essential for **rapid scenario analysis** in HTA policy work.
+
+## Key Takeaway
+
+A therapeutic decision tree is **another reusable template**:
+
+- **Treatment choice** (two or more strategies)
+- **Probability branches** (success, complication, outcome rates)
+- **Cost & QALY tracking** through each pathway
+- **ICER comparison** against WTP threshold
+
+. . .
+
+Just like diagnostics, but for **treatment and intervention** decisions.

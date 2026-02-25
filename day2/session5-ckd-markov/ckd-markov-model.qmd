@@ -1,0 +1,529 @@
+---
+title: "Session 5: 4-State Markov Model — Chronic Kidney Disease"
+subtitle: "Early screening and ACE-inhibitor intervention vs standard care"
+format:
+  html:
+    toc: true
+    code-fold: show
+    code-tools: true
+---
+
+## The Clinical Question
+
+Chronic kidney disease (CKD) affects approximately 17% of the Indian population, with about 6% having stage 3 or worse. Most patients in India present late — over 50% are first seen when eGFR is already below 15 ml/min (stage 5), by which point dialysis or transplantation is needed at enormous cost.
+
+**The HTA question:** Is early population-based screening for CKD followed by ACE-inhibitor therapy cost-effective compared to standard care (where CKD is detected only when symptomatic or incidental)?
+
+This is a **Markov cohort model** — the most common model type for chronic diseases that progress through stages over time.
+
+## What Is a Markov Model?
+
+A Markov model tracks a **cohort** of patients through defined **health states** over multiple **time cycles** (usually years). At each cycle, patients can:
+
+- Stay in their current state
+- Move to a worse state (progression)
+- Move to a better state (rare in CKD, but possible with treatment)
+- Die
+
+The movement between states is governed by **transition probabilities**. These probabilities are the heart of the model.
+
+## Our 4-State Model
+
+```{r}
+#| label: fig-ckd-states
+#| echo: true
+#| fig-cap: "CKD Markov model: health states and transitions"
+
+library(DiagrammeR)
+
+grViz("
+digraph ckd_markov {
+  graph [rankdir=LR, bgcolor='transparent', fontname='Helvetica', nodesep=0.8]
+  node [fontname='Helvetica', fontsize=11, style='filled,rounded', shape=box]
+
+  E [label='Early CKD\n(Stage 1-2)\neGFR ≥ 60', fillcolor='#59a14f', fontcolor='white', width=1.8]
+  M [label='Moderate CKD\n(Stage 3)\neGFR 30-59', fillcolor='#f28e2b', fontcolor='white', width=1.8]
+  A [label='Advanced CKD\n/ Dialysis\n(Stage 4-5)', fillcolor='#e15759', fontcolor='white', width=1.8]
+  D [label='Death', fillcolor='#76b7b2', fontcolor='white', shape=doublecircle, width=1.2]
+
+  E -> M [label='p_12', fontsize=10]
+  M -> A [label='p_23', fontsize=10]
+  E -> D [label='p_1d', fontsize=10]
+  M -> D [label='p_2d', fontsize=10]
+  A -> D [label='p_3d', fontsize=10]
+
+  E -> E [label='stay', style=dashed, fontsize=9]
+  M -> M [label='stay', style=dashed, fontsize=9]
+  A -> A [label='stay', style=dashed, fontsize=9]
+}
+")
+```
+
+The four states are:
+
+1. **Early CKD (Stage 1-2):** eGFR ≥60, often asymptomatic. Managed with lifestyle modification and renoprotective drugs.
+2. **Moderate CKD (Stage 3):** eGFR 30-59. Requires specialist referral, medication optimisation.
+3. **Advanced CKD / Dialysis (Stage 4-5):** eGFR <30. Requires dialysis or transplantation.
+4. **Death:** Absorbing state — patients cannot leave.
+
+## Model Parameters
+
+```{r}
+#| label: parameters
+#| echo: true
+
+# ============================================================
+# MODEL PARAMETERS — CKD Markov Model
+# ============================================================
+
+# --- Cohort ---
+n_cohort <- 10000   # Cohort of 10,000 patients with early CKD
+n_cycles <- 20      # 20-year time horizon
+cycle_length <- 1   # Annual cycles
+
+# --- Starting Distribution ---
+# All patients start in Early CKD (detected through screening)
+state_names <- c("Early CKD", "Moderate CKD", "Advanced/Dialysis", "Death")
+n_states <- length(state_names)
+
+# --- Annual Transition Probabilities: STANDARD CARE ---
+# Source: Adapted from international CKD progression literature
+# (Go et al. 2004 NEJM; Kerr et al. 2012; SEEK study India)
+# Adjusted for Indian demographics (younger onset, higher diabetes burden)
+
+# From Early CKD (Stage 1-2)
+p_12_standard <- 0.10   # Early → Moderate (annual)
+p_1d_standard <- 0.02   # Early → Death (background + CKD-related)
+
+# From Moderate CKD (Stage 3)
+p_23_standard <- 0.12   # Moderate → Advanced (annual)
+p_2d_standard <- 0.04   # Moderate → Death
+
+# From Advanced CKD / Dialysis (Stage 4-5)
+p_3d_standard <- 0.15   # Advanced → Death (annual)
+# Source: Indian dialysis mortality ~15-25% annually
+# (Rajapurkar et al. 2012; Indian CKD Registry)
+
+# --- Transition Probabilities: SCREENING + ACE-INHIBITOR ---
+# ACE-inhibitor reduces progression by ~34% (HR 0.66)
+# Source: ACC/AHA meta-analysis 2024; Hou et al. 2006 NEJM
+treatment_effect_hr <- 0.66  # Hazard ratio for progression
+
+p_12_intervention <- 1 - (1 - p_12_standard)^treatment_effect_hr
+p_23_intervention <- 1 - (1 - p_23_standard)^treatment_effect_hr
+# Mortality not directly affected by ACE-inhibitor in advanced CKD
+p_1d_intervention <- p_1d_standard
+p_2d_intervention <- p_2d_standard
+p_3d_intervention <- p_3d_standard
+
+cat("=== Transition Probabilities ===\n")
+cat("Early → Moderate: Standard =", p_12_standard,
+    ", Intervention =", round(p_12_intervention, 4), "\n")
+cat("Moderate → Advanced: Standard =", p_23_standard,
+    ", Intervention =", round(p_23_intervention, 4), "\n")
+
+# --- Costs (₹ per year) ---
+# Source: Indian hospital data; PMJAY package rates; Jeloka et al. 2007;
+#         Inside CKD India projections (Lancet eClinicalMedicine 2024)
+
+# State costs (annual)
+cost_early    <- 12000    # OPD visits, basic labs, lifestyle counselling
+cost_moderate <- 45000    # Specialist visits, medications, frequent labs
+cost_advanced <- 350000   # Dialysis (2-3 sessions/week at public hospital rates)
+cost_death    <- 0
+
+# Intervention-specific costs
+cost_screening  <- 500     # One-time population screening cost per person
+cost_ace_annual <- 6000    # ACE-inhibitor + monitoring (generic enalapril/ramipril)
+
+# --- Utility Weights (annual QALYs) ---
+# Source: Adapted from Gorodetskaya et al. 2005; Tajima et al. 2010
+# Indian EQ-5D data limited; disclaimer applies
+utility_early    <- 0.85
+utility_moderate <- 0.72
+utility_advanced <- 0.55   # Dialysis significantly reduces quality of life
+utility_death    <- 0.00
+
+# --- Discount Rate ---
+discount_rate <- 0.03  # 3% annual for both costs and QALYs
+```
+
+## Building the Transition Matrices
+
+A **transition matrix** is a table where each row represents the current state and each column represents where patients can go. Each row must sum to 1.0 (everyone goes somewhere).
+
+```{r}
+#| label: transition-matrices
+#| echo: true
+
+library(knitr)
+
+# --- Standard Care Transition Matrix ---
+# Rows: current state, Columns: next state
+tm_standard <- matrix(0, nrow = n_states, ncol = n_states,
+                      dimnames = list(state_names, state_names))
+
+# From Early CKD
+tm_standard["Early CKD", "Moderate CKD"] <- p_12_standard
+tm_standard["Early CKD", "Death"]        <- p_1d_standard
+tm_standard["Early CKD", "Early CKD"]    <- 1 - p_12_standard - p_1d_standard
+
+# From Moderate CKD
+tm_standard["Moderate CKD", "Advanced/Dialysis"] <- p_23_standard
+tm_standard["Moderate CKD", "Death"]             <- p_2d_standard
+tm_standard["Moderate CKD", "Moderate CKD"]      <- 1 - p_23_standard - p_2d_standard
+
+# From Advanced/Dialysis
+tm_standard["Advanced/Dialysis", "Death"]             <- p_3d_standard
+tm_standard["Advanced/Dialysis", "Advanced/Dialysis"]  <- 1 - p_3d_standard
+
+# Death is absorbing
+tm_standard["Death", "Death"] <- 1
+
+cat("=== Standard Care Transition Matrix ===\n")
+kable(tm_standard, digits = 4,
+      caption = "Annual transition probabilities — Standard Care")
+```
+
+```{r}
+#| label: intervention-matrix
+#| echo: true
+
+# --- Intervention Transition Matrix ---
+tm_intervention <- matrix(0, nrow = n_states, ncol = n_states,
+                          dimnames = list(state_names, state_names))
+
+tm_intervention["Early CKD", "Moderate CKD"] <- p_12_intervention
+tm_intervention["Early CKD", "Death"]        <- p_1d_intervention
+tm_intervention["Early CKD", "Early CKD"]    <- 1 - p_12_intervention - p_1d_intervention
+
+tm_intervention["Moderate CKD", "Advanced/Dialysis"] <- p_23_intervention
+tm_intervention["Moderate CKD", "Death"]             <- p_2d_intervention
+tm_intervention["Moderate CKD", "Moderate CKD"]      <- 1 - p_23_intervention - p_2d_intervention
+
+tm_intervention["Advanced/Dialysis", "Death"]             <- p_3d_intervention
+tm_intervention["Advanced/Dialysis", "Advanced/Dialysis"]  <- 1 - p_3d_intervention
+
+tm_intervention["Death", "Death"] <- 1
+
+cat("=== Intervention Transition Matrix ===\n")
+kable(tm_intervention, digits = 4,
+      caption = "Annual transition probabilities — Screening + ACE-inhibitor")
+```
+
+::: {.callout-tip}
+## Key Insight: The Matrices
+Notice how the two matrices differ only in the progression probabilities (Early→Moderate and Moderate→Advanced). The treatment effect slows progression but does not change mortality directly. This is a realistic representation of what ACE-inhibitors do — they buy time, keeping patients in less costly, higher-quality health states for longer.
+:::
+
+```{r}
+#| label: fig-tm-heatmap
+#| echo: true
+#| fig-cap: "Transition matrix heatmap — Standard Care vs Intervention"
+
+library(tidyr)
+library(ggplot2)
+
+# Prepare data for heatmap
+tm_df_std <- as.data.frame(as.table(tm_standard))
+names(tm_df_std) <- c("From", "To", "Probability")
+tm_df_std$Strategy <- "Standard Care"
+
+tm_df_int <- as.data.frame(as.table(tm_intervention))
+names(tm_df_int) <- c("From", "To", "Probability")
+tm_df_int$Strategy <- "Screening + ACE-inhibitor"
+
+tm_combined <- rbind(tm_df_std, tm_df_int)
+
+ggplot(tm_combined, aes(x = To, y = From, fill = Probability)) +
+  geom_tile(colour = "white", linewidth = 1) +
+  geom_text(aes(label = round(Probability, 3)), size = 3) +
+  facet_wrap(~Strategy) +
+  scale_fill_gradient(low = "white", high = "#e15759") +
+  labs(title = "Transition Probability Heatmaps",
+       subtitle = "Darker = higher probability of transition") +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1, size = 8),
+        axis.text.y = element_text(size = 8),
+        legend.position = "bottom")
+```
+
+## Running the Markov Model
+
+Now we simulate the cohort moving through states over 20 years:
+
+```{r}
+#| label: markov-simulation
+#| echo: true
+
+# --- Function to run a Markov cohort simulation ---
+run_markov <- function(tm, n_cohort, n_cycles, state_names,
+                       costs, utilities, discount_rate,
+                       initial_state = 1) {
+
+  n_states <- length(state_names)
+
+  # Trace matrix: rows = cycles, columns = states
+  # Records how many people are in each state at each cycle
+  trace <- matrix(0, nrow = n_cycles + 1, ncol = n_states,
+                  dimnames = list(paste0("Cycle_", 0:n_cycles), state_names))
+
+  # Everyone starts in the initial state
+  trace[1, initial_state] <- n_cohort
+
+  # Run the simulation
+  for (cycle in 1:n_cycles) {
+    trace[cycle + 1, ] <- trace[cycle, ] %*% tm
+  }
+
+  # --- Half-Cycle Correction ---
+  # Average the proportion in each state between start and end of each cycle
+  # This is more accurate than assuming everyone transitions at cycle start/end
+  trace_hcc <- (trace[1:n_cycles, ] + trace[2:(n_cycles + 1), ]) / 2
+
+  # --- Calculate Costs and QALYs per Cycle ---
+  discount_factors <- 1 / (1 + discount_rate)^(0:(n_cycles - 1))
+
+  cycle_costs <- trace_hcc %*% costs
+  cycle_qalys <- trace_hcc %*% utilities
+
+  # Apply discounting
+  discounted_costs <- cycle_costs * discount_factors
+  discounted_qalys <- cycle_qalys * discount_factors
+
+  list(
+    trace = trace,
+    trace_hcc = trace_hcc,
+    total_cost = sum(discounted_costs),
+    total_qaly = sum(discounted_qalys),
+    cycle_costs = discounted_costs,
+    cycle_qalys = discounted_qalys
+  )
+}
+
+# Define cost and utility vectors
+costs_standard <- c(cost_early, cost_moderate, cost_advanced, cost_death)
+costs_intervention <- c(cost_early + cost_ace_annual,   # ACE-inhibitor added
+                        cost_moderate + cost_ace_annual,
+                        cost_advanced,   # ACE-inhibitor usually stopped in advanced CKD
+                        cost_death)
+utilities <- c(utility_early, utility_moderate, utility_advanced, utility_death)
+
+# --- Run Both Arms ---
+results_standard <- run_markov(tm_standard, n_cohort, n_cycles, state_names,
+                               costs_standard, utilities, discount_rate)
+
+# Intervention includes one-time screening cost
+results_intervention <- run_markov(tm_intervention, n_cohort, n_cycles, state_names,
+                                   costs_intervention, utilities, discount_rate)
+# Add one-time screening cost (undiscounted, occurs at time 0)
+results_intervention$total_cost <- results_intervention$total_cost +
+                                   n_cohort * cost_screening
+
+cat("=== Markov Model Results (20-year horizon) ===\n\n")
+cat("STANDARD CARE:\n")
+cat("  Total cost: ₹", format(round(results_standard$total_cost), big.mark = ","), "\n")
+cat("  Total QALYs:", round(results_standard$total_qaly, 1), "\n")
+cat("  Cost per patient: ₹", format(round(results_standard$total_cost / n_cohort), big.mark = ","), "\n")
+cat("  QALYs per patient:", round(results_standard$total_qaly / n_cohort, 3), "\n\n")
+
+cat("SCREENING + ACE-INHIBITOR:\n")
+cat("  Total cost: ₹", format(round(results_intervention$total_cost), big.mark = ","), "\n")
+cat("  Total QALYs:", round(results_intervention$total_qaly, 1), "\n")
+cat("  Cost per patient: ₹", format(round(results_intervention$total_cost / n_cohort), big.mark = ","), "\n")
+cat("  QALYs per patient:", round(results_intervention$total_qaly / n_cohort, 3), "\n")
+```
+
+## ICER Calculation
+
+```{r}
+#| label: icer
+#| echo: true
+
+inc_cost <- results_intervention$total_cost - results_standard$total_cost
+inc_qaly <- results_intervention$total_qaly - results_standard$total_qaly
+icer <- inc_cost / inc_qaly
+
+cat("=== Incremental Cost-Effectiveness ===\n\n")
+cat("Incremental cost: ₹", format(round(inc_cost), big.mark = ","), "\n")
+cat("Incremental QALYs:", round(inc_qaly, 1), "\n")
+cat("ICER: ₹", format(round(icer), big.mark = ","), "per QALY gained\n\n")
+
+# Interpretation
+wtp_india <- 170000  # ~1x GDP per capita
+if (icer < 0) {
+  cat("→ Intervention is DOMINANT (less costly, more effective)\n")
+} else if (icer < wtp_india) {
+  cat("→ Highly cost-effective (ICER < 1x GDP per capita)\n")
+} else if (icer < 3 * wtp_india) {
+  cat("→ Cost-effective (ICER < 3x GDP per capita)\n")
+} else {
+  cat("→ NOT cost-effective at conventional thresholds\n")
+}
+```
+
+```{r}
+#| label: fig-qaly-breakdown
+#| echo: true
+#| fig-cap: "Discounted QALYs breakdown by strategy"
+
+qaly_data <- data.frame(
+  Strategy = c("Standard Care", "Screening +\nACE-inhibitor"),
+  Total_QALY = c(results_standard$total_qaly / n_cohort,
+                 results_intervention$total_qaly / n_cohort),
+  Total_Cost = c(results_standard$total_cost / n_cohort,
+                 results_intervention$total_cost / n_cohort)
+)
+
+library(gridExtra)
+
+p1 <- ggplot(qaly_data, aes(x = Strategy, y = Total_QALY, fill = Strategy)) +
+  geom_col(show.legend = FALSE) +
+  geom_text(aes(label = round(Total_QALY, 2)), vjust = -0.5, size = 4) +
+  scale_fill_manual(values = c("#e15759", "#4e79a7")) +
+  labs(x = "", y = "QALYs per Patient", title = "Discounted QALYs") +
+  theme_minimal()
+
+p2 <- ggplot(qaly_data, aes(x = Strategy, y = Total_Cost / 1000, fill = Strategy)) +
+  geom_col(show.legend = FALSE) +
+  geom_text(aes(label = paste0("₹", format(round(Total_Cost), big.mark=","))), vjust = -0.5, size = 3.5) +
+  scale_fill_manual(values = c("#e15759", "#4e79a7")) +
+  labs(x = "", y = "Cost per Patient (₹ thousands)", title = "Discounted Costs") +
+  theme_minimal()
+
+grid.arrange(p1, p2, ncol = 2)
+```
+
+## Visualising the Markov Trace
+
+The **Markov trace** shows how the cohort distributes across health states over time:
+
+```{r}
+#| label: markov-trace-plot
+#| echo: true
+#| fig-cap: "Markov trace: cohort distribution over 20 years"
+
+library(ggplot2)
+library(tidyr)
+
+# Prepare trace data for plotting
+trace_df_std <- as.data.frame(results_standard$trace / n_cohort)
+trace_df_std$Cycle <- 0:n_cycles
+trace_df_std$Strategy <- "Standard Care"
+
+trace_df_int <- as.data.frame(results_intervention$trace / n_cohort)
+trace_df_int$Cycle <- 0:n_cycles
+trace_df_int$Strategy <- "Screening + ACE-inhibitor"
+
+trace_combined <- rbind(trace_df_std, trace_df_int)
+
+trace_long <- pivot_longer(trace_combined,
+                           cols = all_of(state_names),
+                           names_to = "State",
+                           values_to = "Proportion")
+
+trace_long$State <- factor(trace_long$State, levels = state_names)
+
+ggplot(trace_long, aes(x = Cycle, y = Proportion, fill = State)) +
+  geom_area(alpha = 0.8) +
+  facet_wrap(~Strategy) +
+  scale_fill_manual(values = c("Early CKD" = "#59a14f",
+                                "Moderate CKD" = "#f28e2b",
+                                "Advanced/Dialysis" = "#e15759",
+                                "Death" = "#76b7b2")) +
+  labs(
+    x = "Year", y = "Proportion of Cohort",
+    title = "Markov Trace: CKD Progression Over 20 Years",
+    subtitle = "Comparing standard care vs early screening + ACE-inhibitor"
+  ) +
+  theme_minimal() +
+  theme(legend.position = "bottom")
+```
+
+::: {.callout-tip}
+## Reading the Markov Trace
+In these plots, the green area (Early CKD) shrinks over time as patients progress to worse states. The intervention keeps more patients in green for longer — that is the visual signature of a treatment that slows disease progression. Notice how the red area (Advanced/Dialysis) grows more slowly in the intervention arm. Since dialysis is by far the most expensive state (₹3,50,000/year), this delay translates directly into cost savings.
+:::
+
+## Patients Reaching Dialysis
+
+```{r}
+#| label: dialysis-comparison
+#| echo: true
+#| fig-cap: "Proportion of cohort in Advanced CKD/Dialysis over time"
+
+dialysis_data <- data.frame(
+  Year = rep(0:n_cycles, 2),
+  Proportion = c(results_standard$trace[, "Advanced/Dialysis"] / n_cohort,
+                 results_intervention$trace[, "Advanced/Dialysis"] / n_cohort),
+  Strategy = rep(c("Standard Care", "Screening + ACE-inhibitor"), each = n_cycles + 1)
+)
+
+ggplot(dialysis_data, aes(x = Year, y = Proportion * 100, colour = Strategy)) +
+  geom_line(linewidth = 1.2) +
+  labs(
+    x = "Year", y = "% of Cohort on Dialysis",
+    title = "Patients Reaching Advanced CKD / Dialysis",
+    subtitle = "Early intervention delays progression to this costly state"
+  ) +
+  scale_colour_manual(values = c("Standard Care" = "#e15759",
+                                  "Screening + ACE-inhibitor" = "#4e79a7")) +
+  theme_minimal() +
+  theme(legend.position = "bottom")
+```
+
+## Cost Accumulation Over Time
+
+```{r}
+#| label: cumulative-costs
+#| echo: true
+#| fig-cap: "Cumulative discounted costs per patient over 20 years"
+
+cumcost_std <- cumsum(results_standard$cycle_costs) / n_cohort
+cumcost_int <- cumsum(results_intervention$cycle_costs) / n_cohort
+# Add screening cost to intervention
+cumcost_int <- cumcost_int + cost_screening
+
+cost_over_time <- data.frame(
+  Year = rep(1:n_cycles, 2),
+  Cumulative_Cost = c(cumcost_std, cumcost_int),
+  Strategy = rep(c("Standard Care", "Screening + ACE-inhibitor"), each = n_cycles)
+)
+
+ggplot(cost_over_time, aes(x = Year, y = Cumulative_Cost / 1000, colour = Strategy)) +
+  geom_line(linewidth = 1.2) +
+  labs(
+    x = "Year", y = "Cumulative Cost per Patient (₹ thousands)",
+    title = "Cost Accumulation: Standard Care vs Intervention",
+    subtitle = "Intervention costs more early but may save through avoided dialysis"
+  ) +
+  scale_colour_manual(values = c("Standard Care" = "#e15759",
+                                  "Screening + ACE-inhibitor" = "#4e79a7")) +
+  theme_minimal() +
+  theme(legend.position = "bottom")
+```
+
+## What You Just Did
+
+You built and ran a complete **Markov cohort model** — one of the most common model types in HTA worldwide. The key concepts were:
+
+1. **Health states** — the distinct conditions patients can be in
+2. **Transition probabilities** — the likelihood of moving between states each cycle
+3. **Transition matrix** — the mathematical structure encoding all movements
+4. **Markov trace** — tracking the cohort distribution over time
+5. **Half-cycle correction** — a technical adjustment for more accurate cost/QALY estimation
+6. **Discounting** — accounting for time preference in costs and outcomes
+
+In Excel, building this model requires complex array formulas or VBA macros, and extending it to 20 cycles across 4 states becomes unwieldy. In R, the core simulation is a single line: `trace[cycle + 1, ] <- trace[cycle, ] %*% tm` — matrix multiplication handles all the transitions at once.
+
+## Key References
+
+- Go AS et al. (2004). Chronic kidney disease and the risks of death and hospitalisation. *NEJM*.
+- Singh AK et al. (2013). Epidemiology and risk factors of CKD in India — SEEK study. *BMC Nephrology*.
+- Rajapurkar MM et al. (2012). CKD in India: a clarion call for change. *Lancet*.
+- ACC/AHA (2024). Risk of initiating ACEi/ARBs in advanced CKD.
+- Inside CKD Investigators (2024). Economic burden of CKD at the patient level. *Lancet eClinicalMedicine*.
+- Hou FF et al. (2006). ACE inhibitor in progressive renal disease. *NEJM*.
+- Indian CKD Registry. BMC Nephrology 2012.
+
+→ **Next:** Open `ckd-exercise.qmd` to explore how changing parameters affects the model.

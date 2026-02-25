@@ -1,0 +1,172 @@
+---
+title: "Session 10: Interactive Shiny App Templates"
+subtitle: "Turning your HTA models into tools anyone can use"
+format:
+  html:
+    toc: true
+    code-fold: show
+---
+
+## What is Shiny?
+
+Shiny is an R package that makes it easy to build interactive web applications directly from R, without requiring any knowledge of HTML, CSS, or JavaScript. When you create a Shiny app, you're writing R code that automatically becomes a fully functional web application that can run in a browser. This means your HTA models—which might live in thousands of lines of R code—can be wrapped in a friendly, interactive interface that anyone can use.
+
+The beauty of Shiny is that it removes the barrier between your analysis and your audience. Instead of sharing Excel spreadsheets with hidden formulas or asking decision-makers to learn R, you can create an app where they simply adjust sliders, click buttons, and see results update instantly. No web development skills required.
+
+## Why Shiny for HTA?
+
+Health technology assessment is fundamentally about answering "what if" questions. What if the cost of treatment goes down? What if we can improve efficacy? What if we target the intervention to a high-risk subgroup? Shiny apps let decision-makers and stakeholders explore these scenarios themselves, in real time.
+
+Beyond interactivity, Shiny apps provide transparency and reproducibility. Every calculation happening behind the scenes is real R code—the same code you might publish or peer review. There are no hidden assumptions buried in Excel cells. When a policymaker asks "how did you get that number?", you can show them exactly how the app calculated it. This builds trust and makes it easier to incorporate feedback, because changing an assumption is as simple as adjusting a slider in the app.
+
+## Overview of the 4 Shiny Apps in This Workshop
+
+This workshop includes four complete, ready-to-use Shiny app templates, each implementing a different type of HTA model:
+
+1. **GDM Diagnostic Decision Tree** - A model for screening and diagnosis of gestational diabetes, comparing universal screening, risk-based screening, and no screening strategies.
+
+2. **DES vs BMS Therapeutic Decision Tree** - A comparison of two drug-eluting stent (DES) versus bare metal stent (BMS) strategies for coronary intervention, analyzing costs, restenosis rates, and major adverse cardiac events.
+
+3. **CKD Markov Model** - A 4-state Markov model tracking patients through chronic kidney disease stages, with treatment effects and long-term cost-effectiveness analysis.
+
+4. **Breast Cancer Partitioned Survival Model** - A partitioned survival model comparing treatment strategies for breast cancer, with hazard ratios for overall survival and progression-free survival.
+
+## How to Run a Shiny App Locally
+
+Running a Shiny app from your computer is simple. Navigate to the app's directory in RStudio and run:
+
+```r
+shiny::runApp()
+```
+
+Alternatively, if you have the app open in the script editor, you'll see a **"Run App"** button in the top-right corner of the script pane. Click it, and the app launches in your default browser. The app runs until you stop it (close the browser window or press Escape in the R console).
+
+## How to Share Shiny Apps
+
+Once you've created (or modified) a Shiny app, you have several options for sharing:
+
+- **shinyapps.io** - Free hosting for small apps. Create an account at shinyapps.io, authenticate from RStudio, and deploy with one click using `rsconnect::deployApp()`.
+
+- **Shiny Server** - Self-hosted option. If your organization has a server, Shiny Server lets you run multiple apps and control who can access them.
+
+- **Share the app.R file** - The simplest approach is to send colleagues the app.R file directly (or commit it to GitHub). They can run it with `shiny::runApp("path/to/app.R")`.
+
+For this workshop, we recommend starting by sharing the app.R file with your team so they can run it locally and modify it as needed.
+
+## Anatomy of a Shiny App
+
+Every Shiny app has three core parts:
+
+1. **UI (User Interface)** - Defines what the app looks like and what controls users interact with
+2. **Server** - Contains the logic that reacts to user input and calculates outputs
+3. **shinyApp()** - Combines the UI and server into a single app
+
+```{r}
+#| label: fig-shiny-structure
+#| echo: true
+#| fig-cap: "Anatomy of a Shiny app — UI and Server work together"
+
+library(DiagrammeR)
+
+grViz("
+digraph shiny_anatomy {
+  graph [rankdir=LR, bgcolor='transparent', fontname='Helvetica']
+  node [fontname='Helvetica', fontsize=11, style='filled,rounded', shape=box]
+
+  user [label='User\n(Browser)', fillcolor='#76b7b2', fontcolor='white', shape=ellipse, width=1.5]
+
+  subgraph cluster_ui {
+    label='UI (User Interface)'
+    style=filled
+    fillcolor='#d4e6f1'
+    fontname='Helvetica-Bold'
+
+    inputs [label='Input Widgets\n(sliders, dropdowns,\nnumber boxes)', fillcolor='#4e79a7', fontcolor='white']
+    outputs [label='Output Displays\n(plots, tables,\ntext)', fillcolor='#4e79a7', fontcolor='white']
+  }
+
+  subgraph cluster_server {
+    label='Server (R Code)'
+    style=filled
+    fillcolor='#d5f5e3'
+    fontname='Helvetica-Bold'
+
+    model [label='HTA Model\n(decision tree,\nMarkov, PSM)', fillcolor='#59a14f', fontcolor='white']
+    render [label='Render Outputs\n(plots, tables,\nICER)', fillcolor='#59a14f', fontcolor='white']
+  }
+
+  user -> inputs [label='Adjusts\nparameters']
+  inputs -> model [label='Sends\nvalues']
+  model -> render [label='Results']
+  render -> outputs [label='Updates']
+  outputs -> user [label='Displays']
+}
+")
+```
+
+Here's a minimal example:
+
+```r
+library(shiny)
+
+# Define UI
+ui <- fluidPage(
+  titlePanel("My First App"),
+  sidebarLayout(
+    sidebarPanel(
+      sliderInput("n", "Number of points:", min = 1, max = 100, value = 50)
+    ),
+    mainPanel(
+      plotOutput("scatterplot")
+    )
+  )
+)
+
+# Define server logic
+server <- function(input, output) {
+  output$scatterplot <- renderPlot({
+    x <- rnorm(input$n)
+    y <- rnorm(input$n)
+    plot(x, y, main = "Random Scatter Plot")
+  })
+}
+
+# Run the app
+shinyApp(ui = ui, server = server)
+```
+
+When a user moves the slider, `input$n` updates automatically. The server detects this change and re-runs the code that creates `output$scatterplot`. The new plot appears in the browser without requiring a page refresh.
+
+## Understanding the Provided Templates
+
+The four Shiny apps in this workshop follow this same basic structure. Each one has:
+
+- **Input controls** in the sidebar (sliders for parameters like costs, probabilities, and treatment effects)
+- **Output tabs** in the main panel (results tables, plots, sensitivity analyses)
+- **Server logic** that implements the HTA model and updates outputs when inputs change
+
+You won't need to write code from scratch. Instead, you can explore the apps, understand how they work, and then adapt them for your own models.
+
+## NOT Building Apps From Scratch
+
+This session is not about learning to code Shiny apps from the ground up. Instead, we're teaching you to:
+
+- Understand how the provided apps work
+- Identify which template matches your model type
+- Modify parameters and ranges to fit your problem
+- Add or remove outputs (plots, tables) as needed
+
+If you want to dive deeper into Shiny development later, the book *Mastering Shiny* by Hadley Wickham is an excellent resource. But for now, think of these templates as starting points.
+
+## Modifying the Apps
+
+Each app is designed to be easy to adapt. Want to add a new parameter? Find the `sliderInput()` in the UI and the corresponding calculation in the server. Want to change a plot theme or add a new sensitivity analysis? The ggplot2 code is right there.
+
+The key principle: **you control the assumptions**. If your organization believes the treatment cost should be higher, or the baseline prevalence is different, simply adjust the slider bounds and default values. Rerun the app, and you're exploring your own scenario space.
+
+## End Encouragement
+
+These apps are starting points. Your role as an HTA analyst is to populate them with your organization's best estimates, validate the underlying models, and then share them with stakeholders. By doing this, you're democratizing health technology assessment—turning complex analyses into accessible, interactive tools that inform better decisions.
+
+Don't be intimidated by the R code behind the scenes. Focus on the inputs and outputs. Understand what assumptions drive the results. And remember: if you can modify a spreadsheet, you can modify a Shiny app. The difference is that Shiny makes it reproducible, transparent, and shareable.
+
