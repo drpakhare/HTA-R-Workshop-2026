@@ -1,0 +1,814 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>QALYs & Health Utilities — HTA Concept Explainer</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap');
+
+  :root {
+    --deep-blue: #1B4965;
+    --teal: #028090;
+    --mint: #02C39A;
+    --amber: #F0A500;
+    --red: #E74C3C;
+    --bg: #FAFCFD;
+    --text: #2D3436;
+    --muted: #636e72;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    font-family: 'Inter', sans-serif;
+    background: #1a1a2e;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    min-height: 100vh;
+  }
+
+  .stage {
+    width: 960px;
+    height: 540px;
+    background: var(--bg);
+    border-radius: 12px;
+    position: relative;
+    overflow: hidden;
+    box-shadow: 0 20px 60px rgba(0,0,0,0.4);
+  }
+
+  .controls {
+    margin-top: 20px;
+    display: flex;
+    gap: 12px;
+    align-items: center;
+  }
+
+  .btn {
+    padding: 10px 24px; border: none; border-radius: 8px;
+    font-family: 'Inter', sans-serif; font-size: 14px; font-weight: 600;
+    cursor: pointer; transition: all 0.2s;
+  }
+  .btn-play { background: var(--mint); color: white; }
+  .btn-play:hover { background: #01a87e; }
+  .btn-play:disabled { background: #888; cursor: not-allowed; }
+  .btn-reset { background: var(--deep-blue); color: white; }
+  .btn-upload { background: var(--amber); color: white; }
+  .btn-tts { background: var(--teal); color: white; }
+  .audio-status { color: #ccc; font-size: 13px; font-weight: 500; }
+  #voiceoverInput { display: none; }
+
+  .progress-bar { width: 960px; height: 4px; background: #333; border-radius: 2px; margin-top: 12px; overflow: hidden; }
+  .progress-fill { height: 100%; width: 0%; background: linear-gradient(90deg, var(--teal), var(--mint)); transition: width 0.3s; border-radius: 2px; }
+
+  .scene { position: absolute; inset: 0; opacity: 0; transition: opacity 0.5s; pointer-events: none; }
+  .scene.active { opacity: 1; }
+
+  .subtitle-bar {
+    position: absolute; bottom: 0; left: 0; right: 0;
+    padding: 14px 40px; background: rgba(0,0,0,0.75);
+    color: white; font-size: 16px; text-align: center; line-height: 1.5;
+    opacity: 0; transition: opacity 0.3s; backdrop-filter: blur(4px);
+  }
+  .subtitle-bar.show { opacity: 1; }
+
+  .brand {
+    position: absolute; bottom: 12px; right: 20px;
+    font-size: 11px; color: rgba(0,0,0,0.2); font-weight: 500;
+  }
+
+  /* ═══════ SCENE 1: Title ═══════ */
+  .s1-center {
+    position: absolute; top: 50%; left: 50%;
+    transform: translate(-50%, -50%); text-align: center;
+  }
+  .s1-center h1 {
+    font-size: 60px; font-weight: 800; color: var(--deep-blue);
+    opacity: 0; transform: translateY(30px);
+    transition: all 0.8s cubic-bezier(0.16,1,0.3,1);
+  }
+  .s1-center h1.show { opacity: 1; transform: translateY(0); }
+  .s1-center .sub {
+    font-size: 22px; color: var(--teal); font-weight: 500; margin-top: 10px;
+    opacity: 0; transform: translateY(20px);
+    transition: all 0.6s cubic-bezier(0.16,1,0.3,1) 0.3s;
+  }
+  .s1-center .sub.show { opacity: 1; transform: translateY(0); }
+  .s1-center .tagline {
+    font-size: 17px; color: var(--muted); margin-top: 18px;
+    opacity: 0; transition: all 0.5s 0.6s;
+  }
+  .s1-center .tagline.show { opacity: 1; }
+
+  /* ═══════ SCENE 2: Life Years vs QALYs — The Problem ═══════ */
+  .s2-container {
+    display: flex; align-items: flex-end; justify-content: center;
+    height: 100%; padding: 40px 60px 80px; gap: 80px;
+  }
+
+  .person-stack {
+    display: flex; flex-direction: column; align-items: center; gap: 8px;
+    opacity: 0; transform: translateY(30px);
+    transition: all 0.6s cubic-bezier(0.16,1,0.3,1);
+  }
+  .person-stack.show { opacity: 1; transform: translateY(0); }
+
+  .person-label {
+    font-size: 16px; font-weight: 700; color: var(--deep-blue); margin-bottom: 4px;
+  }
+
+  .year-bars {
+    display: flex; flex-direction: column-reverse; gap: 3px;
+  }
+
+  .year-bar {
+    width: 100px; border-radius: 4px; display: flex;
+    align-items: center; justify-content: center;
+    font-size: 11px; font-weight: 600; color: white;
+    opacity: 0; transform: scaleY(0); transform-origin: bottom;
+    transition: all 0.3s cubic-bezier(0.34,1.56,0.64,1);
+  }
+  .year-bar.show { opacity: 1; transform: scaleY(1); }
+
+  .ly-counter {
+    font-size: 28px; font-weight: 800; margin-top: 8px;
+    opacity: 0; transition: all 0.4s;
+  }
+  .ly-counter.show { opacity: 1; }
+
+  .vs-text {
+    position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
+    font-size: 32px; font-weight: 800; color: var(--amber);
+    opacity: 0; transition: all 0.5s;
+  }
+  .vs-text.show { opacity: 1; }
+
+  .s2-question {
+    position: absolute; top: 30px; left: 50%; transform: translateX(-50%);
+    font-size: 22px; font-weight: 700; color: var(--deep-blue);
+    text-align: center; opacity: 0; transition: all 0.5s;
+    white-space: nowrap;
+  }
+  .s2-question.show { opacity: 1; }
+
+  /* ═══════ SCENE 3: Utility scale ═══════ */
+  .s3-container {
+    display: flex; flex-direction: column; align-items: center;
+    justify-content: center; height: 100%; padding: 30px 60px;
+  }
+
+  .s3-title {
+    font-size: 24px; font-weight: 700; color: var(--deep-blue);
+    margin-bottom: 24px; opacity: 0; transition: all 0.5s;
+  }
+  .s3-title.show { opacity: 1; }
+
+  .utility-scale {
+    position: relative; width: 700px; height: 280px;
+  }
+
+  .scale-bar {
+    position: absolute; bottom: 40px; left: 0; width: 100%; height: 12px;
+    border-radius: 6px;
+    background: linear-gradient(90deg, var(--red) 0%, var(--amber) 50%, var(--mint) 100%);
+    opacity: 0; transform: scaleX(0); transform-origin: left;
+    transition: all 0.8s cubic-bezier(0.16,1,0.3,1);
+  }
+  .scale-bar.show { opacity: 1; transform: scaleX(1); }
+
+  .scale-label-left {
+    position: absolute; bottom: 10px; left: 0;
+    font-size: 14px; font-weight: 700; color: var(--red);
+    opacity: 0; transition: all 0.4s;
+  }
+  .scale-label-left.show { opacity: 1; }
+
+  .scale-label-right {
+    position: absolute; bottom: 10px; right: 0;
+    font-size: 14px; font-weight: 700; color: var(--mint);
+    opacity: 0; transition: all 0.4s;
+  }
+  .scale-label-right.show { opacity: 1; }
+
+  .state-marker {
+    position: absolute; bottom: 56px; display: flex;
+    flex-direction: column; align-items: center;
+    opacity: 0; transform: translateY(10px);
+    transition: all 0.5s cubic-bezier(0.16,1,0.3,1);
+  }
+  .state-marker.show { opacity: 1; transform: translateY(0); }
+
+  .state-dot {
+    width: 16px; height: 16px; border-radius: 50%;
+    border: 3px solid white; box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+  }
+
+  .state-info {
+    text-align: center; margin-bottom: 8px; line-height: 1.3;
+  }
+  .state-name { font-size: 13px; font-weight: 700; color: var(--deep-blue); }
+  .state-val { font-size: 18px; font-weight: 800; }
+
+  /* ═══════ SCENE 4: Coin stacks — the innovation ═══════ */
+  .s4-container {
+    display: flex; align-items: flex-end; justify-content: center;
+    height: 100%; padding: 30px 40px 70px; gap: 12px;
+  }
+
+  .s4-title {
+    position: absolute; top: 24px; left: 50%; transform: translateX(-50%);
+    font-size: 20px; font-weight: 700; color: var(--deep-blue);
+    text-align: center; opacity: 0; transition: all 0.5s;
+  }
+  .s4-title.show { opacity: 1; }
+
+  .coin-column {
+    display: flex; flex-direction: column-reverse; align-items: center; gap: 2px;
+    position: relative;
+  }
+
+  .coin {
+    width: 70px; border-radius: 4px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 10px; font-weight: 700; color: white;
+    opacity: 0; transform: translateY(20px);
+    transition: all 0.35s cubic-bezier(0.34,1.56,0.64,1);
+    position: relative;
+  }
+  .coin.show { opacity: 1; transform: translateY(0); }
+
+  .coin-year-label {
+    position: absolute; bottom: -18px;
+    font-size: 11px; font-weight: 600; color: var(--muted);
+    opacity: 0; transition: all 0.3s;
+  }
+  .coin-year-label.show { opacity: 1; }
+
+  .qaly-total {
+    position: absolute; top: -30px; left: 50%; transform: translateX(-50%);
+    font-size: 15px; font-weight: 800; white-space: nowrap;
+    opacity: 0; transition: all 0.4s;
+  }
+  .qaly-total.show { opacity: 1; }
+
+  .s4-comparison {
+    position: absolute; bottom: 24px; left: 50%; transform: translateX(-50%);
+    display: flex; gap: 40px; align-items: center;
+    opacity: 0; transition: all 0.5s;
+  }
+  .s4-comparison.show { opacity: 1; }
+
+  .comp-box {
+    padding: 8px 20px; border-radius: 8px; text-align: center;
+  }
+  .comp-label { font-size: 12px; font-weight: 600; color: white; opacity: 0.8; }
+  .comp-value { font-size: 22px; font-weight: 800; color: white; }
+  .comp-ne { font-size: 24px; font-weight: 800; color: var(--amber); }
+
+  /* ═══════ SCENE 5: QALY formula + CKD example ═══════ */
+  .s5-container {
+    display: flex; flex-direction: column; align-items: center;
+    justify-content: center; height: 100%; padding: 30px 60px;
+  }
+
+  .s5-formula {
+    display: flex; align-items: center; gap: 16px;
+    font-size: 28px; font-weight: 600;
+    opacity: 0; transform: translateY(20px);
+    transition: all 0.7s cubic-bezier(0.16,1,0.3,1);
+  }
+  .s5-formula.show { opacity: 1; transform: translateY(0); }
+
+  .s5-formula .f-label { color: var(--deep-blue); font-size: 32px; font-weight: 800; }
+  .s5-formula .f-eq { color: var(--muted); }
+  .s5-formula .f-years { color: var(--teal); font-weight: 700; }
+  .s5-formula .f-times { color: var(--muted); font-size: 24px; }
+  .s5-formula .f-utility { color: var(--mint); font-weight: 700; }
+
+  .s5-example {
+    margin-top: 30px; background: #f0f7f4; border-radius: 12px;
+    padding: 24px 36px; width: 750px;
+    border-left: 4px solid var(--teal);
+    opacity: 0; transform: translateY(20px);
+    transition: all 0.6s cubic-bezier(0.16,1,0.3,1);
+  }
+  .s5-example.show { opacity: 1; transform: translateY(0); }
+
+  .s5-ex-title {
+    font-size: 16px; font-weight: 700; color: var(--teal); margin-bottom: 12px;
+  }
+
+  .s5-ex-row {
+    display: flex; align-items: center; gap: 12px;
+    padding: 6px 0; font-size: 16px;
+    opacity: 0; transform: translateX(-20px);
+    transition: all 0.4s cubic-bezier(0.16,1,0.3,1);
+  }
+  .s5-ex-row.show { opacity: 1; transform: translateX(0); }
+
+  .s5-ex-row .state { font-weight: 600; color: var(--deep-blue); min-width: 150px; }
+  .s5-ex-row .calc { color: var(--muted); }
+  .s5-ex-row .result { font-weight: 700; color: var(--teal); }
+
+  .s5-total {
+    margin-top: 12px; padding-top: 12px; border-top: 2px solid #d0e8df;
+    font-size: 20px; font-weight: 800; color: var(--deep-blue);
+    opacity: 0; transform: scale(0.8);
+    transition: all 0.5s cubic-bezier(0.34,1.56,0.64,1);
+  }
+  .s5-total.show { opacity: 1; transform: scale(1); }
+
+  /* ═══════ SCENE 6: Takeaway ═══════ */
+  .s6-bg {
+    display: flex; flex-direction: column; align-items: center;
+    justify-content: center; height: 100%;
+    background: linear-gradient(135deg, var(--deep-blue), #0a2940);
+  }
+  .s6-icon {
+    font-size: 56px; opacity: 0; transform: scale(0);
+    transition: all 0.5s cubic-bezier(0.34,1.56,0.64,1);
+  }
+  .s6-icon.show { opacity: 1; transform: scale(1); }
+
+  .s6-text {
+    font-size: 28px; font-weight: 700; color: white; text-align: center;
+    max-width: 700px; line-height: 1.6; margin-top: 20px;
+    opacity: 0; transform: translateY(20px);
+    transition: all 0.7s cubic-bezier(0.16,1,0.3,1);
+  }
+  .s6-text.show { opacity: 1; transform: translateY(0); }
+  .s6-text .hl { color: var(--mint); }
+
+  .s6-sub {
+    font-size: 17px; color: rgba(255,255,255,0.5); margin-top: 14px;
+    opacity: 0; transition: all 0.5s 0.3s;
+  }
+  .s6-sub.show { opacity: 1; }
+</style>
+</head>
+<body>
+
+<div class="stage" id="stage">
+
+  <!-- ═══ Scene 1: Title ═══ -->
+  <div class="scene" id="scene1">
+    <div class="s1-center">
+      <h1 id="s1h1">QALYs</h1>
+      <div class="sub" id="s1sub">Quality-Adjusted Life Years</div>
+      <div class="tagline" id="s1tag">Not all years of life are lived equally</div>
+    </div>
+    <div class="brand">RRC-HTA, AIIMS Bhopal</div>
+  </div>
+
+  <!-- ═══ Scene 2: The Problem — 10 years ≠ 10 years ═══ -->
+  <div class="scene" id="scene2">
+    <div class="s2-question" id="s2q">Are 10 years of life always worth the same?</div>
+    <div class="s2-container">
+      <!-- Person A: full health -->
+      <div class="person-stack" id="personA">
+        <div class="person-label">Person A</div>
+        <div class="year-bars" id="barsA"></div>
+        <div class="ly-counter" id="lyA" style="color:var(--mint)">10 Life Years</div>
+      </div>
+      <!-- Person B: declining health -->
+      <div class="person-stack" id="personB">
+        <div class="person-label">Person B</div>
+        <div class="year-bars" id="barsB"></div>
+        <div class="ly-counter" id="lyB" style="color:var(--amber)">10 Life Years</div>
+      </div>
+    </div>
+    <div class="vs-text" id="vsText">Same life years,<br>different quality</div>
+    <div class="brand">RRC-HTA, AIIMS Bhopal</div>
+  </div>
+
+  <!-- ═══ Scene 3: Utility Scale ═══ -->
+  <div class="scene" id="scene3">
+    <div class="s3-container">
+      <div class="s3-title" id="s3title">Health Utility: Measuring Quality of Life</div>
+      <div class="utility-scale" id="utilScale">
+        <div class="scale-bar" id="scaleBar"></div>
+        <div class="scale-label-left" id="sll">0 = Death</div>
+        <div class="scale-label-right" id="slr">1.0 = Perfect Health</div>
+
+        <!-- CKD states positioned along the scale -->
+        <div class="state-marker" id="sm1" style="left: 82%;">
+          <div class="state-info">
+            <div class="state-name">CKD Stage 1–2</div>
+            <div class="state-val" style="color:var(--mint)">0.85</div>
+          </div>
+          <div class="state-dot" style="background:var(--mint)"></div>
+        </div>
+        <div class="state-marker" id="sm2" style="left: 62%;">
+          <div class="state-info">
+            <div class="state-name">CKD Stage 3</div>
+            <div class="state-val" style="color:var(--teal)">0.65</div>
+          </div>
+          <div class="state-dot" style="background:var(--teal)"></div>
+        </div>
+        <div class="state-marker" id="sm3" style="left: 42%;">
+          <div class="state-info">
+            <div class="state-name">CKD Stage 4</div>
+            <div class="state-val" style="color:var(--amber)">0.45</div>
+          </div>
+          <div class="state-dot" style="background:var(--amber)"></div>
+        </div>
+        <div class="state-marker" id="sm4" style="left: 20%;">
+          <div class="state-info">
+            <div class="state-name">Dialysis</div>
+            <div class="state-val" style="color:var(--red)">0.40</div>
+          </div>
+          <div class="state-dot" style="background:var(--red)"></div>
+        </div>
+      </div>
+    </div>
+    <div class="brand">RRC-HTA, AIIMS Bhopal</div>
+  </div>
+
+  <!-- ═══ Scene 4: Coin stacks — Visual Innovation ═══ -->
+  <div class="scene" id="scene4">
+    <div class="s4-title" id="s4title">Each year is weighted by its quality — shorter bars = lower utility</div>
+    <div class="s4-container" id="s4container">
+      <!-- Person A: 10 years full health — built by JS -->
+      <!-- Person B: 10 years declining — built by JS -->
+    </div>
+    <div class="s4-comparison" id="s4comp">
+      <div class="comp-box" style="background:var(--mint)">
+        <div class="comp-label">Person A</div>
+        <div class="comp-value">8.5 QALYs</div>
+      </div>
+      <div class="comp-ne">≠</div>
+      <div class="comp-box" style="background:var(--amber)">
+        <div class="comp-label">Person B</div>
+        <div class="comp-value">5.1 QALYs</div>
+      </div>
+    </div>
+    <div class="brand">RRC-HTA, AIIMS Bhopal</div>
+  </div>
+
+  <!-- ═══ Scene 5: Formula + CKD example ═══ -->
+  <div class="scene" id="scene5">
+    <div class="s5-container">
+      <div class="s5-formula" id="s5form">
+        <span class="f-label">QALY</span>
+        <span class="f-eq">=</span>
+        <span class="f-years">Years in state</span>
+        <span class="f-times">×</span>
+        <span class="f-utility">Utility weight</span>
+      </div>
+      <div class="s5-example" id="s5ex">
+        <div class="s5-ex-title">Example: CKD Patient over 10 years</div>
+        <div class="s5-ex-row" id="ex1">
+          <span class="state">CKD Stage 1–2</span>
+          <span class="calc">3 yrs × 0.85 =</span>
+          <span class="result">2.55 QALYs</span>
+        </div>
+        <div class="s5-ex-row" id="ex2">
+          <span class="state">CKD Stage 3</span>
+          <span class="calc">3 yrs × 0.65 =</span>
+          <span class="result">1.95 QALYs</span>
+        </div>
+        <div class="s5-ex-row" id="ex3">
+          <span class="state">CKD Stage 4</span>
+          <span class="calc">2 yrs × 0.45 =</span>
+          <span class="result">0.90 QALYs</span>
+        </div>
+        <div class="s5-ex-row" id="ex4">
+          <span class="state">Dialysis</span>
+          <span class="calc">2 yrs × 0.40 =</span>
+          <span class="result">0.80 QALYs</span>
+        </div>
+        <div class="s5-total" id="s5total">Total: 10 Life Years → 6.20 QALYs</div>
+      </div>
+    </div>
+    <div class="brand">RRC-HTA, AIIMS Bhopal</div>
+  </div>
+
+  <!-- ═══ Scene 6: Takeaway ═══ -->
+  <div class="scene" id="scene6">
+    <div class="s6-bg">
+      <div class="s6-icon" id="s6icon">⚖️</div>
+      <div class="s6-text" id="s6text">
+        QALYs capture both <span class="hl">length</span> and <span class="hl">quality</span> of life
+        in a single number — making it possible to compare very different treatments fairly
+      </div>
+      <div class="s6-sub" id="s6sub">1 QALY = 1 year lived in perfect health (utility = 1.0)</div>
+    </div>
+    <div class="brand" style="color:rgba(255,255,255,0.15)">RRC-HTA, AIIMS Bhopal</div>
+  </div>
+
+  <div class="subtitle-bar" id="subtitleBar"></div>
+</div>
+
+<div class="progress-bar"><div class="progress-fill" id="progressFill"></div></div>
+
+<div class="controls">
+  <button class="btn btn-play" id="playBtn" onclick="startAnimation()">▶ Play</button>
+  <button class="btn btn-reset" onclick="resetAnimation()">↺ Reset</button>
+  <button class="btn btn-upload" onclick="document.getElementById('voiceoverInput').click()">🎙 Upload Voiceover</button>
+  <button class="btn btn-tts" onclick="toggleTTS()">🔊 TTS: ON</button>
+  <span class="audio-status" id="audioStatus">TTS enabled</span>
+  <input type="file" id="voiceoverInput" accept="audio/*" onchange="handleVoiceover(event)">
+</div>
+
+<script>
+let ttsEnabled = true, voiceoverAudio = null, animating = false, timeouts = [];
+
+const narration = [
+  "QALY — the Quality-Adjusted Life Year. Not all years of life are lived equally.",
+  "Consider two patients who both live ten more years. Person A lives in good health. Person B has chronic kidney disease that worsens over time. Are these ten years equivalent?",
+  "Health utility is a scale from zero to one. Zero means death. One means perfect health. Each disease state has a measured utility value.",
+  "Now watch how this changes the picture. Each year is a bar — but its height reflects the quality of that year. Person A's bars stay tall. Person B's shrink as disease progresses.",
+  "The formula is simple. QALYs equal years lived in a state, multiplied by the utility weight of that state. Here is a CKD patient progressing through stages over ten years.",
+  "QALYs let us capture both the length and the quality of life in one number — making fair comparisons between very different treatments possible."
+];
+
+function toggleTTS() {
+  ttsEnabled = !ttsEnabled;
+  document.querySelector('.btn-tts').textContent = ttsEnabled ? '🔊 TTS: ON' : '🔇 TTS: OFF';
+  document.getElementById('audioStatus').textContent = voiceoverAudio ? 'Voiceover loaded' : (ttsEnabled ? 'TTS enabled' : 'Audio off');
+}
+function handleVoiceover(e) {
+  const f = e.target.files[0]; if (!f) return;
+  voiceoverAudio = new Audio(URL.createObjectURL(f));
+  document.getElementById('audioStatus').textContent = '✓ ' + f.name;
+}
+
+function show(id) { document.getElementById(id).classList.add('show'); }
+function showScene(n) {
+  document.querySelectorAll('.scene').forEach(s => s.classList.remove('active'));
+  document.getElementById('scene' + n).classList.add('active');
+}
+function setSubtitle(t) { const b = document.getElementById('subtitleBar'); b.textContent = t; b.classList.add('show'); }
+function hideSubtitle() { document.getElementById('subtitleBar').classList.remove('show'); }
+function setProgress(p) { document.getElementById('progressFill').style.width = p + '%'; }
+function speak(text) {
+  if (voiceoverAudio || !ttsEnabled) return;
+  const u = new SpeechSynthesisUtterance(text);
+  u.rate = 0.92; u.pitch = 1; u.lang = 'en-IN';
+  speechSynthesis.speak(u);
+}
+function delay(ms) { return new Promise(r => { const t = setTimeout(r, ms); timeouts.push(t); }); }
+
+// ── Build Scene 2 bars ──
+function buildBars() {
+  const barsA = document.getElementById('barsA');
+  const barsB = document.getElementById('barsB');
+  barsA.innerHTML = ''; barsB.innerHTML = '';
+
+  const utilA = [0.85,0.85,0.85,0.85,0.85,0.85,0.85,0.85,0.85,0.85];
+  const utilB = [0.80,0.75,0.65,0.60,0.50,0.45,0.40,0.40,0.35,0.30];
+
+  for (let i = 0; i < 10; i++) {
+    const h = utilA[i] * 28;
+    const bar = document.createElement('div');
+    bar.className = 'year-bar';
+    bar.id = 'barA' + i;
+    bar.style.height = h + 'px';
+    bar.style.background = `var(--mint)`;
+    bar.textContent = 'Yr ' + (i + 1);
+    barsA.appendChild(bar);
+  }
+
+  for (let i = 0; i < 10; i++) {
+    const h = utilB[i] * 28;
+    const bar = document.createElement('div');
+    bar.className = 'year-bar';
+    bar.id = 'barB' + i;
+    const r = Math.round(231 + (utilB[i] - 0.3) * (-231 + 240) / 0.5);
+    const g = Math.round(76 + (utilB[i] - 0.3) * (-76 + 165) / 0.5);
+    const b = Math.round(60 + (utilB[i] - 0.3) * (-60 + 0) / 0.5);
+    bar.style.height = h + 'px';
+    bar.style.background = utilB[i] > 0.6 ? 'var(--teal)' : utilB[i] > 0.4 ? 'var(--amber)' : 'var(--red)';
+    bar.textContent = 'Yr ' + (i + 1);
+    barsA.appendChild(bar); // build in DOM
+    barsB.appendChild(bar);
+  }
+}
+
+// ── Build Scene 4 coin columns ──
+function buildCoins() {
+  const container = document.getElementById('s4container');
+  container.innerHTML = '';
+
+  const utilA = [0.85,0.85,0.85,0.85,0.85,0.85,0.85,0.85,0.85,0.85];
+  const utilB = [0.80,0.75,0.65,0.60,0.50,0.45,0.40,0.40,0.35,0.30];
+
+  // Person A label
+  const labelA = document.createElement('div');
+  labelA.style.cssText = 'font-size:14px;font-weight:700;color:var(--deep-blue);margin-right:8px;align-self:center;opacity:0;transition:all 0.4s';
+  labelA.id = 'coinLabelA';
+  labelA.textContent = 'Person A →';
+  container.appendChild(labelA);
+
+  for (let i = 0; i < 10; i++) {
+    const col = document.createElement('div');
+    col.className = 'coin-column';
+
+    const coin = document.createElement('div');
+    coin.className = 'coin';
+    coin.id = 'coinA' + i;
+    const h = utilA[i] * 50;
+    coin.style.height = h + 'px';
+    coin.style.background = 'var(--mint)';
+    coin.textContent = utilA[i].toFixed(2);
+
+    const yr = document.createElement('div');
+    yr.className = 'coin-year-label';
+    yr.id = 'cyrA' + i;
+    yr.textContent = 'Y' + (i + 1);
+
+    col.appendChild(coin);
+    col.appendChild(yr);
+    container.appendChild(col);
+  }
+
+  // Spacer
+  const spacer = document.createElement('div');
+  spacer.style.width = '30px';
+  container.appendChild(spacer);
+
+  // Person B label
+  const labelB = document.createElement('div');
+  labelB.style.cssText = 'font-size:14px;font-weight:700;color:var(--deep-blue);margin-right:8px;align-self:center;opacity:0;transition:all 0.4s';
+  labelB.id = 'coinLabelB';
+  labelB.textContent = 'Person B →';
+  container.appendChild(labelB);
+
+  for (let i = 0; i < 10; i++) {
+    const col = document.createElement('div');
+    col.className = 'coin-column';
+
+    const coin = document.createElement('div');
+    coin.className = 'coin';
+    coin.id = 'coinB' + i;
+    const h = utilB[i] * 50;
+    coin.style.height = h + 'px';
+    coin.style.background = utilB[i] > 0.6 ? 'var(--teal)' : utilB[i] > 0.4 ? 'var(--amber)' : 'var(--red)';
+    coin.textContent = utilB[i].toFixed(2);
+
+    const yr = document.createElement('div');
+    yr.className = 'coin-year-label';
+    yr.id = 'cyrB' + i;
+    yr.textContent = 'Y' + (i + 1);
+
+    col.appendChild(coin);
+    col.appendChild(yr);
+    container.appendChild(col);
+  }
+}
+
+// ── Reset ──
+function resetAnimation() {
+  timeouts.forEach(clearTimeout); timeouts = [];
+  animating = false; speechSynthesis.cancel();
+  if (voiceoverAudio) { voiceoverAudio.pause(); voiceoverAudio.currentTime = 0; }
+  document.querySelectorAll('.show').forEach(e => e.classList.remove('show'));
+  document.querySelectorAll('.scene').forEach(s => s.classList.remove('active'));
+  setProgress(0);
+  document.getElementById('playBtn').disabled = false;
+  document.getElementById('playBtn').textContent = '▶ Play';
+}
+
+// ── Main animation ──
+async function startAnimation() {
+  if (animating) return;
+  animating = true;
+  const btn = document.getElementById('playBtn');
+  btn.disabled = true; btn.textContent = '⏵ Playing...';
+  if (voiceoverAudio) { voiceoverAudio.currentTime = 0; voiceoverAudio.play(); }
+
+  // Build dynamic elements
+  buildBars();
+  buildCoins();
+
+  // ═══ Scene 1: Title (0–4s) ═══
+  showScene(1); setProgress(5);
+  setSubtitle(narration[0]); speak(narration[0]);
+  await delay(300);
+  show('s1h1');
+  await delay(500);
+  show('s1sub');
+  await delay(600);
+  show('s1tag');
+  await delay(3000);
+
+  // ═══ Scene 2: Two persons (4–14s) ═══
+  showScene(2); setProgress(15);
+  setSubtitle(narration[1]); speak(narration[1]);
+  await delay(400);
+  show('s2q');
+  await delay(600);
+  show('personA');
+  await delay(300);
+
+  // Animate bars for Person A
+  const utilA = [0.85,0.85,0.85,0.85,0.85,0.85,0.85,0.85,0.85,0.85];
+  for (let i = 0; i < 10; i++) {
+    document.getElementById('barA' + i).classList.add('show');
+    await delay(120);
+  }
+  await delay(300);
+  show('lyA');
+  await delay(600);
+
+  show('personB');
+  await delay(300);
+
+  // Animate bars for Person B (they shrink!)
+  const utilB = [0.80,0.75,0.65,0.60,0.50,0.45,0.40,0.40,0.35,0.30];
+  for (let i = 0; i < 10; i++) {
+    document.getElementById('barB' + i).classList.add('show');
+    await delay(120);
+  }
+  await delay(300);
+  show('lyB');
+  await delay(800);
+  show('vsText');
+  await delay(2500);
+
+  // ═══ Scene 3: Utility scale (14–24s) ═══
+  showScene(3); setProgress(30);
+  setSubtitle(narration[2]); speak(narration[2]);
+  await delay(400);
+  show('s3title');
+  await delay(600);
+  show('scaleBar');
+  await delay(600);
+  show('sll'); show('slr');
+  await delay(600);
+  show('sm1');
+  await delay(500);
+  show('sm2');
+  await delay(500);
+  show('sm3');
+  await delay(500);
+  show('sm4');
+  await delay(3000);
+
+  // ═══ Scene 4: Coin stacks (24–38s) ═══
+  showScene(4); setProgress(48);
+  setSubtitle(narration[3]); speak(narration[3]);
+  await delay(400);
+  show('s4title');
+  await delay(400);
+
+  // Show Person A coins
+  document.getElementById('coinLabelA').style.opacity = '1';
+  for (let i = 0; i < 10; i++) {
+    document.getElementById('coinA' + i).classList.add('show');
+    document.getElementById('cyrA' + i).classList.add('show');
+    await delay(150);
+  }
+  await delay(500);
+
+  // Show Person B coins — dramatic shrinking
+  document.getElementById('coinLabelB').style.opacity = '1';
+  for (let i = 0; i < 10; i++) {
+    document.getElementById('coinB' + i).classList.add('show');
+    document.getElementById('cyrB' + i).classList.add('show');
+    await delay(200);
+  }
+  await delay(800);
+
+  show('s4comp');
+  await delay(3000);
+
+  // ═══ Scene 5: Formula + CKD (38–50s) ═══
+  showScene(5); setProgress(70);
+  setSubtitle(narration[4]); speak(narration[4]);
+  await delay(500);
+  show('s5form');
+  await delay(1500);
+  show('s5ex');
+  await delay(500);
+  show('ex1');
+  await delay(600);
+  show('ex2');
+  await delay(600);
+  show('ex3');
+  await delay(600);
+  show('ex4');
+  await delay(800);
+  show('s5total');
+  await delay(3000);
+
+  // ═══ Scene 6: Takeaway (50–58s) ═══
+  showScene(6); setProgress(92);
+  setSubtitle(narration[5]); speak(narration[5]);
+  await delay(500);
+  show('s6icon');
+  await delay(400);
+  show('s6text');
+  await delay(600);
+  show('s6sub');
+  await delay(3500);
+
+  setProgress(100); hideSubtitle();
+  btn.textContent = '✓ Done'; animating = false;
+}
+</script>
+</body>
+</html>

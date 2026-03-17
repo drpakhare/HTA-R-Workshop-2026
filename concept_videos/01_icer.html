@@ -1,0 +1,863 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>What is ICER? — HTA Concept Explainer</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap');
+
+  :root {
+    --deep-blue: #1B4965;
+    --teal: #028090;
+    --mint: #02C39A;
+    --amber: #F0A500;
+    --red: #E74C3C;
+    --bg: #FAFCFD;
+    --text: #2D3436;
+    --muted: #636e72;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    font-family: 'Inter', sans-serif;
+    background: #1a1a2e;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    min-height: 100vh;
+    color: var(--text);
+  }
+
+  /* ── Canvas ── */
+  .stage {
+    width: 960px;
+    height: 540px;
+    background: var(--bg);
+    border-radius: 12px;
+    position: relative;
+    overflow: hidden;
+    box-shadow: 0 20px 60px rgba(0,0,0,0.4);
+  }
+
+  /* ── Controls ── */
+  .controls {
+    margin-top: 20px;
+    display: flex;
+    gap: 12px;
+    align-items: center;
+  }
+
+  .btn {
+    padding: 10px 24px;
+    border: none;
+    border-radius: 8px;
+    font-family: 'Inter', sans-serif;
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s;
+  }
+
+  .btn-play { background: var(--mint); color: white; }
+  .btn-play:hover { background: #01a87e; }
+  .btn-play:disabled { background: #888; cursor: not-allowed; }
+
+  .btn-reset { background: var(--deep-blue); color: white; }
+  .btn-reset:hover { background: #15394f; }
+
+  .btn-upload { background: var(--amber); color: white; }
+  .btn-upload:hover { background: #d49200; }
+
+  .btn-tts { background: var(--teal); color: white; }
+  .btn-tts:hover { background: #016d7a; }
+
+  .audio-status {
+    color: #ccc;
+    font-size: 13px;
+    font-weight: 500;
+  }
+
+  .progress-bar {
+    width: 960px;
+    height: 4px;
+    background: #333;
+    border-radius: 2px;
+    margin-top: 12px;
+    overflow: hidden;
+  }
+
+  .progress-fill {
+    height: 100%;
+    width: 0%;
+    background: linear-gradient(90deg, var(--teal), var(--mint));
+    transition: width 0.3s;
+    border-radius: 2px;
+  }
+
+  #voiceoverInput { display: none; }
+
+  /* ── Animation elements ── */
+  .scene { position: absolute; inset: 0; opacity: 0; transition: opacity 0.5s; pointer-events: none; }
+  .scene.active { opacity: 1; }
+
+  /* Scene 1: Title */
+  .s1-title {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    text-align: center;
+  }
+  .s1-title h1 {
+    font-size: 64px;
+    font-weight: 800;
+    color: var(--deep-blue);
+    opacity: 0;
+    transform: translateY(30px);
+    transition: all 0.8s cubic-bezier(0.16, 1, 0.3, 1);
+  }
+  .s1-title h1.show { opacity: 1; transform: translateY(0); }
+
+  .s1-title .sub {
+    font-size: 24px;
+    color: var(--teal);
+    font-weight: 500;
+    margin-top: 12px;
+    opacity: 0;
+    transform: translateY(20px);
+    transition: all 0.6s cubic-bezier(0.16, 1, 0.3, 1) 0.3s;
+  }
+  .s1-title .sub.show { opacity: 1; transform: translateY(0); }
+
+  /* Scene 2: Two treatments */
+  .treatments {
+    display: flex;
+    justify-content: space-around;
+    align-items: flex-start;
+    padding: 60px 80px 0;
+    height: 100%;
+  }
+
+  .treatment-box {
+    width: 280px;
+    border-radius: 12px;
+    padding: 28px;
+    text-align: center;
+    opacity: 0;
+    transform: scale(0.8);
+    transition: all 0.6s cubic-bezier(0.16, 1, 0.3, 1);
+  }
+  .treatment-box.show { opacity: 1; transform: scale(1); }
+
+  .treatment-box.old {
+    background: linear-gradient(135deg, #f0f4f8, #e2e8f0);
+    border: 2px solid var(--deep-blue);
+  }
+  .treatment-box.new {
+    background: linear-gradient(135deg, #e6f7f2, #d0f0e8);
+    border: 2px solid var(--teal);
+  }
+
+  .treatment-box .label {
+    font-size: 18px;
+    font-weight: 700;
+    margin-bottom: 16px;
+  }
+  .treatment-box.old .label { color: var(--deep-blue); }
+  .treatment-box.new .label { color: var(--teal); }
+
+  .treatment-box .stat {
+    font-size: 16px;
+    color: var(--muted);
+    padding: 6px 0;
+    opacity: 0;
+    transform: translateX(-20px);
+    transition: all 0.5s cubic-bezier(0.16, 1, 0.3, 1);
+  }
+  .treatment-box .stat.show { opacity: 1; transform: translateX(0); }
+
+  .treatment-box .stat strong {
+    font-size: 22px;
+    color: var(--text);
+  }
+
+  /* Scene 2: Arrow and deltas */
+  .delta-arrow {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    text-align: center;
+    opacity: 0;
+    transition: all 0.6s;
+  }
+  .delta-arrow.show { opacity: 1; }
+
+  .delta-arrow svg {
+    width: 120px;
+    height: 40px;
+  }
+
+  .delta-label {
+    position: absolute;
+    left: 50%;
+    transform: translateX(-50%);
+    font-size: 20px;
+    font-weight: 700;
+    white-space: nowrap;
+    opacity: 0;
+    transition: all 0.5s cubic-bezier(0.16, 1, 0.3, 1);
+  }
+  .delta-label.show { opacity: 1; }
+  .delta-cost { top: 170px; color: var(--amber); }
+  .delta-qaly { top: 280px; color: var(--mint); }
+
+  /* Scene 3: Formula */
+  .formula-scene {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    height: 100%;
+    gap: 20px;
+  }
+
+  .formula-line {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    font-size: 32px;
+    font-weight: 600;
+    opacity: 0;
+    transform: translateY(20px);
+    transition: all 0.7s cubic-bezier(0.16, 1, 0.3, 1);
+  }
+  .formula-line.show { opacity: 1; transform: translateY(0); }
+
+  .formula-label { color: var(--deep-blue); font-size: 36px; font-weight: 800; }
+  .formula-eq { color: var(--muted); }
+
+  .fraction {
+    display: inline-flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 2px;
+  }
+  .fraction .num { color: var(--amber); border-bottom: 2.5px solid var(--muted); padding-bottom: 4px; }
+  .fraction .den { color: var(--mint); padding-top: 4px; }
+
+  .formula-result {
+    font-size: 40px;
+    font-weight: 800;
+    color: var(--teal);
+    opacity: 0;
+    transform: scale(0.5);
+    transition: all 0.6s cubic-bezier(0.16, 1, 0.3, 1);
+  }
+  .formula-result.show { opacity: 1; transform: scale(1); }
+
+  /* Scene 4: Number line */
+  .numberline-scene {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    height: 100%;
+    padding: 40px 60px;
+  }
+
+  .nl-title {
+    font-size: 22px;
+    font-weight: 700;
+    color: var(--deep-blue);
+    margin-bottom: 40px;
+    opacity: 0;
+    transition: all 0.5s;
+  }
+  .nl-title.show { opacity: 1; }
+
+  .number-line-container {
+    position: relative;
+    width: 800px;
+    height: 200px;
+  }
+
+  .nl-axis {
+    position: absolute;
+    top: 100px;
+    left: 0;
+    width: 100%;
+    height: 3px;
+    background: var(--deep-blue);
+    opacity: 0;
+    transform: scaleX(0);
+    transform-origin: left;
+    transition: all 0.8s cubic-bezier(0.16, 1, 0.3, 1);
+  }
+  .nl-axis.show { opacity: 1; transform: scaleX(1); }
+
+  .nl-tick {
+    position: absolute;
+    top: 92px;
+    width: 2px;
+    height: 19px;
+    background: var(--deep-blue);
+    opacity: 0;
+    transition: opacity 0.3s;
+  }
+  .nl-tick.show { opacity: 1; }
+
+  .nl-tick-label {
+    position: absolute;
+    top: 116px;
+    font-size: 12px;
+    color: var(--muted);
+    transform: translateX(-50%);
+    opacity: 0;
+    transition: opacity 0.3s;
+  }
+  .nl-tick-label.show { opacity: 1; }
+
+  .nl-unit-label {
+    position: absolute;
+    top: 140px;
+    left: 50%;
+    transform: translateX(-50%);
+    font-size: 14px;
+    color: var(--muted);
+    opacity: 0;
+    transition: opacity 0.3s;
+  }
+  .nl-unit-label.show { opacity: 1; }
+
+  /* WTP line */
+  .wtp-line {
+    position: absolute;
+    left: 400px;
+    top: 30px;
+    width: 3px;
+    height: 80px;
+    opacity: 0;
+    transition: all 0.6s;
+  }
+  .wtp-line.show { opacity: 1; }
+
+  .wtp-dash {
+    width: 100%;
+    height: 100%;
+    background: repeating-linear-gradient(
+      to bottom,
+      var(--red) 0px, var(--red) 6px,
+      transparent 6px, transparent 12px
+    );
+  }
+
+  .wtp-label {
+    position: absolute;
+    left: 380px;
+    top: 8px;
+    font-size: 14px;
+    font-weight: 700;
+    color: var(--red);
+    text-align: center;
+    transform: translateX(-50%);
+    white-space: nowrap;
+    opacity: 0;
+    transition: all 0.5s;
+  }
+  .wtp-label.show { opacity: 1; }
+
+  /* ICER dot */
+  .icer-dot {
+    position: absolute;
+    left: 160px;
+    top: 91px;
+    width: 20px;
+    height: 20px;
+    border-radius: 50%;
+    background: var(--teal);
+    transform: translate(-50%, -50%) scale(0);
+    transition: all 0.5s cubic-bezier(0.34, 1.56, 0.64, 1);
+    box-shadow: 0 0 0 4px rgba(2,128,144,0.2);
+  }
+  .icer-dot.show { transform: translate(-50%, -50%) scale(1); }
+
+  .icer-dot-label {
+    position: absolute;
+    left: 160px;
+    top: 60px;
+    font-size: 14px;
+    font-weight: 700;
+    color: var(--teal);
+    transform: translateX(-50%);
+    white-space: nowrap;
+    opacity: 0;
+    transition: all 0.5s;
+  }
+  .icer-dot-label.show { opacity: 1; }
+
+  /* Green zone */
+  .green-zone {
+    position: absolute;
+    left: 0;
+    top: 88px;
+    width: 400px;
+    height: 26px;
+    background: rgba(2,195,154,0.15);
+    border-radius: 4px;
+    opacity: 0;
+    transform: scaleX(0);
+    transform-origin: left;
+    transition: all 0.6s cubic-bezier(0.16, 1, 0.3, 1);
+  }
+  .green-zone.show { opacity: 1; transform: scaleX(1); }
+
+  .ce-label {
+    position: absolute;
+    left: 160px;
+    top: 170px;
+    font-size: 18px;
+    font-weight: 800;
+    color: var(--mint);
+    transform: translateX(-50%);
+    opacity: 0;
+    transition: all 0.5s;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+  }
+  .ce-label.show { opacity: 1; }
+
+  .nce-label {
+    position: absolute;
+    left: 600px;
+    top: 170px;
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--red);
+    opacity: 0.6;
+    transform: translateX(-50%);
+    opacity: 0;
+    transition: all 0.5s;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+  }
+  .nce-label.show { opacity: 0.6; }
+
+  /* Scene 5: Takeaway */
+  .takeaway-scene {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    height: 100%;
+    background: linear-gradient(135deg, var(--deep-blue), #0a2940);
+  }
+
+  .takeaway-icon {
+    font-size: 60px;
+    opacity: 0;
+    transform: scale(0);
+    transition: all 0.5s cubic-bezier(0.34, 1.56, 0.64, 1);
+  }
+  .takeaway-icon.show { opacity: 1; transform: scale(1); }
+
+  .takeaway-text {
+    font-size: 32px;
+    font-weight: 700;
+    color: white;
+    text-align: center;
+    max-width: 700px;
+    line-height: 1.5;
+    margin-top: 24px;
+    opacity: 0;
+    transform: translateY(20px);
+    transition: all 0.7s cubic-bezier(0.16, 1, 0.3, 1);
+  }
+  .takeaway-text.show { opacity: 1; transform: translateY(0); }
+
+  .takeaway-text span.highlight {
+    color: var(--mint);
+  }
+
+  .takeaway-sub {
+    font-size: 18px;
+    color: rgba(255,255,255,0.6);
+    margin-top: 16px;
+    opacity: 0;
+    transition: all 0.5s 0.3s;
+  }
+  .takeaway-sub.show { opacity: 1; }
+
+  /* Branding strip */
+  .brand {
+    position: absolute;
+    bottom: 12px;
+    right: 20px;
+    font-size: 11px;
+    color: rgba(0,0,0,0.25);
+    font-weight: 500;
+  }
+
+  .scene5 .brand { color: rgba(255,255,255,0.2); }
+
+  /* Voiceover subtitle bar */
+  .subtitle-bar {
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    padding: 14px 40px;
+    background: rgba(0,0,0,0.75);
+    color: white;
+    font-size: 16px;
+    font-weight: 400;
+    text-align: center;
+    line-height: 1.5;
+    opacity: 0;
+    transition: opacity 0.3s;
+    backdrop-filter: blur(4px);
+  }
+  .subtitle-bar.show { opacity: 1; }
+</style>
+</head>
+<body>
+
+<!-- ════════ STAGE ════════ -->
+<div class="stage" id="stage">
+
+  <!-- Scene 1: Title -->
+  <div class="scene scene1" id="scene1">
+    <div class="s1-title">
+      <h1 id="s1h1">What is ICER?</h1>
+      <div class="sub" id="s1sub">Incremental Cost-Effectiveness Ratio</div>
+    </div>
+    <div class="brand">RRC-HTA, AIIMS Bhopal</div>
+  </div>
+
+  <!-- Scene 2: Two treatments + deltas -->
+  <div class="scene scene2" id="scene2">
+    <div class="treatments">
+      <div class="treatment-box old" id="oldTx">
+        <div class="label">Current Treatment</div>
+        <div class="stat" id="oldCost">Cost: <strong>₹50,000</strong></div>
+        <div class="stat" id="oldQaly">QALYs: <strong>3.0</strong></div>
+      </div>
+      <div class="treatment-box new" id="newTx">
+        <div class="label">New Treatment</div>
+        <div class="stat" id="newCost">Cost: <strong>₹80,000</strong></div>
+        <div class="stat" id="newQaly">QALYs: <strong>4.5</strong></div>
+      </div>
+    </div>
+    <div class="delta-arrow" id="deltaArrow">
+      <svg viewBox="0 0 120 40"><path d="M10 20 L100 20" stroke="#F0A500" stroke-width="3" fill="none"/><polygon points="100,12 120,20 100,28" fill="#F0A500"/></svg>
+    </div>
+    <div class="delta-label delta-cost" id="deltaCost">ΔCost = ₹30,000</div>
+    <div class="delta-label delta-qaly" id="deltaQaly">ΔQALYs = 1.5</div>
+    <div class="brand">RRC-HTA, AIIMS Bhopal</div>
+  </div>
+
+  <!-- Scene 3: Formula -->
+  <div class="scene scene3" id="scene3">
+    <div class="formula-scene">
+      <div class="formula-line" id="fLine1">
+        <span class="formula-label">ICER</span>
+        <span class="formula-eq">=</span>
+        <span class="fraction">
+          <span class="num">Δ Cost</span>
+          <span class="den">Δ QALYs</span>
+        </span>
+      </div>
+      <div class="formula-line" id="fLine2">
+        <span class="formula-eq" style="visibility:hidden">ICER</span>
+        <span class="formula-eq">=</span>
+        <span class="fraction">
+          <span class="num">₹30,000</span>
+          <span class="den">1.5 QALYs</span>
+        </span>
+      </div>
+      <div class="formula-result" id="fResult">= ₹20,000 per QALY</div>
+    </div>
+    <div class="brand">RRC-HTA, AIIMS Bhopal</div>
+  </div>
+
+  <!-- Scene 4: Number line -->
+  <div class="scene scene4" id="scene4">
+    <div class="numberline-scene">
+      <div class="nl-title" id="nlTitle">Is ₹20,000/QALY cost-effective?</div>
+      <div class="number-line-container">
+        <div class="nl-axis" id="nlAxis"></div>
+        <!-- Ticks at 0, 20k, 40k, 60k, 80k, 100k -->
+        <div class="nl-tick" id="t0" style="left:0"></div>
+        <div class="nl-tick" id="t1" style="left:160px"></div>
+        <div class="nl-tick" id="t2" style="left:320px"></div>
+        <div class="nl-tick" id="t3" style="left:480px"></div>
+        <div class="nl-tick" id="t4" style="left:640px"></div>
+        <div class="nl-tick" id="t5" style="left:800px"></div>
+        <div class="nl-tick-label" id="tl0" style="left:0">0</div>
+        <div class="nl-tick-label" id="tl1" style="left:160px">₹20K</div>
+        <div class="nl-tick-label" id="tl2" style="left:320px">₹40K</div>
+        <div class="nl-tick-label" id="tl3" style="left:480px">₹60K</div>
+        <div class="nl-tick-label" id="tl4" style="left:640px">₹80K</div>
+        <div class="nl-tick-label" id="tl5" style="left:800px">₹1L</div>
+        <div class="nl-unit-label" id="nlUnit">₹ per QALY gained</div>
+
+        <div class="green-zone" id="greenZone"></div>
+        <div class="wtp-line" id="wtpLine"><div class="wtp-dash"></div></div>
+        <div class="wtp-label" id="wtpLabel">WTP Threshold<br>₹50,000/QALY</div>
+        <div class="icer-dot" id="icerDot"></div>
+        <div class="icer-dot-label" id="icerDotLabel">ICER = ₹20,000</div>
+        <div class="ce-label" id="ceLabel">✓ Cost-Effective</div>
+        <div class="nce-label" id="nceLabel">✗ Not Cost-Effective</div>
+      </div>
+    </div>
+    <div class="brand">RRC-HTA, AIIMS Bhopal</div>
+  </div>
+
+  <!-- Scene 5: Takeaway -->
+  <div class="scene scene5" id="scene5">
+    <div class="takeaway-scene">
+      <div class="takeaway-icon" id="tkIcon">✅</div>
+      <div class="takeaway-text" id="tkText">
+        If the ICER is <span class="highlight">below the WTP threshold</span>,
+        the new treatment is <span class="highlight">cost-effective</span>
+      </div>
+      <div class="takeaway-sub" id="tkSub">ICER = Incremental Cost ÷ Incremental QALYs</div>
+    </div>
+    <div class="brand" style="color:rgba(255,255,255,0.2)">RRC-HTA, AIIMS Bhopal</div>
+  </div>
+
+  <!-- Subtitle bar -->
+  <div class="subtitle-bar" id="subtitleBar"></div>
+</div>
+
+<!-- ════════ PROGRESS ════════ -->
+<div class="progress-bar"><div class="progress-fill" id="progressFill"></div></div>
+
+<!-- ════════ CONTROLS ════════ -->
+<div class="controls">
+  <button class="btn btn-play" id="playBtn" onclick="startAnimation()">▶ Play</button>
+  <button class="btn btn-reset" onclick="resetAnimation()">↺ Reset</button>
+  <button class="btn btn-upload" onclick="document.getElementById('voiceoverInput').click()">🎙 Upload Voiceover</button>
+  <button class="btn btn-tts" onclick="toggleTTS()">🔊 TTS: ON</button>
+  <span class="audio-status" id="audioStatus">TTS enabled</span>
+  <input type="file" id="voiceoverInput" accept="audio/*" onchange="handleVoiceover(event)">
+</div>
+
+<script>
+// ── State ──
+let ttsEnabled = true;
+let voiceoverAudio = null;
+let animating = false;
+let timeouts = [];
+
+// ── Subtitles / narration script ──
+const narration = [
+  { scene: 1, text: "When we compare two treatments, we need a single number to guide our decision." },
+  { scene: 2, text: "The new treatment costs more — but also delivers more health, measured in QALYs." },
+  { scene: 2.5, text: "The difference: thirty thousand rupees more in cost, and one-point-five additional QALYs." },
+  { scene: 3, text: "ICER — the Incremental Cost-Effectiveness Ratio — is simply the extra cost, divided by the extra health gained." },
+  { scene: 3.5, text: "That gives us twenty thousand rupees per QALY." },
+  { scene: 4, text: "Now we compare this to the willingness-to-pay threshold. If the ICER falls below it, the treatment is cost-effective." },
+  { scene: 5, text: "The takeaway: if ICER is below the WTP threshold, the new treatment represents good value." }
+];
+
+// ── TTS toggle ──
+function toggleTTS() {
+  ttsEnabled = !ttsEnabled;
+  const btn = document.querySelector('.btn-tts');
+  btn.textContent = ttsEnabled ? '🔊 TTS: ON' : '🔇 TTS: OFF';
+  document.getElementById('audioStatus').textContent =
+    voiceoverAudio ? 'Voiceover loaded' : (ttsEnabled ? 'TTS enabled' : 'Audio off');
+}
+
+// ── Voiceover upload ──
+function handleVoiceover(e) {
+  const file = e.target.files[0];
+  if (!file) return;
+  voiceoverAudio = new Audio(URL.createObjectURL(file));
+  document.getElementById('audioStatus').textContent = '✓ Voiceover: ' + file.name;
+}
+
+// ── Helpers ──
+function show(id) { document.getElementById(id).classList.add('show'); }
+function hide(id) { document.getElementById(id).classList.remove('show'); }
+function showScene(n) {
+  document.querySelectorAll('.scene').forEach(s => s.classList.remove('active'));
+  document.getElementById('scene' + n).classList.add('active');
+}
+function setSubtitle(text) {
+  const bar = document.getElementById('subtitleBar');
+  bar.textContent = text;
+  bar.classList.add('show');
+}
+function hideSubtitle() { document.getElementById('subtitleBar').classList.remove('show'); }
+function setProgress(pct) { document.getElementById('progressFill').style.width = pct + '%'; }
+
+function speak(text) {
+  if (voiceoverAudio) return; // voiceover handles audio
+  if (!ttsEnabled) return;
+  const u = new SpeechSynthesisUtterance(text);
+  u.rate = 0.95;
+  u.pitch = 1;
+  u.lang = 'en-IN';
+  speechSynthesis.speak(u);
+}
+
+function delay(ms) {
+  return new Promise(resolve => {
+    const t = setTimeout(resolve, ms);
+    timeouts.push(t);
+  });
+}
+
+// ── Reset ──
+function resetAnimation() {
+  timeouts.forEach(clearTimeout);
+  timeouts = [];
+  animating = false;
+  speechSynthesis.cancel();
+  if (voiceoverAudio) { voiceoverAudio.pause(); voiceoverAudio.currentTime = 0; }
+
+  document.querySelectorAll('.show').forEach(el => el.classList.remove('show'));
+  document.querySelectorAll('.scene').forEach(s => s.classList.remove('active'));
+  setProgress(0);
+  document.getElementById('playBtn').disabled = false;
+  document.getElementById('playBtn').textContent = '▶ Play';
+}
+
+// ── Main animation sequence ──
+async function startAnimation() {
+  if (animating) return;
+  animating = true;
+  const btn = document.getElementById('playBtn');
+  btn.disabled = true;
+  btn.textContent = '⏵ Playing...';
+
+  if (voiceoverAudio) {
+    voiceoverAudio.currentTime = 0;
+    voiceoverAudio.play();
+  }
+
+  // ── Scene 1: Title (0–5s) ──
+  showScene(1);
+  setProgress(5);
+  setSubtitle(narration[0].text);
+  speak(narration[0].text);
+  await delay(300);
+  show('s1h1');
+  await delay(500);
+  show('s1sub');
+  await delay(3500);
+
+  // ── Scene 2: Treatments (5–15s) ──
+  showScene(2);
+  setProgress(20);
+  setSubtitle(narration[1].text);
+  speak(narration[1].text);
+  await delay(400);
+  show('oldTx');
+  await delay(600);
+  show('newTx');
+  await delay(500);
+  show('oldCost');
+  show('newCost');
+  await delay(600);
+  show('oldQaly');
+  show('newQaly');
+  await delay(2500);
+
+  // Deltas
+  setProgress(30);
+  setSubtitle(narration[2].text);
+  speak(narration[2].text);
+  show('deltaArrow');
+  await delay(500);
+  show('deltaCost');
+  await delay(700);
+  show('deltaQaly');
+  await delay(3000);
+
+  // ── Scene 3: Formula (15–30s) ──
+  showScene(3);
+  setProgress(45);
+  setSubtitle(narration[3].text);
+  speak(narration[3].text);
+  await delay(600);
+  show('fLine1');
+  await delay(2500);
+  show('fLine2');
+  await delay(2000);
+
+  setProgress(55);
+  setSubtitle(narration[4].text);
+  speak(narration[4].text);
+  show('fResult');
+  await delay(3000);
+
+  // ── Scene 4: Number line (30–45s) ──
+  showScene(4);
+  setProgress(65);
+  setSubtitle(narration[5].text);
+  speak(narration[5].text);
+  show('nlTitle');
+  await delay(500);
+  show('nlAxis');
+  await delay(600);
+
+  // Ticks
+  for (let i = 0; i <= 5; i++) {
+    show('t' + i);
+    show('tl' + i);
+    await delay(100);
+  }
+  show('nlUnit');
+  await delay(500);
+
+  // WTP threshold
+  setProgress(75);
+  show('wtpLine');
+  await delay(300);
+  show('wtpLabel');
+  await delay(700);
+
+  // Green zone
+  show('greenZone');
+  await delay(500);
+
+  // ICER dot
+  setProgress(82);
+  show('icerDot');
+  await delay(300);
+  show('icerDotLabel');
+  await delay(500);
+
+  // Labels
+  show('ceLabel');
+  show('nceLabel');
+  await delay(2500);
+
+  // ── Scene 5: Takeaway (45–55s) ──
+  showScene(5);
+  setProgress(92);
+  setSubtitle(narration[6].text);
+  speak(narration[6].text);
+  await delay(500);
+  show('tkIcon');
+  await delay(400);
+  show('tkText');
+  await delay(600);
+  show('tkSub');
+  await delay(3000);
+
+  // Done
+  setProgress(100);
+  hideSubtitle();
+  btn.textContent = '✓ Done';
+  animating = false;
+}
+</script>
+</body>
+</html>

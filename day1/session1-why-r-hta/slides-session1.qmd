@@ -1,8 +1,7 @@
 ---
-title: "The Case for R in HTA"
-subtitle: "Why transition from Excel and TreeAge?"
-author: "R for HTA (Basics) — Workshop 2026"
-institute: "RRC-HTA, AIIMS Bhopal | HTAIn, DHR"
+title: "Beyond Spreadsheets — Why R for HTA"
+subtitle: "Session 1 | R for HTA (Basics) Workshop 2026"
+author: "RRC-HTA, AIIMS Bhopal | HTAIn, DHR"
 format:
   revealjs:
     theme: [default, ../../custom-theme.scss]
@@ -18,43 +17,251 @@ format:
     fig-align: center
 execute:
   echo: true
-  eval: false
+  eval: true
   warning: false
   message: false
 ---
 
-## Why Are We Here?
+## The Spreadsheet That Shook Nations {.section-slide}
 
-You have been doing HTA work — and doing it well — using Excel and TreeAge.
+::: {.notes}
+This section sets the stage with a real-world cautionary tale. The Reinhart-Rogoff incident is the most powerful argument for why spreadsheets can be dangerous when the stakes are high.
+:::
+
+## 2008: The World is on Fire
+
+The global financial crisis had just hit. Governments were debating the biggest economic question of the decade:
 
 . . .
 
-This session does not ask you to abandon what works.
+::: {style="font-size: 1.1em; color: #028090; font-weight: bold; margin: 16px 0;"}
+Should we spend our way out of the crisis, or cut spending to reduce debt?
+:::
 
 . . .
 
-It asks you to consider **what becomes possible** when you add R to your toolkit.
+Trillions of dollars — and the livelihoods of millions — hung on the answer.
+
+## 2010: Harvard Economists Provide the Answer
+
+Carmen Reinhart and Kenneth Rogoff published **"Growth in a Time of Debt"**.
+
+. . .
+
+Their finding: countries with public debt above **90% of GDP** experience **negative economic growth** (−0.1% average).
+
+. . .
+
+::: {style="font-size: 1.2em; font-weight: bold; color: #e74c3c; margin-top: 10px;"}
+Cited 3,000+ times. A paper that shaped global policy.
+:::
+
+. . .
+
+**Paul Ryan** cited it in the US Budget Committee. The **European Commission** and **UK Treasury** used it to justify austerity. The **IMF** referenced it in country recommendations.
+
+## What Happened Next
+
+Governments across Europe and the US cut public spending — affecting:
+
+. . .
+
+::: {.comparison-grid}
+::: {style="background: #FEF2F2; padding: 16px; border-radius: 8px; border-left: 4px solid #e15759;"}
+**Healthcare budgets** — hospital funding reduced, waiting lists grew
+:::
+
+::: {style="background: #FEF2F2; padding: 16px; border-radius: 8px; border-left: 4px solid #e15759;"}
+**Social services** — disability support, unemployment benefits cut
+:::
+
+::: {style="background: #FEF2F2; padding: 16px; border-radius: 8px; border-left: 4px solid #e15759;"}
+**Education funding** — university fees tripled in England
+:::
+
+::: {style="background: #FEF2F2; padding: 16px; border-radius: 8px; border-left: 4px solid #e15759;"}
+**Research grants** — scientific funding stalled across Europe
+:::
+:::
+
+## 2013: A Graduate Student Checks the Numbers
+
+Thomas Herndon, a **28-year-old PhD student** at UMass Amherst, was given a class assignment:
+
+. . .
+
+*Pick a famous economics paper and try to replicate its results.*
+
+. . .
+
+He chose Reinhart-Rogoff. He couldn't replicate the results.
+
+. . .
+
+He emailed the authors. **They sent him the spreadsheet.**
+
+## The Three Errors {.smaller}
+
+::: {style="font-size: 0.95em;"}
+
+**Error 1: Excel Row Exclusion**
+
+The `AVERAGE` formula covered rows 30–44 instead of 30–49. Five countries (Australia, Austria, Belgium, Canada, Denmark) were simply left out. A drag-select error — the kind Excel makes invisible.
+
+. . .
+
+**Error 2: Unconventional Weighting**
+
+New Zealand's single year of high-debt data (−7.6% growth) was given the same weight as the UK's 19 years. This one outlier dragged the entire average into negative territory.
+
+. . .
+
+**Error 3: Selective Data Exclusion**
+
+Post-war data from three countries was excluded without clear justification.
+
+:::
+
+## The Corrected Result
+
+::: {.comparison-grid}
+
+::: {style="text-align: center; padding: 28px; background: #FEF2F2; border-radius: 12px; border: 3px solid #e15759;"}
+::: {.stat-callout}
+::: {.stat-number}
+−0.1%
+:::
+::: {.stat-label}
+ORIGINAL (with errors)
+:::
+:::
+:::
+
+::: {style="text-align: center; padding: 28px; background: #F0FDF4; border-radius: 12px; border: 3px solid #028090;"}
+::: {.stat-callout}
+::: {.stat-number}
++2.2%
+:::
+::: {.stat-label}
+CORRECTED (Herndon et al.)
+:::
+:::
+:::
+:::
+
+. . .
+
+::: {style="text-align: center; font-size: 1.2em; font-weight: bold; color: #e74c3c; margin-top: 16px;"}
+Growth was POSITIVE, not negative. One spreadsheet error. Billions in policy impact.
+:::
+
+. . .
+
+Nobody could catch the error earlier — because **nobody could audit the spreadsheet**.
+
+## Five Lessons from Spreadsheet-Gate
+
+1. **Errors hide in plain sight** — wrong cell ranges are invisible in Excel
+2. **Peer review failed** — reviewers couldn't access or audit the calculations
+3. **Replication was impossible** — until the original spreadsheet was shared
+4. **Policy moved faster than science** — the paper was cited before it was checked
+5. **Transparency is not optional** — it is the only protection
+
+## Could This Happen to YOUR HTA Model?
+
+Your cost-effectiveness analysis informs drug pricing, reimbursement, and treatment guidelines.
+
+. . .
+
+Can a reviewer **trace every calculation** in your Excel model?
+
+. . .
+
+Can **you** be certain there is no hidden error in a nested cell reference?
+
+. . .
+
+::: {style="font-size: 1.3em; color: #028090; font-weight: bold; margin-top: 16px;"}
+What if there was a better way?
+:::
+
+## Live Demo: Beyond Spreadsheets {.section-slide}
+
+::: {style="font-size: 0.9em; color: rgba(255,255,255,0.8);"}
+Let me show you what R makes possible — interactively.
+:::
+
+## Open the Shiny App
+
+::: {style="text-align: center; padding: 20px;"}
+
+::: {style="font-size: 1.3em; font-weight: bold; color: #028090; margin-bottom: 20px;"}
+🔗 [PLACEHOLDER_SHINY_APP_URL](PLACEHOLDER_SHINY_APP_URL)
+:::
+
+We will explore:
+
+1. **The Reinhart-Rogoff story** — interactive error explorer
+2. **PSA Demo** — 10,000 simulations, cost-effectiveness plane, one click
+3. **Markov Model** — state transitions with live parameter tuning
+4. **CEAC Explorer** — acceptability curves at different WTP thresholds
+5. **R vs Excel** — side-by-side comparison
+
+:::
+
+::: {.notes}
+Open the Shiny app in a browser tab. Walk through each tab live. Spend ~3 min on the R-R error explorer, ~3 min on PSA, ~3 min on Markov, ~2 min on CEAC. Return to slides for the wrap-up.
+:::
+
+## What You Just Saw
+
+In the Shiny app, everything was:
+
+. . .
+
+**Reproducible** — same seed, same results, every time, anywhere
+
+. . .
+
+**Auditable** — every simulation row visible, every formula transparent
+
+. . .
+
+**Interactive** — change a parameter, see the result immediately
+
+. . .
+
+**Scalable** — 10,000 PSA iterations in a fraction of a second
+
+. . .
+
+::: {.key-insight}
+The entire PSA logic was **3 lines of R**. The entire Markov model was **10 lines**. Try auditing that in Excel.
+:::
 
 ## The Limitations You Already Know
 
-PSA is painful
-- Complex macros or VBA required
-- Spreadsheet becomes slow and fragile
+::: {style="font-size: 0.95em;"}
+
+**PSA is painful in Excel** — complex macros or VBA; spreadsheet becomes slow and fragile
 
 . . .
 
-Reproducibility is difficult
-- Tracing nested cell references tedious
+**Reproducibility is difficult** — tracing nested cell references across multiple sheets
 
 . . .
 
-Version control is manual
-- Model_v3_final_FINAL_revised.xlsx?
+**Version control is manual** — Model_v3_final_FINAL_revised.xlsx
 
 . . .
 
-Transparency for publication
-- Journals and agencies require open-source, auditable models
+**Transparency for publication** — journals and HTA agencies increasingly require open-source models
+
+. . .
+
+**Collaboration is messy** — two people cannot work on the same Excel model simultaneously
+
+:::
 
 ## What R Makes Possible
 
@@ -74,7 +281,7 @@ Transparency for publication
 . . .
 
 **Version-controlled**
-: Every change tracked, documented, reversible
+: Every change tracked, documented, reversible with Git
 
 . . .
 
@@ -86,6 +293,7 @@ Transparency for publication
 ```{r}
 #| label: fig-hta-workflow
 #| eval: true
+#| echo: false
 #| fig-cap: "The complete modelling workflow"
 
 library(DiagrammeR)
@@ -108,133 +316,12 @@ digraph hta_workflow {
 ")
 ```
 
-## Simple ICER: Excel Logic vs R
-
-**The Problem**
-
-New screening: ₹2,500 cost, 0.85 QALYs
-Standard care: ₹1,200 cost, 0.78 QALYs
-What is the ICER?
-
-. . .
-
-**In Excel** ✓ Works for one calculation
-```
-| Cell | Formula |
-|------|---------|
-| B6   | =B2-B3  | (Incremental cost)
-| B7   | =B4-B5  | (Incremental QALY)
-| B8   | =B6/B7  | (ICER)
-```
-
-. . .
-
-**Now what if you want 10,000 simulations?** ✗ Painful
-
-## The R Code for ICER
-
-```{r}
-#| label: simple-icer
-#| echo: true
-#| eval: false
-
-# Define inputs
-cost_intervention <- 2500
-cost_standard     <- 1200
-qaly_intervention <- 0.85
-qaly_standard     <- 0.78
-
-# Calculate ICER
-incremental_cost  <- cost_intervention - cost_standard
-incremental_qaly  <- qaly_intervention - qaly_standard
-icer <- incremental_cost / incremental_qaly
-
-cat("ICER: ₹", round(icer, 0), "per QALY\n")
-```
-
-So far, not obviously better than Excel...
-
-## The Power: PSA in Three Lines
-
-```{r}
-#| label: simple-psa
-#| echo: true
-#| eval: false
-
-# Sample from distributions and calculate 10,000 ICERs
-icer_psa <- (rnorm(10000, 2500, 300) - rnorm(10000, 1200, 150)) /
-            (rbeta(10000, 85, 15) - rbeta(10000, 78, 22))
-
-cat("Mean ICER: ₹", round(mean(icer_psa), 0), "per QALY\n")
-cat("95% CI: ₹", round(quantile(icer_psa, 0.025), 0),
-    "to ₹", round(quantile(icer_psa, 0.975), 0), "\n")
-```
-
-**10,000 simulations in a fraction of a second.**
-
-Try doing that in Excel.
-
-## The Cost-Effectiveness Plane
-
-```{r}
-#| label: ce-plane-simple
-#| echo: true
-#| eval: false
-
-library(ggplot2)
-
-ce_data <- data.frame(
-  inc_qaly = rbeta(10000, 85, 15) - rbeta(10000, 78, 22),
-  inc_cost = rnorm(10000, 1300, 350)
-)
-
-ggplot(ce_data, aes(x = inc_qaly, y = inc_cost)) +
-  geom_point(alpha = 0.1, colour = "steelblue") +
-  geom_hline(yintercept = 0, linetype = "dashed") +
-  geom_vline(xintercept = 0, linetype = "dashed") +
-  labs(x = "Incremental QALYs", y = "Incremental Cost (₹)",
-       title = "Cost-Effectiveness Plane: 10,000 PSA iterations") +
-  theme_minimal()
-```
-
-## The Cost-Effectiveness Acceptability Curve
-
-```{r}
-#| label: simple-ceac
-#| echo: true
-#| eval: false
-
-wtp_range <- seq(0, 300000, by = 5000)
-prob_ce <- sapply(wtp_range, function(wtp) {
-  mean(inc_cost <= wtp * inc_qaly)
-})
-
-ggplot(data.frame(WTP = wtp_range, Prob = prob_ce),
-       aes(x = WTP, y = Prob)) +
-  geom_line(colour = "steelblue", linewidth = 1.2) +
-  geom_vline(xintercept = 100000, linetype = "dashed", colour = "red") +
-  annotate("text", x = 110000, y = 0.3, label = "WTP = ₹1,00,000") +
-  labs(x = "Willingness-to-Pay (₹/QALY)", y = "Probability Cost-Effective",
-       title = "Cost-Effectiveness Acceptability Curve") +
-  theme_minimal()
-```
-
-## Beyond This Simple Example
-
-In this workshop, you will see R applied to **real HTA problems**:
-
-. . .
-
-- **Decision trees** with instant re-runs at different parameters
-- **Markov models** with probabilistic transition probabilities
-- **Partitioned survival models** with multiple extrapolation methods
-- **Shiny apps** for interactive policymaker tools
-
 ## Four Model Types We'll Cover
 
 ```{r}
 #| label: fig-four-models
 #| eval: true
+#| echo: false
 #| fig-cap: "HTA model types in this workshop"
 
 grViz("
@@ -257,6 +344,27 @@ digraph four_models {
 ")
 ```
 
+## By Day 3, You Will Build This
+
+::: {style="text-align: center; margin-bottom: 10px; font-weight: bold; font-size: 1.1em; color: #028090;"}
+An interactive Shiny app — change parameters with sliders, see results update live
+:::
+
+```{=html}
+<iframe src="https://YOUR-USERNAME.shinyapps.io/markov-model/"
+        width="1100" height="480"
+        style="border: 2px solid #02C39A; border-radius: 8px; background: white;"
+        allow="fullscreen">
+  <p style="text-align:center; color: #999; padding: 40px;">
+    Shiny app will load here — requires deployment to shinyapps.io
+  </p>
+</iframe>
+```
+
+::: {.notes}
+Replace the iframe src with your actual shinyapps.io URL once deployed.
+:::
+
 ## What This Workshop Will NOT Do
 
 - Turn you into R programmers in three days
@@ -265,12 +373,14 @@ digraph four_models {
 
 ## What This Workshop WILL Do
 
-- Give you working templates you can adapt
-- Build confidence in reading and modifying R code
-- Show how to use AI tools to support your workflow
-- Help you understand when R is the right tool
+- Give you **working templates** you can adapt for your own studies
+- Build confidence in **reading and modifying** R code
+- Show how to use **AI tools** to support your workflow
+- Help you understand **when R is the right tool**
 
 ## Key Takeaway
+
+::: {style="text-align: center; padding-top: 30px; font-size: 1.1em;"}
 
 R is not replacing your HTA expertise.
 
@@ -280,7 +390,7 @@ It is giving that expertise **a more powerful medium**.
 
 . . .
 
-The clinical judgement, model structure, parameter selection — that remains yours.
+The clinical judgement, model structure, parameter selection — **that remains yours**.
 
 . . .
 
@@ -288,4 +398,8 @@ R simply makes the execution **more reproducible, transparent, and scalable**.
 
 . . .
 
+::: {style="font-size: 1.3em; color: #028090; font-weight: bold; margin-top: 20px;"}
 Let us get started.
+:::
+
+:::

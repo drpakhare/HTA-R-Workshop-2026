@@ -1,213 +1,130 @@
 ---
-title: "Session 1: The Case for R in HTA"
-subtitle: "Why transition from Excel and TreeAge?"
+title: "Session 1: Beyond Spreadsheets — Why R for HTA"
+subtitle: "The case for moving from Excel to R, told through the Reinhart-Rogoff cautionary tale"
 format:
   html:
     toc: true
+    toc-depth: 3
     code-fold: show
     code-tools: true
 ---
 
-## Why Are We Here?
+## Session Overview
 
-You have been doing HTA work — and doing it well — using Excel spreadsheets and TreeAge. These are familiar, well-established tools. So why consider R?
+This opening session answers the most fundamental question of the workshop: **why should HTA practitioners learn R when Excel and TreeAge already work?**
 
-This session does not ask you to abandon what works. It asks you to consider **what becomes possible** when you add R to your toolkit.
+We answer this through a real-world cautionary tale — the Reinhart-Rogoff incident — followed by a live demonstration of what R makes possible using an interactive Shiny app.
 
-## The Limitations You Already Know
+**Session flow:**
 
-If you have built cost-effectiveness models in Excel, you have likely encountered some of these challenges:
+1. Slides: The Reinhart-Rogoff story (the spreadsheet that shook nations)
+2. Live demo: [Beyond Spreadsheets Shiny App](PLACEHOLDER_SHINY_APP_URL) — interactive PSA, Markov model, CEAC
+3. Slides: Summary — what R makes possible, workshop roadmap
 
-- **Running PSA is painful.** Setting up 1,000 or 10,000 Monte Carlo iterations in Excel requires complex macros or VBA, and the spreadsheet becomes slow and fragile.
-- **Reproducibility is difficult.** When a reviewer asks "how exactly did you calculate this ICER?", tracing through nested cell references across multiple sheets is tedious — for you and for them.
-- **Version control is manual.** Model_v3_final_FINAL_revised.xlsx is not an unfamiliar filename.
-- **Transparency for publication.** Journals and HTA agencies (including NICE, WHO, and increasingly Indian HTA bodies) are moving toward requiring open-source, auditable models.
-- **Collaboration is messy.** Two people cannot easily work on the same Excel model simultaneously without overwriting each other's changes.
+## The Reinhart-Rogoff Incident: A Cautionary Tale
 
-TreeAge solves some of these problems but introduces others: proprietary software, licensing costs, limited customisation, and difficulty integrating with modern data analysis workflows.
+### The Context
+
+In 2008, the world was in the grip of the worst financial crisis since the Great Depression. Governments faced a critical question: should they increase public spending to stimulate the economy, or cut spending to reduce debt? The answer would affect the lives of hundreds of millions of people.
+
+### The Paper
+
+In 2010, two Harvard economists — Carmen Reinhart and Kenneth Rogoff — published "Growth in a Time of Debt." Their finding was dramatic: countries whose government debt exceeded 90% of GDP experienced **negative average economic growth** of −0.1%. The paper was cited over 3,000 times and directly influenced policy at the European Commission, UK Treasury, IMF, and U.S. Congress. Paul Ryan cited it in his Budget Committee proposal to justify austerity measures.
+
+### The Discovery
+
+In 2013, Thomas Herndon — a 28-year-old PhD student at the University of Massachusetts Amherst — was assigned to replicate a famous economics paper. He chose Reinhart-Rogoff. He could not reproduce the results. He contacted the authors, who shared their Excel spreadsheet. What he found changed the global conversation.
+
+### The Three Errors
+
+**Error 1: Excel Row Exclusion.** The `AVERAGE` formula in the spreadsheet covered rows 30–44 instead of 30–49. Five countries — Australia, Austria, Belgium, Canada, and Denmark — were simply left out of the calculation. This was a drag-select error, the kind that is invisible in Excel unless someone inspects every formula.
+
+**Error 2: Unconventional Weighting.** New Zealand had a single year of high-debt, low-growth data (−7.6%). This one observation was given equal weight to the UK's 19 years of data. A single outlier dragged the entire "above 90%" average into negative territory.
+
+**Error 3: Selective Data Exclusion.** Post-war data from three countries was excluded without transparent justification.
+
+### The Corrected Result
+
+When Herndon, Ash, and Pollin corrected all three errors, the average GDP growth for high-debt countries was **+2.2%** — positive, not negative. The entire foundation for austerity policy was based on a spreadsheet error that no peer reviewer could detect because **nobody could audit the spreadsheet**.
+
+### Five Lessons for HTA
+
+1. **Errors hide in plain sight** — wrong cell ranges are invisible in Excel
+2. **Peer review failed** — reviewers had no access to the underlying calculations
+3. **Replication was impossible** — until the original spreadsheet was shared years later
+4. **Policy moved faster than science** — the paper influenced billions before anyone checked the maths
+5. **Transparency is not optional** — it is the only protection against consequential errors
+
+## Live Demo: The Shiny App
+
+During the session, we open the **Beyond Spreadsheets** Shiny app for a live, interactive demonstration:
+
+🔗 **[Open the Shiny App](PLACEHOLDER_SHINY_APP_URL)**
+
+The app has five tabs:
+
+### Tab 1: The Spreadsheet That Shook Nations
+
+An interactive exploration of the Reinhart-Rogoff errors. Toggle which errors are present and see how the results change in real time — something impossible with the original Excel file.
+
+### Tab 2: PSA Demo
+
+A full probabilistic sensitivity analysis in R, driven by three lines of code:
+
+```r
+set.seed(42)
+delta_cost <- rnorm(10000, mean_cost_b, sd_cost_b) - rnorm(10000, mean_cost_a, sd_cost_a)
+delta_qaly <- rnorm(10000, mean_qaly_b, sd_qaly_b) - rnorm(10000, mean_qaly_a, sd_qaly_a)
+```
+
+The app shows the cost-effectiveness plane (with all four quadrants), a simulation table where every row is auditable, and a CEAC preview — all generated in under a second.
+
+**Try this in Excel:** setting up 10,000 PSA iterations requires complex macros, runs slowly, and produces output that is nearly impossible to audit.
+
+### Tab 3: Markov Model
+
+A three-state cohort Markov model (Healthy → Sick → Dead) with:
+
+- Interactive transition probability sliders (auto-adjusted so rows sum to 1)
+- Live state-transition diagram that updates with your parameters
+- Markov trace comparing Control and Treatment arms
+- Cost-effectiveness results with ICER interpretation
+
+The core logic is a single line: `trace[i,] <- trace[i-1,] %*% P`
+
+### Tab 4: CEAC Explorer
+
+A standalone cost-effectiveness acceptability curve showing how the probability of cost-effectiveness changes across willingness-to-pay thresholds. The Indian WTP benchmark of ₹2.5 lakh/QALY (1× GDP per capita) is highlighted.
+
+### Tab 5: R vs Excel
+
+A side-by-side comparison of how the same HTA tasks look in Excel versus R — making the case for transparency, reproducibility, and scalability.
 
 ## What R Makes Possible
 
 R does not replace your HTA knowledge. It gives you a **different medium** to express that knowledge — one that is:
 
-- **Reproducible**: Your entire analysis is a script. Anyone can re-run it and get the same result.
-- **Scalable**: Running 10,000 PSA iterations takes seconds, not hours.
-- **Transparent**: A reviewer can read your code and see exactly what you did.
-- **Version-controlled**: With Git and GitHub, every change is tracked, documented, and reversible.
-- **Free and open-source**: No license fees, no vendor lock-in.
-- **Extensible**: Thousands of packages built specifically for health economics, survival analysis, Bayesian methods, and visualisation.
+**Reproducible.** Your entire analysis is a script. Anyone can re-run it and get the same result. The `set.seed()` function ensures that even probabilistic analyses produce identical output across runs, machines, and collaborators.
 
-```{r}
-#| label: fig-hta-workflow
-#| echo: true
-#| fig-cap: "The HTA modelling workflow in R"
+**Scalable.** Running 10,000 PSA iterations takes a fraction of a second. Running 100,000 is equally easy. Excel slows to a crawl; R does not.
 
-library(DiagrammeR)
+**Transparent.** A reviewer can read your code and see exactly what you did. No hidden cell references, no buried macros. Every assumption is explicit.
 
-grViz("
-digraph hta_workflow {
-  graph [rankdir=LR, bgcolor='transparent', fontname='Helvetica']
-  node [shape=box, style='filled,rounded', fontname='Helvetica', fontsize=11]
+**Version-controlled.** With Git, every change is tracked, documented, and reversible. No more `Model_v3_final_FINAL_revised.xlsx`.
 
-  A [label='Define\nParameters', fillcolor='#4e79a7', fontcolor='white']
-  B [label='Build\nModel', fillcolor='#59a14f', fontcolor='white']
-  C [label='Run\nAnalysis', fillcolor='#f28e2b', fontcolor='white']
-  D [label='Sensitivity\nAnalysis', fillcolor='#e15759', fontcolor='white']
-  E [label='Visualise\nResults', fillcolor='#76b7b2', fontcolor='white']
-  F [label='Report &\nPublish', fillcolor='#edc948', fontcolor='black']
+**Free and extensible.** No license fees, no vendor lock-in. Thousands of R packages exist for health economics (`heemod`, `hesim`, `dampack`, `BCEA`), survival analysis (`flexsurv`, `survminer`), Bayesian methods, and visualisation.
 
-  A -> B -> C -> D -> E -> F
-  D -> B [style=dashed, label='Iterate', fontsize=9]
-}
-")
-```
+## Workshop Roadmap
 
-## A Simple Comparison: Excel Logic vs R
-
-Let us take a very simple example — calculating the **incremental cost-effectiveness ratio (ICER)** for two interventions — and see how it looks in both approaches.
-
-### The Problem
-
-A new screening programme for a disease costs ₹2,500 per person and produces 0.85 QALYs on average. The current standard of care costs ₹1,200 per person and produces 0.78 QALYs. What is the ICER?
-
-### In Excel
-
-You would set up cells like this:
-
-| | A | B |
-|---|---|---|
-| 1 | **Intervention** | **Standard Care** |
-| 2 | Cost (₹) | 2500 |
-| 3 | | 1200 |
-| 4 | QALYs | 0.85 |
-| 5 | | 0.78 |
-| 6 | Incremental Cost | =B2-B3 |
-| 7 | Incremental QALYs | =B4-B5 |
-| 8 | ICER | =B6/B7 |
-
-Result: ICER = ₹18,571 per QALY.
-
-This is fine for one calculation. But what if you want to vary the costs and QALYs probabilistically across 10,000 simulations?
-
-### In R
-
-```{r}
-#| label: simple-icer
-#| echo: true
-
-# Define inputs
-cost_intervention <- 2500
-cost_standard     <- 1200
-qaly_intervention <- 0.85
-qaly_standard     <- 0.78
-
-# Calculate ICER
-incremental_cost  <- cost_intervention - cost_standard
-incremental_qaly  <- qaly_intervention - qaly_standard
-icer <- incremental_cost / incremental_qaly
-
-# Display result
-cat("Incremental Cost: ₹", incremental_cost, "\n")
-cat("Incremental QALYs:", incremental_qaly, "\n")
-cat("ICER: ₹", round(icer, 0), "per QALY\n")
-```
-
-So far, this is not obviously better than Excel. The advantage shows when we add **probabilistic analysis**:
-
-```{r}
-#| label: simple-psa
-#| echo: true
-
-# Set number of simulations
-n_sim <- 10000
-set.seed(42)  # For reproducibility
-
-# Probabilistic inputs — sample from distributions
-cost_intervention_psa <- rnorm(n_sim, mean = 2500, sd = 300)
-cost_standard_psa     <- rnorm(n_sim, mean = 1200, sd = 150)
-qaly_intervention_psa <- rbeta(n_sim, shape1 = 85, shape2 = 15)
-qaly_standard_psa     <- rbeta(n_sim, shape1 = 78, shape2 = 22)
-
-# Calculate 10,000 ICERs
-inc_cost <- cost_intervention_psa - cost_standard_psa
-inc_qaly <- qaly_intervention_psa - qaly_standard_psa
-icer_psa <- inc_cost / inc_qaly
-
-# Summary
-cat("Mean ICER across", n_sim, "simulations: ₹", round(mean(icer_psa), 0), "per QALY\n")
-cat("95% credible interval: ₹", round(quantile(icer_psa, 0.025), 0),
-    "to ₹", round(quantile(icer_psa, 0.975), 0), "\n")
-```
-
-**10,000 simulations in a fraction of a second.** Try doing that in Excel.
-
-Now let us visualise the results — something that would require significant manual effort in Excel:
-
-```{r}
-#| label: ce-plane-simple
-#| echo: true
-#| fig-cap: "Cost-effectiveness plane from 10,000 PSA iterations"
-
-library(ggplot2)
-
-ce_data <- data.frame(
-  inc_cost = inc_cost,
-  inc_qaly = inc_qaly
-)
-
-ggplot(ce_data, aes(x = inc_qaly, y = inc_cost)) +
-  geom_point(alpha = 0.1, colour = "steelblue", size = 0.5) +
-  geom_hline(yintercept = 0, linetype = "dashed", colour = "grey50") +
-  geom_vline(xintercept = 0, linetype = "dashed", colour = "grey50") +
-  labs(
-    x = "Incremental QALYs",
-    y = "Incremental Cost (₹)",
-    title = "Cost-Effectiveness Plane",
-    subtitle = "10,000 PSA iterations — New Screening vs Standard Care"
-  ) +
-  theme_minimal()
-```
-
-```{r}
-#| label: simple-ceac
-#| echo: true
-#| fig-cap: "Cost-effectiveness acceptability curve — probability of being cost-effective at different WTP thresholds"
-
-wtp_range <- seq(0, 300000, by = 5000)
-prob_ce <- sapply(wtp_range, function(wtp) {
-  mean(inc_cost <= wtp * inc_qaly)
-})
-
-ceac_df <- data.frame(WTP = wtp_range, Probability = prob_ce)
-
-ggplot(ceac_df, aes(x = WTP, y = Probability)) +
-  geom_line(colour = "steelblue", linewidth = 1.2) +
-  geom_ribbon(aes(ymin = 0, ymax = Probability), fill = "steelblue", alpha = 0.2) +
-  geom_vline(xintercept = 100000, linetype = "dashed", colour = "red") +
-  annotate("text", x = 110000, y = 0.3, label = "WTP = ₹1,00,000",
-           colour = "red", size = 3, hjust = 0) +
-  scale_x_continuous(labels = function(x) paste0("₹", format(x/1000, big.mark=","), "K")) +
-  scale_y_continuous(limits = c(0, 1), labels = scales::percent_format()) +
-  labs(x = "Willingness-to-Pay Threshold (₹/QALY)",
-       y = "Probability Cost-Effective",
-       title = "Cost-Effectiveness Acceptability Curve",
-       subtitle = "From 10,000 PSA iterations") +
-  theme_minimal()
-```
-
-## Beyond This Simple Example
-
-In this workshop, you will see R applied to real HTA problems:
-
-- **Decision trees** where you can instantly re-run the model with different prevalence estimates or test accuracy values
-- **Markov models** where transition probabilities, costs, and utilities can all be varied probabilistically
-- **Partitioned survival models** where you can fit and compare multiple survival distributions and see how extrapolation choices affect the ICER
-- **Shiny apps** where you can build interactive tools that non-R-users (like policymakers) can use to explore your model
+In this workshop, you will see R applied to real HTA problems across four model types:
 
 ```{r}
 #| label: fig-four-models
-#| echo: true
+#| echo: false
+#| eval: true
 #| fig-cap: "Four HTA model types covered in this workshop"
+
+library(DiagrammeR)
 
 grViz("
 digraph four_models {
@@ -229,23 +146,26 @@ digraph four_models {
 ")
 ```
 
-## What This Workshop Will NOT Do
+**Day 1:** Why R for HTA → R orientation → Decision trees (GDM diagnostic, DES vs BMS therapeutic)
 
-We will not:
+**Day 2:** Markov cohort model (CKD) → Probabilistic sensitivity analysis → GenAI for HTA coding
 
-- Turn you into R programmers in three days
-- Ask you to memorise syntax
-- Expect you to write complex code from scratch
+**Day 3:** Partitioned survival model (Breast cancer) → PSA for PSM → Interactive Shiny apps → Wrap-up
 
-We **will**:
+## What This Workshop Will and Won't Do
 
-- Give you working templates you can adapt
-- Build your confidence in reading and modifying R code
-- Show you how to use available tools (including AI) to support your workflow
-- Help you understand when R is the right tool for your HTA work
+This workshop **will not** turn you into R programmers in three days, ask you to memorise syntax, or expect you to write complex code from scratch.
+
+This workshop **will** give you working templates you can adapt for your own studies, build your confidence in reading and modifying R code, show you how to use AI tools to accelerate your workflow, and help you understand when R is the right tool for your HTA work.
 
 ## Key Takeaway
 
 R is not replacing your HTA expertise — it is giving that expertise a more powerful medium. The clinical judgement, the model structuring, the parameter selection — that remains yours. R simply makes the execution more reproducible, transparent, and scalable.
 
-Let us get started.
+## Further Reading
+
+- Herndon, T., Ash, M., & Pollin, R. (2014). Does high public debt consistently stifle economic growth? A critique of Reinhart and Rogoff. *Cambridge Journal of Economics*, 38(2), 257–279.
+- Reinhart, C. M., & Rogoff, K. S. (2010). Growth in a time of debt. *American Economic Review*, 100(2), 573–578.
+- Baio, G. (2012). *Bayesian Methods in Health Economics*. CRC Press.
+- Briggs, A., Sculpher, M., & Claxton, K. (2006). *Decision Modelling for Health Economic Evaluation*. Oxford University Press.
+- R-HTA Consortium: [r-hta.org](https://r-hta.org)
