@@ -196,7 +196,7 @@ Let me show you what R makes possible — interactively.
 ::: {style="text-align: center; padding: 20px;"}
 
 ::: {style="font-size: 1.3em; font-weight: bold; color: #028090; margin-bottom: 20px;"}
-🔗 [PLACEHOLDER_SHINY_APP_URL](PLACEHOLDER_SHINY_APP_URL)
+🔗 [Beyond Spreadsheets — Live Demo](https://019cf9b0-c0f4-4fd1-e29d-92143d6955b5.share.connect.posit.cloud/)
 :::
 
 We will explore:
@@ -343,27 +343,6 @@ digraph four_models {
 }
 ")
 ```
-
-## By Day 3, You Will Build This
-
-::: {style="text-align: center; margin-bottom: 10px; font-weight: bold; font-size: 1.1em; color: #028090;"}
-An interactive Shiny app — change parameters with sliders, see results update live
-:::
-
-```{=html}
-<iframe src="https://YOUR-USERNAME.shinyapps.io/markov-model/"
-        width="1100" height="480"
-        style="border: 2px solid #02C39A; border-radius: 8px; background: white;"
-        allow="fullscreen">
-  <p style="text-align:center; color: #999; padding: 40px;">
-    Shiny app will load here — requires deployment to shinyapps.io
-  </p>
-</iframe>
-```
-
-::: {.notes}
-Replace the iframe src with your actual shinyapps.io URL once deployed.
-:::
 
 ## What This Workshop Will NOT Do
 

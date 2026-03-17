@@ -18,7 +18,7 @@ We answer this through a real-world cautionary tale — the Reinhart-Rogoff inci
 **Session flow:**
 
 1. Slides: The Reinhart-Rogoff story (the spreadsheet that shook nations)
-2. Live demo: [Beyond Spreadsheets Shiny App](PLACEHOLDER_SHINY_APP_URL) — interactive PSA, Markov model, CEAC
+2. Live demo: [Beyond Spreadsheets Shiny App](https://019cf9b0-c0f4-4fd1-e29d-92143d6955b5.share.connect.posit.cloud/) — interactive PSA, Markov model, CEAC
 3. Slides: Summary — what R makes possible, workshop roadmap
 
 ## The Reinhart-Rogoff Incident: A Cautionary Tale
@@ -59,7 +59,7 @@ When Herndon, Ash, and Pollin corrected all three errors, the average GDP growth
 
 During the session, we open the **Beyond Spreadsheets** Shiny app for a live, interactive demonstration:
 
-🔗 **[Open the Shiny App](PLACEHOLDER_SHINY_APP_URL)**
+🔗 **[Open the Shiny App](https://019cf9b0-c0f4-4fd1-e29d-92143d6955b5.share.connect.posit.cloud/)**
 
 The app has five tabs:
 
