@@ -8,7 +8,7 @@ format:
     code-tools: true
 ---
 
-## The Clinical Question
+## 1. The Clinical Question
 
 Coronary artery disease (CAD) is a leading cause of mortality in India. Percutaneous coronary intervention (PCI) with stent placement is a standard treatment, and the choice between **drug-eluting stents (DES)** and **bare metal stents (BMS)** has major cost and outcome implications.
 
@@ -18,107 +18,213 @@ In 2017, India's NPPA capped stent prices — BMS at approximately ₹7,260 and 
 
 This is a **therapeutic decision tree** — comparing two treatment strategies with different costs and probabilities of downstream events.
 
-## The Decision Problem
+## 2. Framing the Decision Problem — PICO
 
-We compare two strategies for a patient undergoing PCI for stable CAD:
-
-1. **DES (Drug-Eluting Stent):** Higher initial cost, lower restenosis and MACE rates
-2. **BMS (Bare Metal Stent):** Lower initial cost, higher restenosis and repeat revascularization rates
-
-The decision tree branches on: procedural success → restenosis (requiring repeat revascularization) → major adverse cardiac events (MACE: MI or cardiac death).
-
-## Model Parameters
+Before we touch any data, let us formalise the question using the **PICO framework**, extended for HTA.
 
 ```{r}
-#| label: parameters
+#| label: fig-pico
+#| echo: false
+#| fig-cap: "PICO framework extended for HTA decision modelling"
+
+library(DiagrammeR)
+
+grViz("
+digraph pico {
+  graph [rankdir=TB, bgcolor='transparent', fontname='Helvetica', nodesep=0.6, ranksep=0.5]
+  node [fontname='Helvetica', fontsize=11, style='filled,rounded', shape=box]
+
+  Q [label='Structured Decision Problem', fillcolor='#2c3e50', fontcolor='white', fontsize=13, width=3.5]
+
+  P [label='P — Population\\nAdults with stable CAD\\nundergoing elective PCI in India', fillcolor='#3498db', fontcolor='white', width=3]
+  I [label='I — Intervention\\nDrug-Eluting Stent (DES)\\n₹38,933 (NPPA 2025)', fillcolor='#27ae60', fontcolor='white', width=3]
+  C [label='C — Comparator\\nBare Metal Stent (BMS)\\n₹10,693 (NPPA 2025)', fillcolor='#e67e22', fontcolor='white', width=3]
+  O [label='O — Outcomes\\nCosts (₹), QALYs, ICER', fillcolor='#e74c3c', fontcolor='white', width=3]
+
+  H [label='HTA Extensions', fillcolor='#8e44ad', fontcolor='white', fontsize=12, width=3.5]
+
+  Per [label='Perspective\\nHealthcare payer', fillcolor='#9b59b6', fontcolor='white', width=2.5]
+  TH [label='Time Horizon\\n5 years', fillcolor='#9b59b6', fontcolor='white', width=2.5]
+  DR [label='Discounting\\n3% per annum', fillcolor='#9b59b6', fontcolor='white', width=2.5]
+  WTP [label='Threshold\\n₹1.7 lakh/QALY\\n(1× GDP per capita)', fillcolor='#9b59b6', fontcolor='white', width=2.5]
+
+  Q -> P
+  Q -> I
+  Q -> C
+  Q -> O
+
+  Q -> H [style=dashed]
+  H -> Per
+  H -> TH
+  H -> DR
+  H -> WTP
+}
+")
+```
+
+::: {.callout-tip}
+## Why PICO matters for modelling
+Every HTA model answers a *specific* question. The PICO forces us to be precise: which patients? which interventions? what are we measuring? The HTA extensions add the economic lens — whose costs count (perspective), how far we look (time horizon), how we value future outcomes (discounting), and when we say "worth it" (WTP threshold).
+
+Notice that changing *any* element of the PICO changes the entire model. Younger patients? Different probabilities. Different country? Different costs and thresholds. This is why we build models in code — so we can adapt them.
+:::
+
+
+## 3. Conceptual Map — What Do We Need?
+
+Now that we know *what* we're asking, let's brainstorm: **what information do we need to answer it?**
+
+Before looking up a single number, think about the building blocks of a cost-effectiveness model.
+
+```{mermaid}
+%%| fig-cap: "Conceptual map: building blocks of a decision tree model"
+mindmap
+  root((DES vs BMS<br/>What do we need?))
+    **Cohort**
+      Who are we modelling?
+      How many patients?
+      How long do we follow them?
+    **Probabilities**
+      Does the procedure succeed?
+      Does restenosis occur?
+      Does a major event happen?
+      What kind — MI or death?
+    **Costs ₹**
+      Stent itself
+      PCI procedure
+      Medications post-PCI
+      Follow-up visits
+      Repeat intervention if restenosis
+      Managing MI or death
+    **Utilities QALYs**
+      Quality of life when well
+      Quality after restenosis recovery
+      Quality after surviving MI
+      Death = 0
+    **Framework**
+      Time horizon
+      Discount rate
+      WTP threshold
+      Perspective
+```
+
+::: {.callout-note}
+## Think before you code
+This is how HTA analysts work in practice. You sketch the model on a whiteboard *first*, identify what data you need, *then* go find the numbers. The mind map above is your shopping list — now let's fill in each category.
+:::
+
+
+## 4. Input Parameters — One Category at a Time
+
+### 4a. The Cohort
+
+Every model starts with: *who are we modelling, for how long, and what economic rules apply?*
+
+```{r}
+#| label: params-cohort
 #| echo: true
 
-# ============================================================
-# MODEL PARAMETERS — DES vs BMS Decision Tree
-# ============================================================
+# === COHORT & FRAMEWORK ===
+n_cohort      <- 1000   # 1,000 patients undergoing PCI
+time_horizon  <- 5      # years of follow-up
+discount_rate <- 0.03   # 3% annual discount (years 2–5)
+```
 
-# --- Cohort ---
-n_cohort <- 1000  # 1,000 patients undergoing PCI
+### 4b. Probabilities — What Can Happen?
 
-# --- Stent Costs (₹) ---
-# Source: NPPA revised ceiling prices 2025
-cost_des_stent <- 38933     # DES ceiling price
-cost_bms_stent <- 10693     # BMS ceiling price
+These are the clinical evidence inputs. Each number comes from trials, registries, or meta-analyses.
 
-# --- Procedure Costs (₹, excluding stent) ---
-# Source: Estimated from Indian hospital data, PMJAY/CGHS package rates
-# Includes catheterisation lab, consumables, hospital stay, medications
-cost_procedure <- 120000    # Base PCI procedure cost (same for both)
+```{r}
+#| label: params-probabilities
+#| echo: true
 
-# --- Post-PCI Medication Costs (annual, ₹) ---
-# DES requires longer dual antiplatelet therapy (DAPT): 12 months
-# BMS requires shorter DAPT: 1-3 months, then single antiplatelet
-# Source: Indian cardiology practice guidelines
-cost_dapt_des_annual <- 8000   # Clopidogrel + Aspirin for 12 months
-cost_dapt_bms_annual <- 3000   # Shorter DAPT + single antiplatelet
-cost_followup_annual <- 5000   # Annual follow-up visits, tests
+# === PROBABILITIES ===
 
-# --- Procedural Success ---
+# Procedural success
 # Source: Indian PCI registry data
 p_success_des <- 0.97
 p_success_bms <- 0.96
 
-# --- Restenosis (within 1 year, requiring repeat revascularization) ---
+# Restenosis within 1 year (requiring repeat revascularisation)
 # Source: PMC comparative study (Indian data); international meta-analyses
-# BMS: 15-20% restenosis requiring intervention
-# DES: 5-10% restenosis
-p_restenosis_des <- 0.08
-p_restenosis_bms <- 0.20
+p_restenosis_des <- 0.08   # DES: 5–10%
+p_restenosis_bms <- 0.20   # BMS: 15–20%
 
-# --- Cost of Repeat Revascularization (₹) ---
-# Repeat PCI or CABG
-# Source: PMJAY package rates
-cost_repeat_pci <- 180000    # Repeat PCI (more complex than index)
-cost_cabg <- 250000          # CABG if PCI not suitable
-
-# Proportion requiring CABG vs repeat PCI among restenosis cases
-p_cabg_if_restenosis <- 0.20  # 20% need CABG, 80% get repeat PCI
-
-# --- MACE at 5 years (MI, cardiac death) ---
+# MACE at 5 years (MI or cardiac death)
 # Among patients WITHOUT restenosis
-# Source: Circulation meta-analysis; 5-year follow-up data
-p_mace_des_no_restenosis <- 0.08    # 5-year MACE rate, DES, no restenosis
-p_mace_bms_no_restenosis <- 0.15    # 5-year MACE rate, BMS, no restenosis
+p_mace_des_no_restenosis <- 0.08
+p_mace_bms_no_restenosis <- 0.15
 
-# Among patients WITH restenosis (after repeat revascularization)
+# Among patients WITH restenosis (after repeat revascularisation)
 p_mace_des_restenosis <- 0.15
 p_mace_bms_restenosis <- 0.25
 
-# --- MACE Outcomes ---
-# Among those with MACE: proportion MI vs cardiac death
-p_mi_given_mace <- 0.70        # 70% MI
-p_cardiac_death_given_mace <- 0.30  # 30% cardiac death
+# Among MACE events: what proportion is MI vs cardiac death?
+p_mi_given_mace        <- 0.70   # 70% MI
+p_cardiac_death_given_mace <- 0.30   # 30% cardiac death
 
-# --- Costs of MACE Events (₹) ---
-cost_mi_management <- 200000    # Acute MI management
-cost_cardiac_death <- 50000     # Terminal care costs
-
-# --- Utility Weights (5-year horizon) ---
-# Source: Adapted from international literature (Sullivan et al.);
-# No dedicated Indian EQ-5D data for post-PCI; disclaimer applies
-utility_well_post_pci <- 0.85     # Stable post-PCI
-utility_restenosis_recovered <- 0.78  # After repeat revascularization
-utility_post_mi <- 0.65          # Post-MI, surviving
-utility_death <- 0.00            # Death
-
-# --- Discount Rate ---
-discount_rate <- 0.03   # 3% annual, applied to years 2-5
-
-# --- Time Horizon ---
-time_horizon <- 5  # years
+# Proportion needing CABG vs repeat PCI among restenosis cases
+p_cabg_if_restenosis <- 0.20
 ```
 
-::: {.callout-note}
-## Note on Indian Utility Data
-Indian-specific EQ-5D utility values for post-PCI patients are limited. The utility weights used here are adapted from international literature. For a formal HTA submission to an Indian HTA body, a local utility study or regionally validated values would strengthen the analysis.
+::: {.callout-tip}
+## Where do these numbers come from?
+In a real HTA submission, every probability needs a source citation, a justification for the chosen value, and ideally a range (for sensitivity analysis later). Notice how each parameter has a brief source comment — this is good practice.
 :::
 
-## Building the Decision Tree
+### 4c. Costs (₹) — What Does Each Event Cost?
+
+```{r}
+#| label: params-costs
+#| echo: true
+
+# === COSTS (Indian Rupees) ===
+
+# Stent costs — NPPA revised ceiling prices 2025
+cost_des_stent <- 38933
+cost_bms_stent <- 10693
+
+# Base PCI procedure cost (same for both arms)
+# Source: PMJAY/CGHS package rates; hospital data
+cost_procedure <- 120000
+
+# Post-PCI medication costs (annual)
+cost_dapt_des_annual <- 8000    # 12-month dual antiplatelet (DES)
+cost_dapt_bms_annual <- 3000    # Shorter DAPT + single antiplatelet (BMS)
+cost_followup_annual <- 5000    # Annual follow-up visits and tests
+
+# Repeat revascularisation costs
+cost_repeat_pci <- 180000       # Repeat PCI (more complex than index)
+cost_cabg       <- 250000       # CABG if PCI not suitable
+
+# MACE event costs
+cost_mi_management <- 200000    # Acute MI management
+cost_cardiac_death <- 50000     # Terminal care
+```
+
+### 4d. Utilities — How Does Each State *Feel*?
+
+```{r}
+#| label: params-utilities
+#| echo: true
+
+# === UTILITY WEIGHTS (0 = dead, 1 = perfect health) ===
+# Source: Adapted from international literature (Sullivan et al.)
+utility_well_post_pci        <- 0.85   # Stable post-PCI
+utility_restenosis_recovered <- 0.78   # After repeat revascularisation
+utility_post_mi              <- 0.65   # Post-MI, surviving
+utility_death                <- 0.00   # Death
+```
+
+::: {.callout-warning}
+## Indian Utility Data Gap
+Indian-specific EQ-5D utility values for post-PCI patients are limited. The utility weights here are adapted from international literature. For a formal HTA submission to an Indian body, a local utility study or regionally validated values would strengthen the analysis. *Keep this caveat in mind — we'll revisit it in the thought exercises.*
+:::
+
+
+## 5. The Decision Tree — How Parameters Connect
+
+Now we can see the structure. The diagram below maps directly onto the parameters you just defined — each branch uses a probability from Section 4b, and each terminal node will receive costs (4c) and utilities (4d).
 
 ```{r}
 #| label: fig-des-bms-tree
@@ -181,87 +287,82 @@ digraph des_bms {
 ")
 ```
 
-### Step 1: Initial PCI and Stent Costs
+::: {.callout-note}
+## Reading the tree
+Each **square node** is a decision (we choose). Each **circle node** is a chance event (nature decides). Each **terminal box** is an outcome with associated cost and utility. The percentages on chance nodes come directly from the probability parameters you defined in Section 4b.
+:::
+
+
+## 6. Pathway Counts — Trace Patients Through the Tree
+
+Before calculating any costs or QALYs, we count *how many patients end up where*. This is the foundation — the denominator that drives everything.
 
 ```{r}
-#| label: initial-costs
+#| label: pathway-counts
 #| echo: true
 
-# --- Total Initial PCI Cost per Patient ---
-initial_cost_des <- cost_procedure + cost_des_stent
-initial_cost_bms <- cost_procedure + cost_bms_stent
-
-cat("Initial PCI cost per patient:\n")
-cat("  DES: ₹", format(initial_cost_des, big.mark = ","), "\n")
-cat("  BMS: ₹", format(initial_cost_bms, big.mark = ","), "\n")
-cat("  Difference: ₹", format(initial_cost_des - initial_cost_bms, big.mark = ","), "\n")
-```
-
-### Step 2: Trace Through the Decision Tree
-
-```{r}
-#| label: tree-tracing
-#| echo: true
+library(knitr)
 
 # ============================================================
-# DES ARM
+# DES ARM — count patients at each node
 # ============================================================
+des_success       <- n_cohort * p_success_des
+des_failure       <- n_cohort * (1 - p_success_des)     # → CABG
 
-# Procedural outcomes
-des_success <- n_cohort * p_success_des
-des_failure <- n_cohort * (1 - p_success_des)  # Proceed to CABG
-
-# Among successful DES
-des_restenosis <- des_success * p_restenosis_des
+des_restenosis    <- des_success * p_restenosis_des
 des_no_restenosis <- des_success * (1 - p_restenosis_des)
 
-# MACE outcomes
-des_mace_from_restenosis <- des_restenosis * p_mace_des_restenosis
+# MACE from restenosis pathway
+des_mace_from_restenosis    <- des_restenosis * p_mace_des_restenosis
 des_no_mace_from_restenosis <- des_restenosis * (1 - p_mace_des_restenosis)
 
-des_mace_no_restenosis <- des_no_restenosis * p_mace_des_no_restenosis
+# MACE from no-restenosis pathway
+des_mace_no_restenosis    <- des_no_restenosis * p_mace_des_no_restenosis
 des_no_mace_no_restenosis <- des_no_restenosis * (1 - p_mace_des_no_restenosis)
 
-# MACE breakdown (MI vs death)
-des_total_mace <- des_mace_from_restenosis + des_mace_no_restenosis
-des_mi <- des_total_mace * p_mi_given_mace
+# Total MACE and breakdown
+des_total_mace   <- des_mace_from_restenosis + des_mace_no_restenosis
+des_mi           <- des_total_mace * p_mi_given_mace
 des_cardiac_death <- des_total_mace * p_cardiac_death_given_mace
 
-cat("=== DES Arm: Patient Flow ===\n")
-cat("Successful PCI:", des_success, "\n")
-cat("Procedural failure (→ CABG):", des_failure, "\n")
-cat("Restenosis requiring intervention:", round(des_restenosis, 1), "\n")
-cat("Total MACE at 5 years:", round(des_total_mace, 1), "\n")
-cat("  - MI:", round(des_mi, 1), "\n")
-cat("  - Cardiac death:", round(des_cardiac_death, 1), "\n")
-
 # ============================================================
-# BMS ARM
+# BMS ARM — count patients at each node
 # ============================================================
+bms_success       <- n_cohort * p_success_bms
+bms_failure       <- n_cohort * (1 - p_success_bms)
 
-bms_success <- n_cohort * p_success_bms
-bms_failure <- n_cohort * (1 - p_success_bms)
-
-bms_restenosis <- bms_success * p_restenosis_bms
+bms_restenosis    <- bms_success * p_restenosis_bms
 bms_no_restenosis <- bms_success * (1 - p_restenosis_bms)
 
-bms_mace_from_restenosis <- bms_restenosis * p_mace_bms_restenosis
+bms_mace_from_restenosis    <- bms_restenosis * p_mace_bms_restenosis
 bms_no_mace_from_restenosis <- bms_restenosis * (1 - p_mace_bms_restenosis)
 
-bms_mace_no_restenosis <- bms_no_restenosis * p_mace_bms_no_restenosis
+bms_mace_no_restenosis    <- bms_no_restenosis * p_mace_bms_no_restenosis
 bms_no_mace_no_restenosis <- bms_no_restenosis * (1 - p_mace_bms_no_restenosis)
 
-bms_total_mace <- bms_mace_from_restenosis + bms_mace_no_restenosis
-bms_mi <- bms_total_mace * p_mi_given_mace
+bms_total_mace    <- bms_mace_from_restenosis + bms_mace_no_restenosis
+bms_mi            <- bms_total_mace * p_mi_given_mace
 bms_cardiac_death <- bms_total_mace * p_cardiac_death_given_mace
 
-cat("\n=== BMS Arm: Patient Flow ===\n")
-cat("Successful PCI:", bms_success, "\n")
-cat("Procedural failure (→ CABG):", bms_failure, "\n")
-cat("Restenosis requiring intervention:", round(bms_restenosis, 1), "\n")
-cat("Total MACE at 5 years:", round(bms_total_mace, 1), "\n")
-cat("  - MI:", round(bms_mi, 1), "\n")
-cat("  - Cardiac death:", round(bms_cardiac_death, 1), "\n")
+# --- Clean summary as a table ---
+pathway_summary <- data.frame(
+  Outcome = c("Successful PCI", "Procedural failure → CABG",
+              "Restenosis (repeat intervention)", "No restenosis",
+              "Total MACE", "— MI", "— Cardiac death",
+              "Well (no complications)"),
+  DES = c(des_success, des_failure,
+          round(des_restenosis, 1), round(des_no_restenosis, 1),
+          round(des_total_mace, 1), round(des_mi, 1), round(des_cardiac_death, 1),
+          round(des_no_mace_no_restenosis, 1)),
+  BMS = c(bms_success, bms_failure,
+          round(bms_restenosis, 1), round(bms_no_restenosis, 1),
+          round(bms_total_mace, 1), round(bms_mi, 1), round(bms_cardiac_death, 1),
+          round(bms_no_mace_no_restenosis, 1))
+)
+
+kable(pathway_summary, col.names = c("Outcome", "DES (n)", "BMS (n)"),
+      caption = "Patient flow per 1,000 patients at 5 years",
+      align = c("l", "r", "r"))
 ```
 
 ```{r}
@@ -295,38 +396,54 @@ ggplot(flow_data, aes(x = Outcome, y = Count, fill = Stent)) +
   theme(legend.position = "bottom")
 ```
 
-### Step 3: Calculate Total Costs
+::: {.callout-tip}
+## Count first, calculate later
+This is a deliberate discipline. By counting pathway populations *before* attaching costs or utilities, you can verify the tree logic independently. Do the numbers add up to 1,000? They should. If not, you have a bug in your tree.
+:::
+
+
+## 7. Cost Vectors — Attach Costs to Each Pathway
+
+Now we multiply: **pathway count × unit cost** for each cost component. We build the total cost from pieces, so you can see exactly what drives the expense.
 
 ```{r}
-#| label: total-costs
+#| label: cost-vectors
 #| echo: true
 
-# --- DES: Total Costs ---
-# Initial PCI
-cost_initial_des <- des_success * initial_cost_des + des_failure * cost_cabg
-
-# Annual medication and follow-up (5 years, discounted)
+# Discount factor for summing over years
 discount_factor <- sum(1 / (1 + discount_rate)^(0:(time_horizon - 1)))
-cost_annual_des <- n_cohort * (cost_dapt_des_annual + cost_followup_annual)
-# Year 1 DAPT is higher; subsequent years are follow-up only
-cost_medication_des <- n_cohort * cost_dapt_des_annual +  # Year 1
-                       n_cohort * cost_followup_annual * discount_factor  # All years
 
-# Restenosis management
+# ============================================================
+# DES ARM — Cost components
+# ============================================================
+
+# 1. Initial PCI + stent (successful patients get stent; failures get CABG)
+cost_initial_des <- des_success * (cost_procedure + cost_des_stent) +
+                    des_failure * cost_cabg
+
+# 2. Medications: Year 1 DAPT + annual follow-up (discounted)
+cost_medication_des <- n_cohort * cost_dapt_des_annual +
+                       n_cohort * cost_followup_annual * discount_factor
+
+# 3. Restenosis management (weighted: 80% repeat PCI, 20% CABG)
 cost_restenosis_des <- des_restenosis * (
   (1 - p_cabg_if_restenosis) * cost_repeat_pci +
   p_cabg_if_restenosis * cost_cabg
 )
 
-# MACE management
-cost_mace_des <- des_mi * cost_mi_management + des_cardiac_death * cost_cardiac_death
+# 4. MACE management
+cost_mace_des <- des_mi * cost_mi_management +
+                 des_cardiac_death * cost_cardiac_death
 
-# Total
+# TOTAL
 total_cost_des <- cost_initial_des + cost_medication_des +
                   cost_restenosis_des + cost_mace_des
 
-# --- BMS: Total Costs ---
-cost_initial_bms <- bms_success * initial_cost_bms + bms_failure * cost_cabg
+# ============================================================
+# BMS ARM — Cost components
+# ============================================================
+cost_initial_bms <- bms_success * (cost_procedure + cost_bms_stent) +
+                    bms_failure * cost_cabg
 
 cost_medication_bms <- n_cohort * cost_dapt_bms_annual +
                        n_cohort * cost_followup_annual * discount_factor
@@ -336,64 +453,112 @@ cost_restenosis_bms <- bms_restenosis * (
   p_cabg_if_restenosis * cost_cabg
 )
 
-cost_mace_bms <- bms_mi * cost_mi_management + bms_cardiac_death * cost_cardiac_death
+cost_mace_bms <- bms_mi * cost_mi_management +
+                 bms_cardiac_death * cost_cardiac_death
 
 total_cost_bms <- cost_initial_bms + cost_medication_bms +
                   cost_restenosis_bms + cost_mace_bms
 
-cat("=== Cost Summary (cohort of", n_cohort, "patients) ===\n\n")
-cat("DES:\n")
-cat("  Initial PCI: ₹", format(round(cost_initial_des), big.mark = ","), "\n")
-cat("  Medications: ₹", format(round(cost_medication_des), big.mark = ","), "\n")
-cat("  Restenosis mgmt: ₹", format(round(cost_restenosis_des), big.mark = ","), "\n")
-cat("  MACE mgmt: ₹", format(round(cost_mace_des), big.mark = ","), "\n")
-cat("  TOTAL: ₹", format(round(total_cost_des), big.mark = ","), "\n\n")
+# --- Clean summary as a table ---
+fmt <- function(x) paste0("₹", format(round(x), big.mark = ","))
 
-cat("BMS:\n")
-cat("  Initial PCI: ₹", format(round(cost_initial_bms), big.mark = ","), "\n")
-cat("  Medications: ₹", format(round(cost_medication_bms), big.mark = ","), "\n")
-cat("  Restenosis mgmt: ₹", format(round(cost_restenosis_bms), big.mark = ","), "\n")
-cat("  MACE mgmt: ₹", format(round(cost_mace_bms), big.mark = ","), "\n")
-cat("  TOTAL: ₹", format(round(total_cost_bms), big.mark = ","), "\n")
+cost_summary <- data.frame(
+  Component = c("Initial PCI + Stent", "Medications (5 yr)",
+                "Restenosis management", "MACE management",
+                "**TOTAL (cohort)**", "**Per patient**"),
+  DES = c(fmt(cost_initial_des), fmt(cost_medication_des),
+          fmt(cost_restenosis_des), fmt(cost_mace_des),
+          fmt(total_cost_des), fmt(total_cost_des / n_cohort)),
+  BMS = c(fmt(cost_initial_bms), fmt(cost_medication_bms),
+          fmt(cost_restenosis_bms), fmt(cost_mace_bms),
+          fmt(total_cost_bms), fmt(total_cost_bms / n_cohort))
+)
+
+kable(cost_summary, col.names = c("Cost Component", "DES", "BMS"),
+      caption = "5-year cost summary: DES vs BMS",
+      align = c("l", "r", "r"))
 ```
 
-### Step 4: Calculate QALYs
+```{r}
+#| label: fig-cost-breakdown
+#| echo: true
+#| fig-cap: "5-year cost breakdown per patient: DES vs BMS"
+
+library(tidyr)
+
+cost_breakdown <- data.frame(
+  Category = c("Initial PCI + Stent", "Medications (5yr)", "Restenosis Mgmt", "MACE Mgmt"),
+  DES = c(cost_initial_des, cost_medication_des, cost_restenosis_des, cost_mace_des) / n_cohort,
+  BMS = c(cost_initial_bms, cost_medication_bms, cost_restenosis_bms, cost_mace_bms) / n_cohort
+)
+
+cost_long <- pivot_longer(cost_breakdown, cols = c(DES, BMS),
+                          names_to = "Stent", values_to = "Cost")
+
+ggplot(cost_long, aes(x = Stent, y = Cost, fill = Category)) +
+  geom_col(position = "stack") +
+  scale_fill_manual(values = c("Initial PCI + Stent" = "#4e79a7",
+                                "Medications (5yr)" = "#59a14f",
+                                "Restenosis Mgmt" = "#f28e2b",
+                                "MACE Mgmt" = "#e15759")) +
+  labs(x = "Stent Type", y = "Cost per Patient (₹)",
+       title = "5-Year Cost Breakdown: DES vs BMS",
+       subtitle = "Indian NPPA ceiling prices (2025)") +
+  theme_minimal() +
+  theme(legend.position = "bottom")
+```
+
+::: {.callout-note}
+## The cost story
+DES costs more upfront (₹28,240 more per stent), but look at the restenosis and MACE management bars — BMS generates far more downstream costs. Whether DES ends up cheaper *overall* depends on the balance between these components.
+:::
+
+
+## 8. QALY Vectors — Attach Utilities to Each Pathway
+
+Same logic: **pathway count × utility weight × time**. Each patient group accumulates QALYs at a rate determined by their health state.
 
 ```{r}
-#| label: qalys
+#| label: qaly-vectors
 #| echo: true
 
-# --- DES: QALYs over 5 years ---
-# Patients who are well (no restenosis, no MACE)
+# ============================================================
+# DES ARM — QALY components
+# ============================================================
+
+# Patients who are well (no restenosis, no MACE) — best outcome
 qaly_des_well <- des_no_mace_no_restenosis * utility_well_post_pci * time_horizon
 
-# Patients with restenosis but recovered (no subsequent MACE)
+# Restenosis but recovered (no subsequent MACE)
+# 6 months unwell pre-intervention, then recovered for remaining years
 qaly_des_restenosis_ok <- des_no_mace_from_restenosis *
-                          (utility_well_post_pci * 0.5 +  # 6 months pre-intervention
-                           utility_restenosis_recovered * (time_horizon - 0.5))
+  (utility_well_post_pci * 0.5 + utility_restenosis_recovered * (time_horizon - 0.5))
 
-# Patients with MI (surviving)
-qaly_des_mi <- des_mi * (utility_well_post_pci * 2 +  # ~2 years before MI
-                          utility_post_mi * (time_horizon - 2))
+# MI survivors
+# ~2 years well before MI, then reduced utility for remaining years
+qaly_des_mi <- des_mi *
+  (utility_well_post_pci * 2 + utility_post_mi * (time_horizon - 2))
 
-# Patients with cardiac death (~midpoint)
+# Cardiac death (assumed at midpoint of follow-up)
 qaly_des_death <- des_cardiac_death * utility_well_post_pci * (time_horizon / 2)
 
-# Procedural failures (CABG — assumed similar utility trajectory)
+# Procedural failures (→ CABG, assumed similar to restenosis recovery)
 qaly_des_failure <- des_failure * utility_restenosis_recovered * time_horizon
 
+# TOTAL
 total_qaly_des <- qaly_des_well + qaly_des_restenosis_ok +
                   qaly_des_mi + qaly_des_death + qaly_des_failure
 
-# --- BMS: QALYs ---
+# ============================================================
+# BMS ARM — QALY components
+# ============================================================
 qaly_bms_well <- bms_no_mace_no_restenosis * utility_well_post_pci * time_horizon
 
 qaly_bms_restenosis_ok <- bms_no_mace_from_restenosis *
-                          (utility_well_post_pci * 0.5 +
-                           utility_restenosis_recovered * (time_horizon - 0.5))
+  (utility_well_post_pci * 0.5 + utility_restenosis_recovered * (time_horizon - 0.5))
 
-qaly_bms_mi <- bms_mi * (utility_well_post_pci * 2 +
-                          utility_post_mi * (time_horizon - 2))
+qaly_bms_mi <- bms_mi *
+  (utility_well_post_pci * 2 + utility_post_mi * (time_horizon - 2))
 
 qaly_bms_death <- bms_cardiac_death * utility_well_post_pci * (time_horizon / 2)
 
@@ -402,50 +567,86 @@ qaly_bms_failure <- bms_failure * utility_restenosis_recovered * time_horizon
 total_qaly_bms <- qaly_bms_well + qaly_bms_restenosis_ok +
                   qaly_bms_mi + qaly_bms_death + qaly_bms_failure
 
-cat("=== QALY Summary ===\n")
-cat("DES total QALYs:", round(total_qaly_des, 1), "\n")
-cat("DES QALYs per patient:", round(total_qaly_des / n_cohort, 3), "\n\n")
-cat("BMS total QALYs:", round(total_qaly_bms, 1), "\n")
-cat("BMS QALYs per patient:", round(total_qaly_bms / n_cohort, 3), "\n")
+# --- Clean summary as a table ---
+qaly_summary <- data.frame(
+  Component = c("Well (no complications)", "Restenosis recovered",
+                "MI survivors", "Cardiac death", "Procedural failure",
+                "**TOTAL (cohort)**", "**Per patient**"),
+  DES = c(round(qaly_des_well, 1), round(qaly_des_restenosis_ok, 1),
+          round(qaly_des_mi, 1), round(qaly_des_death, 1),
+          round(qaly_des_failure, 1),
+          round(total_qaly_des, 1), round(total_qaly_des / n_cohort, 3)),
+  BMS = c(round(qaly_bms_well, 1), round(qaly_bms_restenosis_ok, 1),
+          round(qaly_bms_mi, 1), round(qaly_bms_death, 1),
+          round(qaly_bms_failure, 1),
+          round(total_qaly_bms, 1), round(total_qaly_bms / n_cohort, 3))
+)
+
+kable(qaly_summary, col.names = c("Patient Group", "DES (QALYs)", "BMS (QALYs)"),
+      caption = "5-year QALY summary: DES vs BMS",
+      align = c("l", "r", "r"))
 ```
 
-### Step 5: ICER Calculation
+
+## 9. The ICER — Defining and Calculating
+
+The **Incremental Cost-Effectiveness Ratio** is the core metric of HTA. Let's define it as a function — because we will reuse it many times.
 
 ```{r}
-#| label: icer
+#| label: icer-function
 #| echo: true
 
-# --- Incremental Analysis: DES vs BMS ---
-inc_cost <- total_cost_des - total_cost_bms
-inc_qaly <- total_qaly_des - total_qaly_bms
-icer <- inc_cost / inc_qaly
-
-cat("=== Incremental Cost-Effectiveness: DES vs BMS ===\n\n")
-cat("Incremental cost: ₹", format(round(inc_cost), big.mark = ","), "\n")
-cat("Incremental QALYs:", round(inc_qaly, 2), "\n")
-cat("ICER: ₹", format(round(icer), big.mark = ","), "per QALY gained\n\n")
-
-# Interpret against WTP thresholds
-wtp_1gdp <- 170000   # ~1x GDP per capita India (approximate)
-wtp_3gdp <- 510000   # ~3x GDP per capita
-
-if (icer < 0) {
-  cat("→ DES is DOMINANT (less costly and more effective)\n")
-} else if (icer < wtp_1gdp) {
-  cat("→ DES is HIGHLY cost-effective (ICER < 1x GDP per capita)\n")
-} else if (icer < wtp_3gdp) {
-  cat("→ DES is cost-effective (ICER < 3x GDP per capita)\n")
-} else {
-  cat("→ DES is NOT cost-effective at conventional WTP thresholds\n")
+# === ICER FUNCTION ===
+calc_icer <- function(cost_new, cost_old, qaly_new, qaly_old) {
+  inc_cost <- cost_new - cost_old
+  inc_qaly <- qaly_new - qaly_old
+  icer     <- inc_cost / inc_qaly
+  list(inc_cost = inc_cost, inc_qaly = inc_qaly, icer = icer)
 }
+
+# Apply to our results
+result <- calc_icer(
+  cost_new = total_cost_des, cost_old = total_cost_bms,
+  qaly_new = total_qaly_des, qaly_old = total_qaly_bms
+)
+
+# --- Interpret against WTP thresholds ---
+wtp_1gdp <- 170000    # ~1× GDP per capita India
+wtp_3gdp <- 510000    # ~3× GDP per capita
+
+interpretation <- if (result$icer < 0) {
+  "DES is **DOMINANT** (less costly AND more effective)"
+} else if (result$icer < wtp_1gdp) {
+  "DES is **HIGHLY cost-effective** (ICER < 1× GDP per capita)"
+} else if (result$icer < wtp_3gdp) {
+  "DES is **cost-effective** (ICER < 3× GDP per capita)"
+} else {
+  "DES is **NOT cost-effective** at conventional WTP thresholds"
+}
+
+# Display as a clean summary table
+icer_table <- data.frame(
+  Metric = c("Incremental cost (DES − BMS)",
+             "Incremental QALYs (DES − BMS)",
+             "ICER",
+             "Interpretation"),
+  Value = c(paste0("₹", format(round(result$inc_cost), big.mark = ",")),
+            round(result$inc_qaly, 2),
+            paste0("₹", format(round(result$icer), big.mark = ","), " per QALY"),
+            interpretation)
+)
+
+kable(icer_table, col.names = c("", ""),
+      caption = "Incremental cost-effectiveness: DES vs BMS",
+      align = c("l", "l"))
 ```
 
 ```{r}
-#| label: fig-nnt-visual
+#| label: fig-nnt
 #| echo: true
 #| fig-cap: "Number needed to treat: DES vs BMS"
 
-# NNT for avoiding adverse events
+# NNT — a clinical translation of the ICER
 nnt_restenosis <- round(1 / (p_restenosis_bms - p_restenosis_des))
 nnt_mace <- round(1 / ((bms_total_mace - des_total_mace) / n_cohort))
 
@@ -465,42 +666,11 @@ ggplot(nnt_data, aes(x = Outcome, y = NNT, fill = Outcome)) +
   expand_limits(y = c(0, max(nnt_data$NNT) * 1.2))
 ```
 
-## Visualising the Results
+
+## 10. Visualising the Results
 
 ```{r}
-#| label: cost-breakdown-plot
-#| echo: true
-#| fig-cap: "Cost breakdown comparison: DES vs BMS"
-
-library(ggplot2)
-library(tidyr)
-
-cost_breakdown <- data.frame(
-  Category = c("Initial PCI", "Medications (5yr)", "Restenosis Mgmt", "MACE Mgmt"),
-  DES = c(cost_initial_des, cost_medication_des, cost_restenosis_des, cost_mace_des) / n_cohort,
-  BMS = c(cost_initial_bms, cost_medication_bms, cost_restenosis_bms, cost_mace_bms) / n_cohort
-)
-
-cost_long <- pivot_longer(cost_breakdown, cols = c(DES, BMS),
-                          names_to = "Stent", values_to = "Cost")
-
-ggplot(cost_long, aes(x = Stent, y = Cost, fill = Category)) +
-  geom_col(position = "stack") +
-  scale_fill_manual(values = c("Initial PCI" = "#4e79a7",
-                                "Medications (5yr)" = "#59a14f",
-                                "Restenosis Mgmt" = "#f28e2b",
-                                "MACE Mgmt" = "#e15759")) +
-  labs(
-    x = "Stent Type", y = "Cost per Patient (₹)",
-    title = "5-Year Cost Breakdown: DES vs BMS",
-    subtitle = "Indian NPPA ceiling prices (2025)"
-  ) +
-  theme_minimal() +
-  theme(legend.position = "bottom")
-```
-
-```{r}
-#| label: outcomes-comparison
+#| label: fig-outcomes-comparison
 #| echo: true
 #| fig-cap: "Clinical outcomes per 1,000 patients"
 
@@ -513,20 +683,135 @@ outcomes <- data.frame(
 
 ggplot(outcomes, aes(x = Outcome, y = Count, fill = Stent)) +
   geom_col(position = "dodge") +
+  geom_text(aes(label = Count), position = position_dodge(width = 0.9), vjust = -0.5, size = 3) +
   scale_fill_manual(values = c("DES" = "#4e79a7", "BMS" = "#e15759")) +
-  labs(
-    x = "", y = "Number of Patients (per 1,000)",
-    title = "Clinical Outcomes: DES vs BMS at 5 Years"
-  ) +
+  labs(x = "", y = "Number of Patients (per 1,000)",
+       title = "Clinical Outcomes: DES vs BMS at 5 Years") +
   theme_minimal() +
   theme(legend.position = "bottom")
 ```
 
-## The Key Insight
 
-Notice what this analysis reveals: DES costs more upfront (₹28,240 more per stent), but **saves money downstream** through fewer repeat revascularisations and fewer MACE events. Whether DES ends up cost-effective, cost-saving, or too expensive depends heavily on the restenosis rate differential and the cost of managing complications.
+## 11. What Should Keep You Up at Night
 
-This is exactly the kind of analysis where R shines — you can instantly see how changing one parameter (like the stent price, or the restenosis rate) shifts the conclusion. In Excel, this would require careful re-wiring of formulas across multiple sheets.
+We have an ICER. The model says DES is cost-effective. **But how confident are you?**
+
+Every number in this model is a *point estimate* — a single "best guess." In reality, each parameter carries uncertainty. The questions below expose why a single ICER is not enough, and why we need **sensitivity analysis** (our next sessions).
+
+### But first — wrapping the model in a function
+
+Look back at Sections 6–9. You wrote about 80 lines of R code to get from parameters to ICER. Now imagine you want to ask: "What if the restenosis rate were 12% instead of 20%?" Would you copy-paste those 80 lines and change one number? What about testing 10 different restenosis rates? 100?
+
+This is where **functions** transform your workflow. A function wraps your entire model into a single reusable command. You change one input, call the function, and get the answer. No copy-paste, no errors from forgetting to update a line.
+
+::: {.callout-tip}
+## Functions = Reusable models
+Remember from Session 2 (R Orientation): a function takes inputs, does something, and returns outputs. In HTA, your model *is* a function — it takes parameters and returns costs, QALYs, and an ICER. Wrapping it this way is not just good coding practice; it is *essential* for sensitivity analysis, where you will call this function hundreds or thousands of times with different inputs.
+:::
+
+```{r}
+#| label: run-model-function
+#| echo: true
+
+# ============================================================
+# THE MODEL AS A FUNCTION
+# ============================================================
+# Everything from Sections 6–9, wrapped so we can reuse it.
+# Default values = our base case. Change any input to explore.
+
+run_model <- function(p_rest_des = 0.08, p_rest_bms = 0.20,
+                      c_des = 38933, c_bms = 10693,
+                      u_well = 0.85, u_rest = 0.78, u_mi = 0.65) {
+
+  des_s   <- n_cohort * p_success_des
+  des_r   <- des_s * p_rest_des
+  des_nr  <- des_s * (1 - p_rest_des)
+  des_mac <- des_r * p_mace_des_restenosis + des_nr * p_mace_des_no_restenosis
+  des_m   <- des_mac * p_mi_given_mace
+  des_d   <- des_mac * p_cardiac_death_given_mace
+
+  bms_s   <- n_cohort * p_success_bms
+  bms_r   <- bms_s * p_rest_bms
+  bms_nr  <- bms_s * (1 - p_rest_bms)
+  bms_mac <- bms_r * p_mace_bms_restenosis + bms_nr * p_mace_bms_no_restenosis
+  bms_m   <- bms_mac * p_mi_given_mace
+  bms_d   <- bms_mac * p_cardiac_death_given_mace
+
+  df <- sum(1 / (1 + discount_rate)^(0:(time_horizon - 1)))
+
+  tc_des <- des_s * (cost_procedure + c_des) + (n_cohort - des_s) * cost_cabg +
+            n_cohort * cost_dapt_des_annual + n_cohort * cost_followup_annual * df +
+            des_r * ((1 - p_cabg_if_restenosis) * cost_repeat_pci + p_cabg_if_restenosis * cost_cabg) +
+            des_m * cost_mi_management + des_d * cost_cardiac_death
+
+  tc_bms <- bms_s * (cost_procedure + c_bms) + (n_cohort - bms_s) * cost_cabg +
+            n_cohort * cost_dapt_bms_annual + n_cohort * cost_followup_annual * df +
+            bms_r * ((1 - p_cabg_if_restenosis) * cost_repeat_pci + p_cabg_if_restenosis * cost_cabg) +
+            bms_m * cost_mi_management + bms_d * cost_cardiac_death
+
+  tq_des <- (des_nr - des_nr * p_mace_des_no_restenosis) * u_well * time_horizon +
+            (des_r - des_r * p_mace_des_restenosis) * (u_well * 0.5 + u_rest * (time_horizon - 0.5)) +
+            des_m * (u_well * 2 + u_mi * 3) +
+            des_d * u_well * (time_horizon / 2) +
+            (n_cohort - des_s) * u_rest * time_horizon
+
+  tq_bms <- (bms_nr - bms_nr * p_mace_bms_no_restenosis) * u_well * time_horizon +
+            (bms_r - bms_r * p_mace_bms_restenosis) * (u_well * 0.5 + u_rest * (time_horizon - 0.5)) +
+            bms_m * (u_well * 2 + u_mi * 3) +
+            bms_d * u_well * (time_horizon / 2) +
+            (n_cohort - bms_s) * u_rest * time_horizon
+
+  list(cost_des = tc_des, cost_bms = tc_bms,
+       qaly_des = tq_des, qaly_bms = tq_bms,
+       icer = (tc_des - tc_bms) / (tq_des - tq_bms))
+}
+```
+
+Now we can explore "what if" questions with a single line of code. Watch how easy it becomes.
+
+### Question 1: What if restenosis rates are different?
+
+The restenosis rate differential is the biggest clinical driver. We used 8% for DES and 20% for BMS. But what if newer BMS perform better — say 12% restenosis?
+
+```{r}
+#| label: thought-q1
+#| echo: true
+
+# One line each — that's the power of a function
+base <- run_model()                       # base case
+alt  <- run_model(p_rest_bms = 0.12)      # what if BMS improves?
+
+kable(data.frame(
+  Scenario = c("Base case (DES 8% vs BMS 20%)",
+               "BMS restenosis drops to 12%"),
+  ICER = c(paste0("₹", format(round(base$icer), big.mark = ",")),
+           paste0("₹", format(round(alt$icer), big.mark = ",")))
+), col.names = c("Scenario", "ICER (₹/QALY)"),
+  caption = "How restenosis rates change the conclusion",
+  align = c("l", "r"))
+```
+
+::: {.callout-warning}
+The ICER changes dramatically with one parameter. How confident are you in the 20% estimate? This is exactly what **Deterministic Sensitivity Analysis (DSA)** addresses — varying one parameter at a time to see which ones matter most.
+:::
+
+### Questions to carry forward
+
+The restenosis example above is just the beginning. Here are questions we *cannot* answer with a single ICER — and each one points to a method we will learn in the next sessions:
+
+**At what DES price does it stop being worth it?** NPPA ceilings can be revised. Costs rise with inflation. There must be a price beyond which DES is no longer cost-effective — but what is it? → *Threshold analysis / DSA*
+
+**What if ALL uncertain parameters vary at once?** We used point estimates throughout. But every probability, cost, and utility has a range. What does the ICER look like when everything varies simultaneously? → *Probabilistic Sensitivity Analysis (PSA)*
+
+**"How confident are you that DES is cost-effective?"** A policy maker won't accept a single number. They want a probability. You cannot answer this with one ICER — you need a distribution of ICERs. → *Cost-Effectiveness Acceptability Curve (CEAC)*
+
+**What about Indian utility values?** We flagged that our utility weights come from international literature. If Indian patients experience different quality of life, the entire conclusion could shift. Is it worth investing in a local EQ-5D study? → *Value of Information (VOI) analysis*
+
+::: {.callout-important}
+## The bridge to next sessions
+A single ICER is a *starting point*, not the answer. The real answer is: **how robust is this conclusion to the things we don't know?** That is what sensitivity analysis provides, and it is exactly what we will build next — using the `run_model()` function you just created.
+:::
+
 
 ## Key References
 
@@ -535,6 +820,6 @@ This is exactly the kind of analysis where R shines — you can instantly see ho
 - Kaul U et al. (2017). India and the coronary stent market. *Circulation*.
 - PMC (2010). Comparative study of restenosis rates in BMS and DES — Indian data.
 - NEJM (2016). Drug-eluting or bare-metal stents for coronary artery disease.
-- JAHA (2020). DES vs BMS for LAD/LM revascularisation.
+- Sullivan PW et al. (2011). Catalog of EQ-5D scores for the United Kingdom. *Medical Decision Making*.
 
-→ **Next:** Open `des-bms-exercise.qmd` to explore how parameter changes affect the results.
+→ **Next session:** We'll take this exact model and systematically vary every parameter — first one at a time (DSA), then all at once (PSA).

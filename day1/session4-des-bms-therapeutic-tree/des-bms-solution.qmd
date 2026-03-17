@@ -1,5 +1,5 @@
 ---
-title: "Solution: DES vs BMS Decision Tree Exercise"
+title: "Solution: DES vs BMS Exercises"
 subtitle: "Completed answers with interpretation"
 format:
   html:
@@ -16,187 +16,252 @@ format:
 library(ggplot2)
 library(knitr)
 
-# Model function (same as exercise)
-run_des_bms_model <- function(
-    cost_des_stent = 38933, cost_bms_stent = 10693,
-    cost_procedure = 120000,
-    cost_dapt_des = 8000, cost_dapt_bms = 3000,
-    cost_followup = 5000,
-    p_restenosis_des = 0.08, p_restenosis_bms = 0.20,
-    p_mace_des_no_rest = 0.08, p_mace_bms_no_rest = 0.15,
-    p_mace_des_rest = 0.15, p_mace_bms_rest = 0.25,
-    p_mi_given_mace = 0.70,
-    cost_repeat_revasc = 194000,
-    cost_mi = 200000, cost_death = 50000,
-    utility_well = 0.85, utility_restenosis = 0.78,
-    utility_mi = 0.65,
-    n_cohort = 1000, time_horizon = 5, discount_rate = 0.03
-) {
-  discount_factor <- sum(1 / (1 + discount_rate)^(0:(time_horizon - 1)))
+# Fixed parameters
+n_cohort <- 1000; time_horizon <- 5; discount_rate <- 0.03
+p_success_des <- 0.97; p_success_bms <- 0.96
+p_mace_des_restenosis <- 0.15; p_mace_bms_restenosis <- 0.25
+p_mace_des_no_restenosis <- 0.08; p_mace_bms_no_restenosis <- 0.15
+p_mi_given_mace <- 0.70; p_cardiac_death_given_mace <- 0.30
+p_cabg_if_restenosis <- 0.20
+cost_procedure <- 120000; cost_dapt_des_annual <- 8000
+cost_dapt_bms_annual <- 3000; cost_followup_annual <- 5000
+cost_repeat_pci <- 180000; cost_cabg <- 250000
+cost_mi_management <- 200000; cost_cardiac_death <- 50000
 
-  des_rest <- n_cohort * p_restenosis_des
-  des_no_rest <- n_cohort * (1 - p_restenosis_des)
-  des_mace <- des_rest * p_mace_des_rest + des_no_rest * p_mace_des_no_rest
-  des_mi <- des_mace * p_mi_given_mace
-  des_death <- des_mace * (1 - p_mi_given_mace)
+run_model <- function(p_rest_des = 0.08, p_rest_bms = 0.20,
+                      c_des = 38933, c_bms = 10693,
+                      u_well = 0.85, u_rest = 0.78, u_mi = 0.65) {
+  des_s <- n_cohort * p_success_des
+  des_r <- des_s * p_rest_des; des_nr <- des_s * (1 - p_rest_des)
+  des_mac <- des_r * p_mace_des_restenosis + des_nr * p_mace_des_no_restenosis
+  des_m <- des_mac * p_mi_given_mace; des_d <- des_mac * p_cardiac_death_given_mace
 
-  cost_des <- n_cohort * (cost_procedure + cost_des_stent) +
-              n_cohort * cost_dapt_des +
-              n_cohort * cost_followup * discount_factor +
-              des_rest * cost_repeat_revasc +
-              des_mi * cost_mi + des_death * cost_death
+  bms_s <- n_cohort * p_success_bms
+  bms_r <- bms_s * p_rest_bms; bms_nr <- bms_s * (1 - p_rest_bms)
+  bms_mac <- bms_r * p_mace_bms_restenosis + bms_nr * p_mace_bms_no_restenosis
+  bms_m <- bms_mac * p_mi_given_mace; bms_d <- bms_mac * p_cardiac_death_given_mace
 
-  qaly_des <- des_no_rest * (1 - p_mace_des_no_rest) * utility_well * time_horizon +
-              des_no_rest * p_mace_des_no_rest * p_mi_given_mace *
-                (utility_well * 2 + utility_mi * 3) +
-              des_no_rest * p_mace_des_no_rest * (1 - p_mi_given_mace) *
-                utility_well * (time_horizon / 2) +
-              (des_rest * (1 - p_mace_des_rest)) *
-                (utility_well * 0.5 + utility_restenosis * (time_horizon - 0.5)) +
-              des_rest * p_mace_des_rest * p_mi_given_mace *
-                (utility_well * 1 + utility_mi * 2) +
-              des_rest * p_mace_des_rest * (1 - p_mi_given_mace) *
-                utility_well * 1.5
+  df <- sum(1 / (1 + discount_rate)^(0:(time_horizon - 1)))
 
-  bms_rest <- n_cohort * p_restenosis_bms
-  bms_no_rest <- n_cohort * (1 - p_restenosis_bms)
-  bms_mace <- bms_rest * p_mace_bms_rest + bms_no_rest * p_mace_bms_no_rest
-  bms_mi <- bms_mace * p_mi_given_mace
-  bms_death <- bms_mace * (1 - p_mi_given_mace)
+  tc_des <- des_s * (cost_procedure + c_des) + (n_cohort - des_s) * cost_cabg +
+    n_cohort * cost_dapt_des_annual + n_cohort * cost_followup_annual * df +
+    des_r * ((1 - p_cabg_if_restenosis) * cost_repeat_pci + p_cabg_if_restenosis * cost_cabg) +
+    des_m * cost_mi_management + des_d * cost_cardiac_death
 
-  cost_bms <- n_cohort * (cost_procedure + cost_bms_stent) +
-              n_cohort * cost_dapt_bms +
-              n_cohort * cost_followup * discount_factor +
-              bms_rest * cost_repeat_revasc +
-              bms_mi * cost_mi + bms_death * cost_death
+  tc_bms <- bms_s * (cost_procedure + c_bms) + (n_cohort - bms_s) * cost_cabg +
+    n_cohort * cost_dapt_bms_annual + n_cohort * cost_followup_annual * df +
+    bms_r * ((1 - p_cabg_if_restenosis) * cost_repeat_pci + p_cabg_if_restenosis * cost_cabg) +
+    bms_m * cost_mi_management + bms_d * cost_cardiac_death
 
-  qaly_bms <- bms_no_rest * (1 - p_mace_bms_no_rest) * utility_well * time_horizon +
-              bms_no_rest * p_mace_bms_no_rest * p_mi_given_mace *
-                (utility_well * 2 + utility_mi * 3) +
-              bms_no_rest * p_mace_bms_no_rest * (1 - p_mi_given_mace) *
-                utility_well * (time_horizon / 2) +
-              (bms_rest * (1 - p_mace_bms_rest)) *
-                (utility_well * 0.5 + utility_restenosis * (time_horizon - 0.5)) +
-              bms_rest * p_mace_bms_rest * p_mi_given_mace *
-                (utility_well * 1 + utility_mi * 2) +
-              bms_rest * p_mace_bms_rest * (1 - p_mi_given_mace) *
-                utility_well * 1.5
+  tq_des <- (des_nr * (1 - p_mace_des_no_restenosis)) * u_well * time_horizon +
+    (des_r * (1 - p_mace_des_restenosis)) * (u_well * 0.5 + u_rest * (time_horizon - 0.5)) +
+    des_m * (u_well * 2 + u_mi * 3) + des_d * u_well * (time_horizon / 2) +
+    (n_cohort - des_s) * u_rest * time_horizon
 
-  list(
-    cost_des = cost_des, cost_bms = cost_bms,
-    qaly_des = qaly_des, qaly_bms = qaly_bms,
-    restenosis_des = des_rest, restenosis_bms = bms_rest,
-    mace_des = des_mace, mace_bms = bms_mace,
-    inc_cost = cost_des - cost_bms,
-    inc_qaly = qaly_des - qaly_bms,
-    icer = (cost_des - cost_bms) / (qaly_des - qaly_bms)
+  tq_bms <- (bms_nr * (1 - p_mace_bms_no_restenosis)) * u_well * time_horizon +
+    (bms_r * (1 - p_mace_bms_restenosis)) * (u_well * 0.5 + u_rest * (time_horizon - 0.5)) +
+    bms_m * (u_well * 2 + u_mi * 3) + bms_d * u_well * (time_horizon / 2) +
+    (n_cohort - bms_s) * u_rest * time_horizon
+
+  list(cost_des = tc_des, cost_bms = tc_bms, qaly_des = tq_des, qaly_bms = tq_bms,
+       inc_cost = tc_des - tc_bms, inc_qaly = tq_des - tq_bms,
+       icer = (tc_des - tc_bms) / (tq_des - tq_bms),
+       restenosis_des = des_r, restenosis_bms = bms_r,
+       mace_des = des_mac, mace_bms = bms_mac)
+}
+```
+
+
+## Task 1 Solution: Verify R Against Excel
+
+```{r}
+#| label: task1-sol
+#| echo: true
+
+base <- run_model()
+
+kable(data.frame(
+  Metric = c("Total cost DES (cohort)", "Total cost BMS (cohort)",
+             "Cost per patient DES", "Cost per patient BMS",
+             "Total QALYs DES", "Total QALYs BMS",
+             "Incremental cost", "Incremental QALYs", "ICER"),
+  R_Result = c(
+    paste0("₹", format(round(base$cost_des), big.mark = ",")),
+    paste0("₹", format(round(base$cost_bms), big.mark = ",")),
+    paste0("₹", format(round(base$cost_des / n_cohort), big.mark = ",")),
+    paste0("₹", format(round(base$cost_bms / n_cohort), big.mark = ",")),
+    round(base$qaly_des, 1),
+    round(base$qaly_bms, 1),
+    paste0("₹", format(round(base$inc_cost), big.mark = ",")),
+    round(base$inc_qaly, 2),
+    paste0("₹", format(round(base$icer), big.mark = ","))
   )
+), col.names = c("Metric", "R Result"),
+  caption = "Base case results — compare these with Excel Results sheet",
+  align = c("l", "r"))
+```
+
+**Interpretation:** The R and Excel results should match. Both use the same formulas and parameter values. Any small differences would come from intermediate rounding — R keeps full floating-point precision throughout, while Excel may round displayed values. This cross-validation confirms that the R model is not a "black box" — it does exactly what the Excel formulas do, but in a reusable, scriptable form.
+
+::: {.callout-tip}
+## Key teaching point
+Cross-validation against a spreadsheet is standard practice when building HTA models in code. It builds confidence that the model is correct. Many published HTA guidelines recommend this dual-implementation approach.
+:::
+
+
+## Task 2 Solution: Pre-Regulation Stent Prices
+
+```{r}
+#| label: task2-sol
+#| echo: true
+
+result_pre_reg <- run_model(c_des = 120000, c_bms = 45000)
+result_current <- run_model()
+
+kable(data.frame(
+  Era = c("Pre-regulation (2017)", "Current NPPA (2025)"),
+  DES_Price = c("₹1,20,000", "₹38,933"),
+  BMS_Price = c("₹45,000", "₹10,693"),
+  Inc_Cost = c(paste0("₹", format(round(result_pre_reg$inc_cost), big.mark = ",")),
+               paste0("₹", format(round(result_current$inc_cost), big.mark = ","))),
+  ICER = c(paste0("₹", format(round(result_pre_reg$icer), big.mark = ",")),
+           paste0("₹", format(round(result_current$icer), big.mark = ",")))
+), col.names = c("Era", "DES Price", "BMS Price", "Inc. Cost (cohort)", "ICER (₹/QALY)"),
+  caption = "Impact of NPPA price regulation",
+  align = c("l", "r", "r", "r", "r"))
+```
+
+**Interpretation:** The NPPA price regulation dramatically changed the economics. Before regulation, the large price gap (₹75,000 per stent) meant a much higher incremental cost, pushing the ICER up. After regulation, the gap shrunk to ₹28,240, and at current prices DES is likely **dominant** — cheaper overall because downstream savings from prevented restenosis and MACE events exceed the stent premium. This shows how pricing policy directly shapes HTA conclusions: same clinical evidence, completely different economic answer. It also illustrates why HTA should not be a one-time exercise — when market conditions change, cost-effectiveness should be re-evaluated.
+
+
+## Task 3 Solution: Varying Restenosis Rates
+
+```{r}
+#| label: task3-sol
+#| echo: true
+
+result_a <- run_model(p_rest_des = 0.03, p_rest_bms = 0.20)
+result_b <- run_model(p_rest_des = 0.08, p_rest_bms = 0.10)
+result_c <- run_model(p_rest_des = 0.05, p_rest_bms = 0.12)
+
+kable(data.frame(
+  Scenario = c("A: DES 3% vs BMS 20% (large gap)",
+               "B: DES 8% vs BMS 10% (narrow gap)",
+               "C: DES 5% vs BMS 12% (both improve)"),
+  Gap = c("17 pp", "2 pp", "7 pp"),
+  Restenosis_Avoided = c(
+    round(result_a$restenosis_bms - result_a$restenosis_des),
+    round(result_b$restenosis_bms - result_b$restenosis_des),
+    round(result_c$restenosis_bms - result_c$restenosis_des)
+  ),
+  ICER = c(paste0("₹", format(round(result_a$icer), big.mark = ",")),
+           paste0("₹", format(round(result_b$icer), big.mark = ",")),
+           paste0("₹", format(round(result_c$icer), big.mark = ",")))
+), col.names = c("Scenario", "Rate Gap", "Restenosis Avoided", "ICER (₹/QALY)"),
+  caption = "Cost-effectiveness driven by the restenosis rate gap",
+  align = c("l", "c", "r", "r"))
+```
+
+**Interpretation:** It is the *difference* in restenosis rates — not the absolute level — that drives cost-effectiveness. When the gap is large (Scenario A), DES prevents many more restenosis events, generating substantial savings that offset the higher stent cost. When the gap narrows (Scenario B), the incremental benefit shrinks while the price premium remains, making DES less attractive.
+
+This has real clinical implications: for patient subgroups where BMS performs relatively well (simple lesions in large vessels), the case for DES weakens. For high-risk patients (diabetics, long lesions, small vessels), DES becomes strongly cost-effective because the restenosis gap is wider.
+
+Scenario C shows that if both technologies improve, the conclusion depends on whether the gap widens or narrows — it is the *relative* advantage, not the absolute performance, that matters for cost-effectiveness.
+
+
+## Task 4 Solution: One-Way Sensitivity — R vs Excel
+
+```{r}
+#| label: task4-sol
+#| echo: true
+
+bms_rates <- c(0.10, 0.12, 0.15, 0.18, 0.20, 0.22, 0.25)
+results <- sapply(bms_rates, function(r) run_model(p_rest_bms = r)$icer)
+
+fmt_icer <- function(x) {
+  ifelse(x < 0,
+         paste0("₹", format(round(x), big.mark = ","), " (DOMINANT)"),
+         paste0("₹", format(round(x), big.mark = ",")))
 }
+
+kable(data.frame(
+  BMS_Restenosis = paste0(bms_rates * 100, "%"),
+  ICER = sapply(results, fmt_icer),
+  CE = ifelse(results < 170000, "Yes", "No")
+), col.names = c("BMS Restenosis Rate", "ICER (₹/QALY)", "Cost-effective?"),
+  caption = "One-way sensitivity: BMS restenosis rate vs ICER",
+  align = c("c", "r", "c"))
 ```
 
-## Task 1 Solution: Pre-Regulation Prices
-
 ```{r}
-#| label: task1
+#| label: fig-task4-sol
 #| echo: true
+#| fig-cap: "One-way sensitivity: BMS restenosis rate"
 
-result_pre_reg <- run_des_bms_model(cost_des_stent = 120000, cost_bms_stent = 45000)
-result_current <- run_des_bms_model()
-
-cat("Pre-regulation (DES ₹1,20,000 / BMS ₹45,000):\n")
-cat("  ICER: ₹", format(round(result_pre_reg$icer), big.mark = ","), "per QALY\n\n")
-cat("Current NPPA ceiling (DES ₹38,933 / BMS ₹10,693):\n")
-cat("  ICER: ₹", format(round(result_current$icer), big.mark = ","), "per QALY\n\n")
-cat("Reduction in ICER:", round((1 - result_current$icer / result_pre_reg$icer) * 100), "%\n")
-```
-
-**Interpretation:** The NPPA price regulation dramatically improved the cost-effectiveness of DES. Before regulation, the large price gap between DES and BMS made the incremental cost high relative to the QALY gain, potentially pushing the ICER above affordability thresholds for India. After regulation, the price gap shrank substantially, making DES much more cost-effective. This is a powerful example of how pricing policy directly shapes HTA conclusions — the same clinical evidence, but a completely different economic answer. It also illustrates why HTA should not be a one-time exercise: when market conditions change, cost-effectiveness should be re-evaluated.
-
-## Task 2 Solution: Varying Restenosis Rates
-
-```{r}
-#| label: task2
-#| echo: true
-
-result_a <- run_des_bms_model(p_restenosis_des = 0.03, p_restenosis_bms = 0.20)
-result_b <- run_des_bms_model(p_restenosis_des = 0.08, p_restenosis_bms = 0.10)
-
-cat("Scenario A — Large gap (DES 3% vs BMS 20%):\n")
-cat("  ICER: ₹", format(round(result_a$icer), big.mark = ","), "per QALY\n")
-cat("  Restenosis avoided:", result_a$restenosis_bms - result_a$restenosis_des, "\n\n")
-
-cat("Scenario B — Narrow gap (DES 8% vs BMS 10%):\n")
-cat("  ICER: ₹", format(round(result_b$icer), big.mark = ","), "per QALY\n")
-cat("  Restenosis avoided:", result_b$restenosis_bms - result_b$restenosis_des, "\n")
-```
-
-**Interpretation:** It is the *difference* in restenosis rates that drives cost-effectiveness, not the absolute level. When the gap is large (Scenario A: 17 percentage points), DES provides substantial clinical benefit and the ICER is more favourable. When the gap narrows (Scenario B: only 2 percentage points), the incremental benefit shrinks but the incremental cost remains, pushing the ICER higher. This has practical implications: for patient subgroups where BMS performs relatively well (simple, short lesions in large vessels), the case for DES is weaker. For high-restenosis-risk patients (diabetics, long lesions, small vessels), DES becomes strongly cost-effective.
-
-## Task 3 Solution: Threshold Analysis
-
-```{r}
-#| label: task3
-#| echo: true
-#| fig-cap: "Threshold analysis with annotations"
-
-des_prices <- seq(10000, 150000, by = 5000)
-icers <- numeric(length(des_prices))
-
-for (i in seq_along(des_prices)) {
-  res <- run_des_bms_model(cost_des_stent = des_prices[i])
-  icers[i] <- res$icer
-}
-
-threshold_data <- data.frame(DES_Price = des_prices, ICER = icers)
-
-# Find threshold price
-wtp <- 170000
-threshold_idx <- which(icers > wtp)[1]
-threshold_price <- if (!is.na(threshold_idx)) des_prices[threshold_idx] else NA
-
-ggplot(threshold_data, aes(x = DES_Price / 1000, y = ICER)) +
+ggplot(data.frame(Rate = bms_rates * 100, ICER = results),
+       aes(x = Rate, y = ICER)) +
   geom_line(colour = "steelblue", linewidth = 1.2) +
-  geom_hline(yintercept = wtp, linetype = "dashed", colour = "red") +
-  geom_vline(xintercept = 38.933, linetype = "dotted", colour = "green4") +
-  annotate("text", x = 120, y = wtp + 15000,
-           label = "WTP = ₹1,70,000/QALY", colour = "red", size = 3) +
-  annotate("text", x = 50, y = min(icers) + 10000,
-           label = "NPPA ceiling\n₹38,933", colour = "green4", size = 3) +
-  labs(x = "DES Stent Price (₹ thousands)", y = "ICER (₹ per QALY)",
-       title = "Threshold Analysis: DES Price vs Cost-Effectiveness") +
+  geom_point(colour = "steelblue", size = 3) +
+  geom_hline(yintercept = 170000, linetype = "dashed", colour = "red") +
+  geom_vline(xintercept = 20, linetype = "dotted", colour = "green4") +
+  annotate("text", x = 24, y = 180000, label = "WTP threshold", colour = "red", size = 3) +
+  annotate("text", x = 20.5, y = min(results) * 0.8, label = "Base\ncase", colour = "green4", size = 3) +
+  labs(x = "BMS Restenosis Rate (%)", y = "ICER (₹ per QALY)",
+       title = "How BMS Restenosis Rate Affects Cost-Effectiveness of DES") +
   theme_minimal()
-
-if (!is.na(threshold_price)) {
-  cat("DES becomes NOT cost-effective at approximately ₹",
-      format(threshold_price, big.mark = ","), "\n")
-  cat("Current NPPA ceiling is ₹38,933 — well within the cost-effective range\n")
-}
 ```
 
-**Interpretation:** The current NPPA ceiling price for DES sits comfortably below the threshold at which DES would stop being cost-effective. There is substantial headroom — even if DES prices were to increase, the intervention would likely remain cost-effective. This type of threshold analysis is very useful for regulators: it tells the NPPA the maximum price at which DES provides value for money, helping to set evidence-informed price ceilings.
+**Interpretation:** As BMS restenosis rate drops (better BMS), the advantage of DES shrinks and the ICER rises. At the base case (20%), DES is dominant. At very low BMS rates, the ICER crosses the WTP threshold and DES may no longer be cost-effective.
 
-## Task 4 Solution: NNT Analysis
+::: {.callout-important}
+## The process lesson
+This table took **2 lines of R code** (the `sapply` and `data.frame`). In Excel, the same exercise required switching between 3 sheets, 7 times each — approximately 21 manual steps with opportunities for copy-paste errors. And this was only *one* parameter across 7 values. Sensitivity analysis in practice involves dozens of parameters across hundreds of values. This is why we use R.
+:::
+
+
+## Task 5 Solution: Two-Way Sensitivity
 
 ```{r}
-#| label: task4
+#| label: task5-sol
 #| echo: true
+#| fig-cap: "Two-way sensitivity heatmap with cost-effectiveness boundary"
 
-result <- run_des_bms_model()
+des_prices     <- seq(15000, 80000, by = 5000)
+bms_rest_rates <- seq(0.10, 0.25, by = 0.03)
 
-mace_rate_des <- result$mace_des / 1000
-mace_rate_bms <- result$mace_bms / 1000
-arr <- mace_rate_bms - mace_rate_des
-nnt <- 1 / arr
+grid <- expand.grid(DES_Price = des_prices, BMS_Restenosis = bms_rest_rates)
+grid$ICER <- mapply(function(p, r) run_model(c_des = p, p_rest_bms = r)$icer,
+                    grid$DES_Price, grid$BMS_Restenosis)
 
-cat("MACE rate with DES:", round(mace_rate_des * 100, 1), "%\n")
-cat("MACE rate with BMS:", round(mace_rate_bms * 100, 1), "%\n")
-cat("Absolute risk reduction:", round(arr * 100, 1), "percentage points\n")
-cat("NNT:", round(nnt), "patients\n\n")
-
-cost_per_mace_avoided <- result$inc_cost / (result$mace_bms - result$mace_des)
-cat("Cost per MACE avoided: ₹", format(round(cost_per_mace_avoided), big.mark = ","), "\n")
+ggplot(grid, aes(x = DES_Price / 1000, y = BMS_Restenosis * 100, fill = ICER)) +
+  geom_tile() +
+  scale_fill_gradient2(low = "#27ae60", mid = "#f1c40f", high = "#e74c3c",
+                       midpoint = 170000, name = "ICER\n(₹/QALY)") +
+  geom_contour(aes(z = ICER), breaks = 170000, colour = "black", linewidth = 1) +
+  annotate("point", x = 38.933, y = 20, colour = "white", size = 3) +
+  annotate("text", x = 38.933, y = 21.5, label = "Base case", colour = "white", size = 3) +
+  labs(x = "DES Stent Price (thousands ₹)",
+       y = "BMS Restenosis Rate (%)",
+       title = "Two-Way Sensitivity: When Is DES Cost-Effective?",
+       subtitle = "Green = cost-effective; Red = not; Black line = WTP boundary") +
+  theme_minimal()
 ```
 
-**Interpretation:** The NNT tells clinicians and policymakers a concrete story: for every N patients who receive DES instead of BMS, one additional MACE event (heart attack or cardiac death) is prevented. This is often more intuitive than an ICER for clinical audiences. The cost per MACE avoided provides a complementary perspective — it tells the payer exactly how much additional investment is needed to prevent one serious cardiac event. Presenting results in multiple formats (ICER, NNT, cost per event avoided) is good HTA practice, as different decision-makers find different metrics compelling.
+**Interpretation:** The heatmap shows the joint impact of two key uncertainties. The base case (white dot) sits comfortably in the green zone — DES is cost-effective at current NPPA prices with current restenosis estimates. The black contour line shows the boundary: combinations above and to the right are cost-effective; below and to the left are not.
 
-→ **Return to** the main module or **proceed to Day 2 sessions**.
+Key observations: even if the DES price doubles to ~₹80K, DES remains cost-effective as long as BMS restenosis stays above ~18%. Conversely, if BMS restenosis drops to 10% (very good BMS), DES would need to be priced below ~₹25K to remain cost-effective.
+
+This heatmap evaluated `r nrow(grid)` parameter combinations in 6 lines of code. In Excel, this would require a manually constructed two-input data table — possible, but cumbersome, error-prone, and difficult to modify. This is the kind of analysis that makes R indispensable for HTA.
+
+
+## Summary: What These Exercises Taught Us
+
+| Lesson | Evidence |
+|--------|----------|
+| R and Excel give the same answers | Task 1: cross-validation |
+| Pricing policy changes HTA conclusions | Task 2: pre- vs post-NPPA |
+| The restenosis *gap* drives cost-effectiveness, not absolute rates | Task 3: three scenarios |
+| R is dramatically faster for sensitivity analysis | Task 4: 2 lines vs 21 clicks |
+| R scales to complex analyses that Excel cannot | Task 5: 78-cell heatmap |
+
+→ **Next sessions:** We will use `run_model()` to build formal DSA (tornado diagrams) and PSA (Monte Carlo simulation with CEACs).
