@@ -1,16 +1,24 @@
 ---
-title: "Session 2: R Orientation"
-subtitle: "Getting comfortable with R and RStudio — just enough to follow along"
+title: "An Orientation to R"
+subtitle: "Getting comfortable with R and RStudio"
+author: "Dr Ashwini Kalantri"
 format:
   html:
     toc: true
     code-fold: show
     code-tools: true
+execute:
+  warning: false
+  message: false
 ---
 
-## What This Session Is (and Isn't)
+## What This Session Is (and Isn't) {.unnumbered}
 
-This session is **not** an R programming course. You do not need to memorise anything here. The goal is to build enough familiarity that when you see R code in the following sessions, you can:
+::: {.callout-warning}
+This session is **not** an R programming course. You do not need to memorise anything here.
+:::
+
+The goal is to build enough familiarity that when you see R code in the following sessions, you can:
 
 - Recognise what it is doing
 - Know where to change an input value
@@ -21,338 +29,493 @@ Think of this as learning to read a new language well enough to follow a convers
 
 ## The RStudio Interface
 
-When you open RStudio, you see four panels:
+When you open RStudio, you see four panels. Understanding what each one does will help you follow along in every session.
 
-- **Source (top-left):** Where you write and edit code files (.R, .qmd)
-- **Console (bottom-left):** Where code actually runs and output appears
-- **Environment (top-right):** Shows variables and data currently in memory
-- **Files/Plots/Help (bottom-right):** File browser, plot viewer, package help
+![](files/rstudio_2.png)
 
-```{r}
-#| label: fig-rstudio-layout
-#| echo: true
-#| fig-cap: "The four panels of RStudio"
+- **Source Editor (top-left):** Where you write and edit code files (`.R`, `.qmd`)
+- **Console (bottom-left):** Where code runs and output appears
+- **Environment (top-right):** Shows all variables and data currently in memory
+- **Files / Plots / Help (bottom-right):** File browser, plot viewer, package documentation
 
-library(DiagrammeR)
+For this workshop, you will mostly open a `.qmd` file in the Source panel, run code chunks by clicking the green ▶ button, and see results in the Console or Plots tab.
 
-grViz("
-digraph rstudio {
-  graph [bgcolor='transparent', fontname='Helvetica']
-  node [shape=box, style='filled', fontname='Helvetica', fontsize=11]
+::: {.callout-important}
+## Always open the project file first
+Always open the workshop by double-clicking the `.Rproj` file in the workshop folder — not by opening `.qmd` files directly. This ensures R looks for files in the right place. If you skip this step, data import commands will fail with a `cannot open file` error.
+:::
 
-  subgraph cluster_top {
-    label='Top Row'
-    style=invis
-    source [label='SOURCE EDITOR\n(Write & edit code)\n.R and .qmd files', fillcolor='#4e79a7', fontcolor='white', width=3]
-    env [label='ENVIRONMENT\n(Variables in memory)\nData you have created', fillcolor='#59a14f', fontcolor='white', width=3]
-  }
+## The Workflow
 
-  subgraph cluster_bottom {
-    label='Bottom Row'
-    style=invis
-    console [label='CONSOLE\n(Run code here)\nSee text output', fillcolor='#f28e2b', fontcolor='white', width=3]
-    output [label='FILES / PLOTS / HELP\n(See visualisations)\nBrowse files', fillcolor='#e15759', fontcolor='white', width=3]
-  }
+Every session in this workshop follows the same four steps. Come back to this whenever you feel unsure about what to do next.
 
-  source -> console [style=invis]
-  env -> output [style=invis]
-}
-")
+```{mermaid}
+flowchart LR
+  A["<b>READ</b><br/>the code<br/><i>(understand logic)</i>"]:::blue --> B["<b>MODIFY</b><br/>a parameter<br/><i>(change a number)</i>"]:::green --> C["<b>RUN</b><br/>the chunk<br/><i>(click play)</i>"]:::orange --> D["<b>INTERPRET</b><br/>the output<br/><i>(what changed?)</i>"]:::red
+  D -. "Try again" .-> B
+
+classDef blue   fill:#4e79a7,color:#fff
+classDef green  fill:#59a14f,color:#fff
+classDef orange fill:#f28e2b,color:#fff
+classDef red    fill:#e15759,color:#fff
 ```
 
-For this workshop, you will mostly:
+## Working with .qmd Files
 
-1. Open a `.qmd` file in the Source panel
-2. Run code chunks by clicking the green "play" button
-3. See results in the Console or Plots panel
+All workshop materials are in **Quarto (.qmd)** files. These combine three things in one document:
 
-## Running Your First Code
+- **Text** — plain-language explanations, like this paragraph
+- **Code chunks** — grey blocks containing R code, with a green ▶ button to run them
+- **Outputs** — results, tables, and plots that appear directly below each chunk
 
-Let us make sure everything works. Run this code chunk:
+To work with a `.qmd` file, open it in RStudio, read the text explanations, and run code chunks one at a time using the ▶ button. Modify a value and re-run to see what changes. You can also click **Render** in the toolbar to produce a complete HTML document with everything formatted together.
 
-```{r}
-#| label: hello-hta
-#| echo: true
+## Your First Code
 
-# This is a comment — R ignores everything after #
-# Comments explain what the code does
-
-message("Welcome to R for HTA!")
-```
-
-If you see the message, your R installation is working.
-
-## The Basics: Variables and Arithmetic
-
-In R, you store values using the assignment operator `<-` :
+Run the chunk below to confirm everything is working. Click the green ▶ button.
 
 ```{r}
-#| label: variables
+#| label: first-code
 #| echo: true
 
-# Store some values
-drug_cost <- 5000       # Cost of the drug in ₹
-admin_cost <- 800       # Administration cost in ₹
-total_cost <- drug_cost + admin_cost
-
-# Print the result
-total_cost
+print("Coding for better health decisions.")
 ```
 
-When you see code like this in later sessions, you will know: a value is being stored under a name, and you can change that value by editing the number.
+If you see the text printed below the chunk, your setup is working correctly.
 
-### Quick reference of common operations
+### Comments
+
+In R, the `#` symbol marks a **comment** — anything after it on that line is ignored by R. Comments are notes for the human reading the code, not instructions for the computer. You will see them throughout every session. Read them — they are often the clearest explanation of what a section of code is doing.
+
+```{r}
+#| echo: true
+#| eval: false
+
+# Print the text
+print("Coding for better health decisions.")
+
+print("Coding for better health decisions.") # Print the text
+
+# Multi-line comment
+# about printing the text
+print("Coding for better health decisions.")
+```
+
+## Assignment
+
+In R, you store a value under a name using the **assignment operator** `<-`. Once stored, you can use the name anywhere in place of the value.
+
+```{r}
+#| label: assignment
+#| echo: true
+
+text <- "Coding for better health decisions."
+print(text)
+```
+
+When you see `<-` in workshop code, you know: **this is where a value is stored, and this is what you change** to explore a different scenario.
+
+You may occasionally see `->` or `=` used for assignment in older code. Prefer `<-` in your own work.
+
+## Operators
+
+### Arithmetic
+
+R handles all standard arithmetic. These operators appear throughout model calculations for costs, probabilities, and outcomes.
 
 ```{r}
 #| label: arithmetic
 #| echo: true
 
-10 + 3       # Addition
-10 - 3       # Subtraction
-10 * 3       # Multiplication
-10 / 3       # Division
-10 ^ 2       # Exponentiation (10 squared)
-sqrt(100)    # Square root
-round(3.14159, 2)  # Round to 2 decimal places
+2 + 5    # Addition
+73 - 32  # Subtraction
+47 * 7   # Multiplication
+86 / 3   # Division
+8 ^ 2    # Exponentiation
 ```
 
-## Vectors: Multiple Values at Once
+### Relational
 
-A vector is simply a collection of values. This is how R handles data efficiently:
+Relational operators compare two values and return `TRUE` or `FALSE`. You will encounter these inside conditional checks — for example, testing whether an ICER is below a cost-effectiveness threshold.
+
+```{r}
+#| label: relational
+#| echo: true
+
+5 > 6    # Greater than
+5 < 6    # Less than
+6 == 6   # Equal to — note the double == for comparison, not single =
+8 >= 5   # Greater than or equal to
+7 <= 10  # Less than or equal to
+9 != 10  # Not equal to
+```
+
+## Objects
+
+In R, everything is stored as an **object**. The three types you will encounter most in this workshop are vectors, matrices, and data frames.
+
+### Vectors
+
+A vector is an ordered collection of values. Create one with `c()` — short for "combine".
 
 ```{r}
 #| label: vectors
 #| echo: true
 
-# Cost of five different treatments
-treatment_costs <- c(1200, 3400, 5600, 2300, 4100)
-
-# Basic operations on vectors
-mean(treatment_costs)    # Average
-sum(treatment_costs)     # Total
-min(treatment_costs)     # Minimum
-max(treatment_costs)     # Maximum
-length(treatment_costs)  # How many values
+vec <- c(2, 4, 6, 8, 3, 5.5)
+vec
 ```
 
-In HTA modelling, vectors are everywhere — transition probabilities, costs per cycle, utility values across health states.
+Vectors can also have **named elements** — a pattern you will see constantly in HTA models, where each value corresponds to a health state or treatment strategy:
 
-## Data Frames: Tables in R
+```{r}
+#| label: named-vectors
+#| echo: true
 
-If you are used to Excel spreadsheets, a **data frame** is the R equivalent of a table:
+costs <- c(treatment_A = 5000, treatment_B = 3000, treatment_C = 7000)
+costs
+```
+
+You can retrieve a specific element by its position in the vector:
+
+```{r}
+#| echo: true
+
+vec[5]   # Fifth element of vec
+```
+
+### Matrix
+
+A matrix is a two-dimensional object with rows and columns. In HTA, you will encounter matrices as **transition probability tables** for Markov models, where each cell holds the probability of moving from one health state to another.
+
+```{r}
+#| label: matrix
+#| echo: true
+
+mat <- matrix(1:36, nrow = 6, ncol = 6, byrow = FALSE)
+mat
+```
+
+You can access a specific element, an entire column, or an entire row:
+
+```{r}
+#| echo: true
+
+mat[3, 5]   # Element at row 3, column 5
+mat[, 5]    # Entire column 5
+mat[5, ]    # Entire row 5
+```
+
+### Matrix multiplication
+
+```{r}
+#| label: matrix-mult
+#| echo: true
+
+mat1 <- matrix(c(3, 5, 1, 9), nrow = 2, ncol = 2, byrow = FALSE)
+mat2 <- matrix(c(7, 4, 2, 8), nrow = 2, ncol = 2, byrow = FALSE)
+
+mat1 %*% mat2
+```
+
+### Data Frames
+
+A data frame is R's equivalent of a spreadsheet table — rows are observations, columns are variables.
 
 ```{r}
 #| label: dataframe
 #| echo: true
 
-# Create a simple data frame — like an Excel table
-interventions <- data.frame(
-  strategy    = c("Standard Care", "New Screening", "Enhanced Treatment"),
-  cost        = c(1200, 2500, 4800),
-  qalys       = c(0.78, 0.85, 0.91),
-  source      = c("Sharma et al. 2023", "Patel et al. 2024", "Gupta et al. 2022")
-)
+age    <- c(12, 24, NA, 23, 65, 33)          # NA = missing value
 
-# View it
-interventions
+gender <- c("M", "F", "F", "M", "M", "F")
+
+occu   <- factor(c(1, 4, 3, 2, 4, 5),        # factor() = categorical variable
+                 levels = c(1:5),
+                 labels = c("Unemp", "Service", "Student", "Business", "Prof"))
+
+dob    <- c(as.Date("1993-01-16"),            # as.Date() converts text to a date
+            as.Date("1963-12-24"),
+            as.Date("1971-01-05"),
+            as.Date("1982-11-11"),
+            as.Date("1984-05-15"),
+            as.Date("1999-03-07"))
+
+df <- data.frame(age, gender, occu, dob)
+df
 ```
 
-You can access specific columns:
+You access a specific column using `$`:
 
 ```{r}
-#| label: access-columns
 #| echo: true
 
-# Access the cost column
-interventions$cost
-
-# Calculate mean cost
-mean(interventions$cost)
+df$age
 ```
+
+## Functions
+
+A function takes one or more inputs (called **arguments**), does something with them, and returns an output. The general syntax is:
 
 ```{r}
-#| label: plot-interventions
 #| echo: true
-#| fig-cap: "Visualising the interventions data frame"
+#| eval: false
 
-library(ggplot2)
-
-ggplot(interventions, aes(x = qalys, y = cost, label = strategy)) +
-  geom_point(size = 4, colour = "#4e79a7") +
-  geom_text(vjust = -1.2, size = 3.5) +
-  labs(x = "QALYs", y = "Cost (₹)",
-       title = "Cost vs QALYs for Three Interventions",
-       subtitle = "Your first cost-effectiveness plot in R") +
-  expand_limits(y = c(0, 6000)) +
-  theme_minimal()
+function_name(argument1 = value1, argument2 = value2, ...)
 ```
 
-## Installing and Loading Packages
+For example, `mean()` calculates the average of a vector. The `na.rm = TRUE` argument tells it to remove missing values before calculating — without it, a single `NA` in the data will make the result `NA`.
 
-R packages are like add-ons that extend what R can do. For HTA, key packages include `heemod`, `ggplot2`, `BCEA`, and others.
+```{r}
+#| echo: true
+
+mean(x = df$age, na.rm = TRUE)
+```
+
+::: {.callout-tip}
+## Getting help
+Type `?` followed by any function name in the Console to open its documentation — arguments, return values, and worked examples:
+```r
+?mean
+?round
+?ggplot
+```
+:::
+
+## Packages
+
+R's base installation covers the basics. **Packages** are collections of additional functions written by the R community that extend what R can do. Install a package once, load it at the start of each session.
 
 ```{r}
 #| label: packages
 #| echo: true
 #| eval: false
 
-# Install a package (only need to do this once)
-install.packages("ggplot2")
-
-# Load a package (need to do this each session)
-library(ggplot2)
+# Install a package — only need to do this once
+install.packages("dplyr")
 ```
 
-**Analogy:** Installing is like downloading an app. Loading is like opening it.
-
-In this workshop, we will tell you which packages to load at the start of each session. You do not need to find or choose packages yourself.
-
-## Reading Code: A Practical Guide
-
-You will spend more time **reading** R code than writing it in this workshop. Here are patterns you will see repeatedly:
-
-### Pattern 1: Defining model parameters
-
 ```{r}
-#| label: pattern-parameters
 #| echo: true
 
-# Transition probabilities (from Agarwal et al. 2021)
-p_mild_to_moderate <- 0.15    # Annual probability of progression
-p_moderate_to_severe <- 0.10
-p_severe_to_death <- 0.25
-p_background_mortality <- 0.02
+# Load a package — need to do this each session
+library(dplyr)
 
-# Costs in ₹ (from PMJAY 2023 schedule)
-c_mild <- 5000      # Annual cost of managing mild disease
-c_moderate <- 25000
-c_severe <- 150000   # Includes dialysis
+dplyr::glimpse(df)
 ```
 
-When you see this, you know: **these are the model inputs, and you can change these numbers.**
+**Analogy:** Installing is like downloading an app. Loading is like opening it. In this workshop, the packages you need are listed at the top of each session file — you do not need to find or choose them yourself.
 
-### Pattern 2: A loop that runs the model over cycles
+Key packages used in this workshop:
+
+| Package | Purpose |
+|---|---|
+| `ggplot2` | Graphs and visualisation |
+| `dplyr` | Data manipulation |
+| `readxl`, `haven`, `rio` | Importing data |
+| `heemod` | Markov cohort models |
+| `BCEA`, `dampack` | Cost-effectiveness analysis |
+| `flexsurv` | Survival modelling |
+| `shiny` | Interactive web applications |
+
+## Pipes
+
+A pipe passes the output of one function directly into the next, letting you chain steps in a readable left-to-right sequence without creating intermediate objects. R has two pipe operators — `|>` (built into R) and `%>%` (from the `tidyverse`). They behave the same way in most situations.
 
 ```{r}
-#| label: pattern-loop
+#| label: pipes
 #| echo: true
 
-# Simple example: accumulating costs over 10 cycles
-n_cycles <- 10
-annual_cost <- 5000
-discount_rate <- 0.03
-total_discounted_cost <- 0
+df |>
+  select(age, dob, occu) |>
+  summarise(mean_age = mean(age, na.rm = TRUE))
+```
 
-for (cycle in 1:n_cycles) {
-  discounted <- annual_cost / (1 + discount_rate)^cycle
-  total_discounted_cost <- total_discounted_cost + discounted
-  cat("Cycle", cycle, ": Discounted cost = ₹", round(discounted, 0), "\n")
+Read this as: *take `df`, then select the age, dob, and occu columns, then calculate the mean age.* `select()` picks columns, `summarise()` calculates summaries. The pipe replaces deeply nested function calls with a sequence that reads the way you think.
+
+## Importing Data
+
+### Using the GUI
+
+RStudio has a point-and-click import tool. Go to **File → Import Dataset** and choose your file type. RStudio generates the import code for you — a useful way to learn the syntax before writing it yourself.
+
+![](files/import.png)
+
+### Importing with code
+
+Once you know the syntax, code-based import is faster and fully reproducible:
+
+```{r}
+#| echo: true
+#| eval: false
+
+# CSV
+data <- read.csv("files/data.csv")
+
+# Excel
+library(readxl)
+data <- read_excel("files/data.xlsx")
+
+# Stata and SPSS
+library(haven)
+data <- read_sav("files/data.sav")
+data <- read_dta("files/data.dta")
+```
+
+The `rio` package provides a single `import()` function that detects the file format automatically — the simplest approach when you work with multiple file types:
+
+```{r}
+#| echo: true
+#| eval: false
+
+library(rio)
+data <- rio::import("files/data.xlsx")
+data <- rio::import("files/data.csv")
+data <- rio::import("files/data.sav")
+data <- rio::import("files/data.dta")
+```
+
+::: {.callout-important}
+All import commands use **relative file paths** that only work when the `.Rproj` file has been opened first. A `cannot open file` error almost always means this step was skipped.
+:::
+
+## Loops
+
+A `for` loop repeats a block of code a fixed number of times — once for each value in a sequence. In HTA modelling, loops are used to run the model across time cycles and across thousands of PSA iterations.
+
+```{r}
+#| label: loops
+#| echo: true
+
+library(rio)
+data <- rio::import("files/data.csv")
+library(dplyr)
+data <- data |> mutate(bmi = round(wt / ((ht / 100)^2), 1))
+
+for (i in 1:nrow(data)) {
+  bmi <- round(data$wt[i] / ((data$ht[i] / 100)^2), 2)
+  cat("BMI of Record No", i, "is", bmi, "\n")
 }
-
-cat("\nTotal discounted cost over", n_cycles, "cycles: ₹",
-    round(total_discounted_cost, 0), "\n")
 ```
 
-When you see a `for` loop, you know: **the model is repeating a calculation across time cycles.** You do not need to understand every line — just the logic.
+When you see a `for` loop in the workshop code, you know: **the model is repeating a calculation**. You do not need to understand every line — just recognise that something is being done repeatedly, and that the values at the top of the loop control what is being repeated and how many times.
 
-### Pattern 3: Creating a plot
+## Conditional Logic
+
+An `if/else` block runs different code depending on whether a condition is `TRUE` or `FALSE`. You will see this used in cost-effectiveness decisions — is the ICER below the willingness-to-pay threshold? — and in model checks.
 
 ```{r}
-#| label: pattern-plot
 #| echo: true
-#| fig-cap: "Discounted annual costs over 10 years"
+#| eval: false
+
+if (condition) {
+  # code to run if condition is TRUE
+} else {
+  # code to run if condition is FALSE
+}
+```
+
+A simple example:
+
+```{r}
+#| label: conditional
+#| echo: true
+
+value <- 5000
+
+if (value > 200) {
+  cat("High")
+} else {
+  cat("Low")
+}
+```
+
+## Graphs
+
+`ggplot2` is the standard package for data visualisation in R. It builds plots in layers — you start with the data, map variables to axes, then add geometric elements. The plot below uses the dataset imported in the Loops section.
+
+```{r}
+#| label: ggplot
+#| echo: true
+#| fig-cap: "Height vs Weight coloured by BMI"
 
 library(ggplot2)
 
-cycle_data <- data.frame(
-  cycle = 1:10,
-  discounted_cost = annual_cost / (1 + discount_rate)^(1:10)
-)
-
-ggplot(cycle_data, aes(x = cycle, y = discounted_cost)) +
-  geom_col(fill = "steelblue") +
-  labs(x = "Year", y = "Discounted Cost (₹)",
-       title = "Effect of Discounting on Annual Costs") +
-  scale_x_continuous(breaks = 1:10) +
+ggplot(data, aes(x = ht, y = wt, colour = bmi)) +
+  geom_point(size = 2) +
+  labs(x = "Height", y = "Weight", title = "Height vs Weight") +
   theme_minimal()
 ```
 
-When you see `ggplot`, you know: **a chart is being created.** The `labs()` part sets the labels, `aes()` maps data to axes.
+When you see `ggplot` in the workshop code, you know: **a chart is being created.** The `aes()` part maps variables to visual properties, the `geom_` function determines the chart type, and `labs()` sets the labels. Changing the data or the variables inside `aes()` changes the plot.
 
-```{r}
-#| label: fig-workflow
-#| echo: true
-#| fig-cap: "The workshop workflow: Read, Modify, Run"
+## Three Things to Remember
 
-grViz("
-digraph workflow {
-  graph [rankdir=LR, bgcolor='transparent', fontname='Helvetica']
-  node [shape=box, style='filled,rounded', fontname='Helvetica', fontsize=12]
+Almost nothing from this session needs to be memorised. Instead, keep these three things in mind throughout the workshop:
 
-  A [label='READ\nthe code\n(understand logic)', fillcolor='#4e79a7', fontcolor='white']
-  B [label='MODIFY\na parameter\n(change a number)', fillcolor='#59a14f', fontcolor='white']
-  C [label='RUN\nthe chunk\n(click play)', fillcolor='#f28e2b', fontcolor='white']
-  D [label='INTERPRET\nthe output\n(what changed?)', fillcolor='#e15759', fontcolor='white']
+::: {.callout-note icon=false}
+## 1. Values are stored with `<-`
+Change them by editing the number on the right. Every exercise in this workshop is essentially this action.
+:::
 
-  A -> B -> C -> D
-  D -> B [style=dashed, label='Try again', fontsize=9]
-}
-")
-```
+::: {.callout-note icon=false}
+## 2. Code runs top to bottom
+Run chunks in order. If you see an error about an object not being found, scroll up and run the chunks above first.
+:::
 
-## Working with .qmd Files
+::: {.callout-note icon=false}
+## 3. Read the error message
+It usually tells you exactly what went wrong — a missing package, a typo in a variable name, a file not found. Read it before asking for help.
+:::
 
-All workshop materials are in **Quarto (.qmd)** files. These combine:
-
-- **Text** (explanations, like this paragraph)
-- **Code chunks** (the grey blocks with R code)
-- **Outputs** (results, tables, plots)
-
-To work with a .qmd file:
-
-1. Open it in RStudio
-2. Read the text explanations
-3. Run code chunks one at a time (click the green play button ▶)
-4. See the output appear below each chunk
-5. Modify values and re-run to see what changes
-
-You can also click **"Render"** to produce a complete HTML document with all code, outputs, and text formatted together.
-
-## What You Need to Remember
-
-Almost nothing from this session needs to be memorised. Instead, remember these three things:
-
-1. **Values are stored with `<-`** and you can change them by editing the number
-2. **Code runs top to bottom** — run chunks in order
-3. **If something breaks, look at the error message** — it often tells you what went wrong (a missing package, a typo in a variable name, a file not found)
-
-Everything else, you can look up as needed — or ask an AI tool, as we will discuss in Session 7.
+Everything else you can look up as needed — or ask an AI tool, as we will discuss in Session 7.
 
 ## Try It Yourself
 
-Before we move to Session 3, try modifying the code below. Change the costs and QALYs to see how the ICER changes:
+Before moving to Session 3, modify the values below and re-run the chunk. Change the costs and QALYs to see how the ICER and the cost-effectiveness decision change.
 
 ```{r}
 #| label: try-it
 #| echo: true
 
 # YOUR TASK: Change these values and re-run
-cost_A <- 3000    # Try changing this
-cost_B <- 1500    # Try changing this
-qaly_A <- 0.82    # Try changing this
-qaly_B <- 0.75    # Try changing this
+cost_A <- 3000   # Cost of intervention A in ₹
+cost_B <- 1500   # Cost of intervention B in ₹
+qaly_A <- 0.82   # QALYs gained with A
+qaly_B <- 0.75   # QALYs gained with B
 
-# ICER calculation (do not modify below this line)
+# ── Do not modify below this line ─────────────────────────────────────────────
+
 icer <- (cost_A - cost_B) / (qaly_A - qaly_B)
 cat("ICER = ₹", round(icer, 0), "per QALY gained\n")
 
-# Is it cost-effective at a WTP of ₹1,00,000 per QALY?
 wtp <- 100000
 if (icer < wtp) {
-  cat("→ Cost-effective at a WTP threshold of ₹", format(wtp, big.mark = ","), "per QALY\n")
+  cat("→ Cost-effective at WTP = ₹", format(wtp, big.mark = ",", scientific = FALSE), "\n")
 } else {
-  cat("→ NOT cost-effective at a WTP threshold of ₹", format(wtp, big.mark = ","), "per QALY\n")
+  cat("→ NOT cost-effective at WTP = ₹", format(wtp, big.mark = ",", scientific = FALSE), "\n")
 }
 ```
 
-If you managed to run this and change the result — you are ready for the rest of the workshop.
+If you ran this and changed the result — you are ready for the rest of the workshop.
+
+---
+
+## Quick Reference {.unnumbered}
+
+| Concept | Syntax | Example |
+|---|---|---|
+| Assign a value | `name <- value` | `cost <- 5000` |
+| Named vector | `c(name = value)` | `c(A = 5000, B = 3000)` |
+| Index a vector | `vec[n]` | `vec[5]` |
+| Matrix multiply | `%*%` | `trace %*% tm` |
+| Access a column | `df$col` | `df$age` |
+| Function syntax | `fn(arg = val)` | `mean(x, na.rm = TRUE)` |
+| Pipe | `\|>` | `df \|> select(age)` |
+| If / else | `if (cond) {} else {}` | `if (icer < wtp) {...}` |
+| Get help | `?function` | `?mean` |
+| Comment | `#` | `# this is a note` |
+
+---
+
+*Session 2 · R for HTA (Basics) · RRC-HTA, AIIMS Bhopal*

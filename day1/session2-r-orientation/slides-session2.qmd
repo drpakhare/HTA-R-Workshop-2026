@@ -1,8 +1,10 @@
 ---
-title: "R Orientation"
-subtitle: "Getting comfortable with R and RStudio — just enough to follow along"
-author: "R for HTA (Basics) — Workshop 2026"
-institute: "RRC-HTA, AIIMS Bhopal | HTAIn, DHR"
+title: "An Orientation to R"
+subtitle: "Session 2 | Getting comfortable with R and RStudio"
+author: "Dr Ashwini Kalantri"
+date: "2026-03-17"
+date-format: DD MMM YYYY
+institute: "Professor of Community Medicine, MGIMS, Sevagram"
 format:
   revealjs:
     theme: [default, ../../custom-theme.scss]
@@ -12,272 +14,52 @@ format:
     transition: fade
     width: 1280
     height: 720
-    code-fold: true
     code-overflow: wrap
     highlight-style: github
     fig-align: center
 execute:
   echo: true
-  eval: false
+  eval: true
   warning: false
   message: false
 ---
 
-## What This Session Is (and Isn't)
+# ⚠️ Warning ⚠️ {auto-animate="true"}
 
 This is **not** an R programming course.
 
-. . .
+# Goal {auto-animate="true"}
 
-You do not need to memorise anything here.
+When you see R code:
 
-. . .
+- You are not `intimidated` by it
+- You `recognise` what it is doing
+- You can `run` it and see output
+- You can `change` an input value
 
-**Goal:** Build enough familiarity that when you see R code:
+# The RStudio Interface
 
-- You can recognise what it is doing
-- You can change an input value
-- You can run it and see output
-- You are not intimidated by it
+##  {auto-animate="true" visibility="uncounted" data-menu-title="The Rstudio Interface"}
 
-. . .
+![](files/rstudio_1.png)
 
-Think of this as learning to **read a language** well enough to follow a conversation — not to write poetry.
+## {auto-animate="true" visibility="uncounted" data-menu-title="The Rstudio Interface"}
 
-## The RStudio Interface
+![](files/rstudio_2.png)
 
-```{r}
-#| label: fig-rstudio-layout
-#| eval: true
-#| fig-cap: "The four panels of RStudio"
+# The Workflow
 
-library(DiagrammeR)
+```{mermaid}
+%%| label: fig-workflow
+%%| fig-cap: The workshop workflow
+flowchart LR
+  A["<b><font size=6>READ</font></b><br/><font size=6>the code</font><br/><i><font size=5>(understand logic)</font></i>"]:::blue --> B["<b><font size=6>MODIFY</font></b><br/><font size=6>a parameter</font><br/><i><font size=5>(change a number)</font></i>"]:::green --> C["<b><font size=6>RUN</font></b><br/><font size=6>the chunk</font><br/><i><font size=5>(click play)</font></i>"]:::orange --> D["<b><font size=6>INTERPRET</font></b><br/><font size=6>the output</font><br/><i><font size=5>(what changed?)</font></i>"]:::red
+  D -. "<b><font size=6>Try again</font></b>" .-> B
 
-grViz("
-digraph rstudio {
-  graph [bgcolor='transparent', fontname='Helvetica']
-  node [shape=box, style='filled', fontname='Helvetica', fontsize=11]
-
-  source [label='SOURCE EDITOR\n(Write & edit code)\n.R and .qmd files',
-          fillcolor='#4e79a7', fontcolor='white', width=3]
-  env [label='ENVIRONMENT\n(Variables in memory)\nData you have created',
-       fillcolor='#59a14f', fontcolor='white', width=3]
-  console [label='CONSOLE\n(Run code here)\nSee text output',
-           fillcolor='#f28e2b', fontcolor='white', width=3]
-  output [label='FILES / PLOTS / HELP\n(See visualisations)\nBrowse files',
-          fillcolor='#e15759', fontcolor='white', width=3]
-
-  source -> console [style=invis]
-  env -> output [style=invis]
-}
-")
-```
-
-## Running Your First Code
-
-```{r}
-#| label: hello-hta
-#| echo: true
-
-# This is a comment — R ignores everything after #
-message("Welcome to R for HTA!")
-```
-
-If you see the message, your R installation is working.
-
-## Variables and Assignment
-
-In R, you store values using `<-` :
-
-```{r}
-#| label: variables
-#| echo: true
-
-# Store some values
-drug_cost <- 5000       # Cost of the drug in ₹
-admin_cost <- 800       # Administration cost in ₹
-total_cost <- drug_cost + admin_cost
-
-# Print the result
-total_cost
-```
-
-When you see this: **a value is stored, and you can change that number.**
-
-## Vectors: Collections of Values
-
-A vector is a collection of values. This is how R handles data efficiently:
-
-```{r}
-#| label: vectors
-#| echo: true
-
-# Cost of five different treatments
-treatment_costs <- c(1200, 3400, 5600, 2300, 4100)
-
-# Operations on vectors
-mean(treatment_costs)    # Average
-sum(treatment_costs)     # Total
-min(treatment_costs)     # Minimum
-max(treatment_costs)     # Maximum
-```
-
-In HTA modelling: transition probabilities, costs per cycle, utility values — all vectors.
-
-## Data Frames: Tables in R
-
-If you are used to Excel spreadsheets, a **data frame** is the R equivalent:
-
-```{r}
-#| label: dataframe
-#| echo: true
-
-# Create a data frame — like an Excel table
-interventions <- data.frame(
-  strategy = c("Standard Care", "New Screening", "Enhanced"),
-  cost     = c(1200, 2500, 4800),
-  qalys    = c(0.78, 0.85, 0.91)
-)
-
-interventions
-```
-
-## Accessing Data Frames
-
-```{r}
-#| label: access-columns
-#| echo: true
-
-# Access the cost column
-interventions$cost
-
-# Calculate mean cost
-mean(interventions$cost)
-```
-
-The `$` symbol means "get this column from that data frame".
-
-## Plotting with ggplot2
-
-```{r}
-#| label: plot-interventions
-#| echo: true
-#| eval: false
-
-library(ggplot2)
-
-ggplot(interventions, aes(x = qalys, y = cost, label = strategy)) +
-  geom_point(size = 4, colour = "#4e79a7") +
-  geom_text(vjust = -1.2, size = 3.5) +
-  labs(x = "QALYs", y = "Cost (₹)",
-       title = "Cost vs QALYs for Three Interventions") +
-  theme_minimal()
-```
-
-ggplot is your best friend for visualisations.
-
-## Installing vs Loading Packages
-
-R packages are like add-ons:
-
-```{r}
-#| label: packages
-#| echo: true
-#| eval: false
-
-# Install a package (only need to do this once)
-install.packages("ggplot2")
-
-# Load a package (need to do this each session)
-library(ggplot2)
-```
-
-**Analogy:** Installing is like downloading an app. Loading is like opening it.
-
-## Pattern 1: Defining Model Parameters
-
-```{r}
-#| label: pattern-parameters
-#| echo: true
-
-# Transition probabilities (annual)
-p_mild_to_moderate <- 0.15
-p_moderate_to_severe <- 0.10
-
-# Costs in ₹
-c_mild <- 5000
-c_moderate <- 25000
-```
-
-When you see this: **these are the model inputs — change these numbers to explore scenarios.**
-
-## Pattern 2: A Loop Over Cycles
-
-```{r}
-#| label: pattern-loop
-#| echo: true
-
-n_cycles <- 10
-annual_cost <- 5000
-discount_rate <- 0.03
-total_cost <- 0
-
-for (cycle in 1:n_cycles) {
-  discounted <- annual_cost / (1 + discount_rate)^cycle
-  total_cost <- total_cost + discounted
-}
-
-cat("Total discounted cost:", round(total_cost, 0), "\n")
-```
-
-When you see a `for` loop: **the model repeats a calculation across time cycles.**
-
-## Pattern 3: Creating a Plot
-
-```{r}
-#| label: pattern-plot
-#| echo: true
-#| eval: false
-
-library(ggplot2)
-
-# Prepare data
-cycle_data <- data.frame(
-  cycle = 1:10,
-  discounted_cost = annual_cost / (1 + discount_rate)^(1:10)
-)
-
-# Create plot
-ggplot(cycle_data, aes(x = cycle, y = discounted_cost)) +
-  geom_col(fill = "steelblue") +
-  labs(x = "Year", y = "Discounted Cost (₹)",
-       title = "Effect of Discounting") +
-  theme_minimal()
-```
-
-When you see `ggplot`: **a chart is being created.**
-
-## The Read → Modify → Run → Interpret Workflow
-
-```{r}
-#| label: fig-workflow
-#| eval: true
-#| fig-cap: "The workshop workflow"
-
-grViz("
-digraph workflow {
-  graph [rankdir=LR, bgcolor='transparent', fontname='Helvetica']
-  node [shape=box, style='filled,rounded', fontname='Helvetica', fontsize=12]
-
-  A [label='READ\nthe code\n(understand logic)', fillcolor='#4e79a7', fontcolor='white']
-  B [label='MODIFY\na parameter\n(change a number)', fillcolor='#59a14f', fontcolor='white']
-  C [label='RUN\nthe chunk\n(click play)', fillcolor='#f28e2b', fontcolor='white']
-  D [label='INTERPRET\nthe output\n(what changed?)', fillcolor='#e15759', fontcolor='white']
-
-  A -> B -> C -> D
-  D -> B [style=dashed, label='Try again', fontsize=9]
-}
-")
+classDef blue   fill:#4e79a7,color:#fff
+classDef green  fill:#59a14f,color:#fff
+classDef orange fill:#f28e2b,color:#fff
+classDef red    fill:#e15759,color:#fff
 ```
 
 ## Working with .qmd Files
@@ -297,6 +79,422 @@ All workshop materials are in **Quarto (.qmd)** files:
 3. Run code chunks one at a time (click the green play button ▶)
 4. See the output appear below each chunk
 5. Modify values and re-run
+
+# Your first `code` {auto-animate="true"}
+
+```{r}
+#| echo: true
+#| output-location: fragment
+print("Coding for better health decisions.")
+```
+
+## Commenting {auto-animate="true"}
+
+```{r}
+#| echo: true
+#| eval: false
+
+# Print the text
+print("Coding for better health decisions.")
+
+print("Coding for better health decisions.") # Print the text
+
+# Multi-line comment
+# about printing the text
+print("Coding for better health decisions.")
+```
+
+
+# Assignment {auto-animate="true"}
+
+Assign a `value` to a `name` with `<-`
+
+```{r}
+#| echo: true
+#| output-location: fragment
+text <- "Coding for better health decisions."
+print(text)
+```
+
+You may see `->` or `=` used for assignment.
+
+# Operators
+
+## Arithmetic {auto-animate="true"}
+
+Addition
+
+```{r}
+#| echo: true
+#| output-location: column-fragment
+2 + 5
+```
+
+Subtraction
+
+```{r}
+#| echo: true
+#| output-location: column-fragment
+73 - 32
+```
+
+Multiplication
+
+```{r}
+#| echo: true
+#| output-location: column-fragment
+47 * 7
+```
+
+Division
+
+```{r}
+#| echo: true
+#| output-location: column-fragment
+86 / 3
+```
+
+Exponentiation
+
+```{r}
+#| echo: true
+#| output-location: column-fragment
+8^2
+```
+
+
+## Relational {auto-animate="true"}
+
+Greater
+
+```{r}
+#| echo: true
+#| output-location: column-fragment
+5 > 6
+```
+
+Less than
+
+```{r}
+#| echo: true
+#| output-location: column-fragment
+5 < 6
+```
+
+Equal
+
+```{r}
+#| echo: true
+#| output-location: column-fragment
+6 == 6
+```
+
+## Relational {auto-animate="true" visibility="uncounted"}
+
+Greater or equal
+
+```{r}
+#| echo: true
+#| output-location: column-fragment
+8 >= 5
+```
+
+Less than or equal
+
+```{r}
+#| echo: true
+#| output-location: column-fragment
+7 <= 10
+```
+
+Not Equal
+
+```{r}
+#| echo: true
+#| output-location: column-fragment
+9 != 10
+```
+
+
+# Objects {auto-animate="true" visibility="uncounted"}
+
+## Vectors {auto-animate="true"}
+
+```{r}
+#| echo: true
+#| output-location: fragment
+
+vec <- c(2, 4, 6, 8, 3, 5.5)
+
+vec
+```
+
+```{r}
+#| echo: true
+#| output-location: fragment
+costs <- c(treatment_A = 5000, treatment_B = 3000, treatment_C = 7000)
+
+costs
+```
+
+```{r}
+#| echo: true
+#| output-location: fragment
+vec[5]
+```
+
+## Matrix {auto-animate="true"}
+
+```{r}
+#| echo: true
+#| output-location: column-fragment
+mat <- matrix(1:36,
+              nrow = 6,
+              ncol = 6,
+              byrow = F)
+
+mat
+```
+. . .
+```{r}
+#| echo: true
+#| output-location: column-fragment
+mat[3,5]
+```
+. . .
+```{r}
+#| echo: true
+#| output-location: column-fragment
+mat[,5]
+```
+. . .
+```{r}
+#| echo: true
+#| output-location: column-fragment
+mat[5,]
+```
+
+## Multiplying Matrices {auto-animate="true"}
+
+```{r}
+#| echo: true
+#| output-location: column-fragment
+mat1 <- matrix(c(3, 5, 1, 9),
+               nrow = 2,
+               ncol = 2,
+               byrow = F)
+mat1
+```
+```{r}
+#| echo: true
+#| output-location: column-fragment
+mat2 <- matrix(c(7, 4, 2, 8),
+               nrow = 2,
+               ncol = 2,
+               byrow = F)
+mat2
+```
+
+. . .
+
+Multiplying the matrices with `%*%`
+
+```{r}
+#| echo: true
+#| output-location: column-fragment
+mat1 %*% mat2
+```
+
+
+## Data Frames {auto-animate="true"}
+
+```{r}
+#| echo: true
+age <- c(12,24,NA,23,65,33) # create age vector
+
+gender <- c("M","F","F","M","M","F") #create gender vector
+
+occu <- factor(c(1,4,3,2,4,5), #occupation 
+               levels = c(1:5),
+               labels = c("Unemp","Service","Student","Business","Prof"))
+
+#date of birth
+dob <- c(as.Date("1993-01-16"),as.Date("1963-12-24"),as.Date("1971-01-05"),
+         as.Date("1982-11-11"),as.Date("1984-05-15"),as.Date("1999-03-07"))
+
+#create data frame
+df <- data.frame(age,gender,occu,dob)
+```
+
+## Data Frames {auto-animate="true" visibility="uncounted"}
+
+```{r}
+#| echo: true
+#| output-location: column-fragment
+df
+```
+
+. . .
+
+Accessing variables with `$`
+
+```{r}
+#| echo: true
+#| output-location: column-fragment
+df$age
+```
+
+
+# Functions {auto-animate="true"}
+```{r}
+#| echo: true
+#| eval: false
+function_name(argument1 = value1, argument2 = value2, ...)
+```
+
+
+## Functions {auto-animate="true" visibility="uncounted"}
+
+```{r}
+#| echo: true
+#| output-location: column-fragment
+
+mean(x = df$age, na.rm = TRUE)
+```
+
+# Packages {auto-animate="true"}
+```{r}
+#| eval: false
+#| include: true
+#| echo: true
+install.packages("dplyr")
+```
+
+```{r}
+#| echo: true
+#| output-location: column-fragment
+library(dplyr)
+
+dplyr::glimpse(df)
+```
+
+. . .
+
+Install once, load every time
+
+# Pipes {auto-animate="true"}
+
+`|>` or `%>%`
+
+```{r}
+#| echo: true
+
+df |> 
+  select(age, dob, occu) |> 
+  summarise(
+    mean_age = mean(age, na.rm = TRUE)
+    )
+```
+
+# Importing Data {auto-animate="true"}
+
+## Importing Data with GUI {auto-animate="true" visibility="uncounted"}
+
+![](files/import.png)
+
+## Importing Data with Code {auto-animate="true" visibility="uncounted"}
+
+CSV
+
+```{r}
+#| echo: true
+data <- read.csv("files/data.csv")
+```
+
+Excel
+
+```{r}
+#| echo: true
+library(readxl)
+data <- read_excel("files/data.xlsx")
+```
+
+Stata, SPSS
+
+```{r}
+#| echo: true
+library(haven)
+data <- read_sav("files/data.sav")
+data <- read_dta("files/data.dta")
+```
+
+## A Swiss-Army Knife for Data I/O {auto-animate="true" visibility="uncounted"}
+
+```{r}
+#| echo: true
+library(rio)
+data <- rio::import("files/data.xlsx")
+data <- rio::import("files/data.csv")
+data <- rio::import("files/data.sav")
+data <- rio::import("files/data.dta")
+```
+
+# Loops
+## For loops
+```{r}
+#| echo: false
+library(dplyr)
+data <- rio::import("files/data.csv") |> 
+  mutate(bmi = round(wt/((ht/100)^2),1))
+```
+```{r}
+#| echo: true
+for (i in 1:nrow(data)) {
+  bmi <- round(data$wt[i] / (((data$ht[i] / 100))^2), 2)
+  cat("BMI of Record No", i, "is", bmi, "\n")
+}
+```
+
+# Conditional Logic {auto-animate="true"}
+
+```{r}
+#| eval: false
+#| echo: true
+if(condition) {
+  TRUE
+} else {
+  FALSE
+}
+```
+
+## Conditional Logic {auto-animate="true" visibility="uncounted"}
+
+```{r}
+#| eval: false
+#| echo: true
+#| output-location: column-fragment
+value <- 5000
+
+if(value > 200) {
+  cat("High")
+} else {
+  cat("Low")
+}
+```
+
+# Graphs
+
+## ggplot
+
+```{r}
+#| echo: true
+#| output-location: fragment
+library(ggplot2)
+ggplot(data, aes(x = ht, y = wt, colour = bmi)) +
+  geom_point(size = 2) +
+  labs(x = "Height", y = "Weight", title = "Height vs Weight") +
+  theme_minimal()
+```
 
 ## Three Things to Remember
 
@@ -334,10 +532,8 @@ cat("ICER = ₹", round(icer, 0), "per QALY gained\n")
 # Is it cost-effective?
 wtp <- 100000
 if (icer < wtp) {
-  cat("→ Cost-effective at WTP = ₹", format(wtp, big.mark=","), "\n")
+  cat("Cost-effective at WTP = ₹", format(wtp, big.mark=",", scientific = F), "\n")
 } else {
-  cat("→ NOT cost-effective\n")
+  cat("NOT cost-effective\n")
 }
 ```
-
-If you ran this and changed the result — **you are ready for the rest of the workshop.**

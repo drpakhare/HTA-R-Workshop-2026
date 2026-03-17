@@ -1,0 +1,151 @@
+"phc","sex","dob","age","gps_lat","gps_long","edu","curSmoke","curSmokeless","alcEver","met_cat","TotalMetmin","wt","ht","Glucose","Cholesterol","wealth_index","stress","depression","anxiety","sbp","dbp","sbp1","sbp2","sbp3","dbp1","dbp2","dbp3"
+"Anji","Male",1999-10-01,23,20.78229104,78.62308745,"Graduate and above","No","No","No","No",240,62.5,170,80,133,"Highest","Moderate stress","No","No",120,78,120,127,117,78,82,85
+"Kharangana","Female",1999-09-16,23,20.71298731,78.68535213,"Higher Secondary","No","No","No","Yes",2160,48.2,152.9,75,139,"Second","High perceived stress","No","No",106,71,106,109,93,71,84,67
+"Anji","Male",1992-09-07,30,20.83439181,78.50479066,"Higher Secondary","No","Yes","No","No",240,68,169.4,128,142,"Second","Moderate stress","Yes","No",116,67,116,112,112,67,74,75
+"Anji","Male",2004-04-20,18,20.78232567,78.6696771,"Secondary","No","No","No","Yes",720,48.4,176,88,122,"Highest","Low stress","No","No",97,62,97,115,115,62,78,86
+"Talegaon","Male",1993-11-13,29,20.6148692,78.64125233,"Higher Secondary","No","Yes","No","Yes",1800,67.8,NA,86,126,"Highest","Moderate stress","Yes","No",109,68,109,106,106,68,70,64
+"Talegaon","Female",2004-07-05,18,20.63139846,78.6088741,"Higher Secondary","No","No","No","No",480,46.6,157.6,71,141,"Middle","Moderate stress","No","No",99,66,99,103,105,66,70,70
+"Kharangana","Female",2010-09-24,12,20.71102294,78.68315457,"No or primary schooling","No","No","No","No",120,32.9,152.2,63,127,"Fourth","Moderate stress","No","No",110,68,110,109,121,68,66,81
+"Anji","Male",1995-01-03,27,20.7806642,78.667648,"Graduate and above","No","No","No","No",200,79,171,158,98,"Fourth","Moderate stress","No","No",105,65,105,108,115,65,70,71
+"Talegaon","Male",1997-06-11,25,20.6353648,78.60951821,"Secondary","No","Yes","No","No",480,53.3,164.4,70,183,"Second","Moderate stress","No","Yes",101,82,101,108,114,82,87,80
+"Waifad","Female",1992-07-01,30,20.73964036,78.53862295,"Secondary","No","No","No","No",180,47.5,149.6,80,144,"Highest","Moderate stress","No","No",117,70,117,111,101,70,73,68
+"Anji","Female",1994-07-27,28,20.84574974,78.54141633,"Graduate and above","No","No","No","Yes",720,59.1,162,110,135,"Middle","Moderate stress","Yes","No",128,72,128,121,125,72,69,69
+"Talegaon","Male",1997-08-15,25,20.67173304,78.64474098,"Higher Secondary","No","Yes","Yes","Yes",1680,69.6,170,100,143,"Second","High perceived stress","No","No",106,80,106,115,91,80,77,78
+"Waifad","Male",2009-03-13,13,20.73891357,78.53933316,"No or primary schooling","No","No","No","Yes",1200,32,146,78,141,"Second","Moderate stress","No","No",101,66,101,110,103,66,72,72
+"Kharangana","Female",2011-09-12,11,20.68285119,78.6820429,"No or primary schooling","No","No","No","No",60,33.5,142.8,88,152,"Highest","Moderate stress","No","No",86,57,86,127,88,57,97,52
+"Anji","Male",1995-01-12,27,20.79531795,78.63661076,"Graduate and above","No","No","No","Yes",960,60.4,167,54,154,"Fourth","Low stress","No","No",107,61,107,105,100,61,69,68
+"Talegaon","Female",2004-02-28,18,20.58701883,78.69561152,"Higher Secondary","No","No","No","No",480,36.9,152.5,71,121,"Lowest","Moderate stress","Yes","No",118,81,118,123,130,81,80,82
+"Talegaon","Female",2006-04-20,16,20.63123369,78.60951014,"Secondary","No","No","No","No",60,NA,160.7,61,118,"Highest","Moderate stress","No","No",110,63,110,99,102,63,58,64
+"Talegaon","Female",1995-08-25,27,20.62868613,78.69252598,"Graduate and above","No","No","No","No",480,44,158,68,162,"Fourth","Moderate stress","Yes","No",101,65,101,111,95,65,61,69
+"Anji","Male",2009-06-06,13,20.85927085,78.50344036,"Secondary","No","No","No","No",240,40.4,160,105,122,"Middle","Low stress","No","No",83,64,83,92,99,64,63,75
+"Anji","Male",2006-11-21,16,20.84706195,78.5361345,"Secondary","No","No","No","Yes",720,42.7,157.5,106,126,"Fourth","Moderate stress","No","No",108,86,108,110,114,86,88,75
+"Anji","Female",2006-04-07,16,20.79580914,78.63813345,"No or primary schooling","No","No","No","No",580,36.9,149.8,69,143,"Fourth","Moderate stress","No","No",122,80,122,119,114,80,79,83
+"Anji","Male",2007-04-25,15,20.85899118,78.50393133,"Secondary","No","No","No","No",240,50.3,156.5,86,114,"Second","Low stress","No","No",129,81,129,128,123,81,85,82
+"Talegaon","Female",1998-09-17,24,20.69782541,78.54321297,"Graduate and above","No","No","No","No",120,47.2,160.5,94,129,"Middle","Moderate stress","Yes","Yes",126,76,126,123,121,76,76,84
+"Anji","Female",1995-09-09,27,20.84575505,78.53553915,"Higher Secondary","No","No","No","Yes",720,50.5,152.5,116,132,"Middle","Moderate stress","Yes","No",127,76,127,129,115,76,76,86
+"Anji","Male",2009-07-30,13,20.80369734,78.57510422,"No or primary schooling","No","No","No","Yes",840,27,140,76,144,"Fourth","Moderate stress","No","No",121,88,121,117,105,88,89,83
+"Talegaon","Female",1997-04-26,25,20.67279329,78.62062095,"Higher Secondary","No","No","No","Yes",960,42.6,143.4,71,152,"Fourth","High perceived stress","No","No",100,67,100,100,101,67,79,65
+"Talegaon","Male",1992-10-02,30,20.70940698,78.56398827,"No or primary schooling","No","Yes","Yes","Yes",1200,89.2,173.5,72,207,"Middle","Moderate stress","No","No",109,69,109,106,104,69,58,63
+"Anji","Female",2011-10-22,11,20.78121821,78.66884946,"No or primary schooling","No","No","No","No",240,39.5,155.5,76,112,"Highest","Moderate stress","No","No",122,67,122,117,113,67,62,60
+"Kharangana","Female",2001-10-04,21,20.71823289,78.62083418,"Higher Secondary","No","No","No","Yes",720,43.6,144.9,79,121,"Middle","High perceived stress","No","No",111,70,111,112,118,70,71,75
+"Anji","Male",1998-03-13,24,20.85978156,78.50329677,"No or primary schooling","No","Yes","No","No",200,48.6,165.3,114,128,"Lowest","Moderate stress","Yes","No",108,79,108,112,128,79,79,96
+"Kharangana","Male",1992-07-01,30,20.73684452,78.71114397,"Secondary","No","Yes","No","Yes",1920,55.3,175,87,200,"Fourth","High perceived stress","No","No",108,82,108,124,126,82,90,87
+"Anji","Male",2004-01-01,18,20.81195009,78.45617178,"Higher Secondary","No","No","No","Yes",600,61.3,172.4,112,99.04,"Middle","Moderate stress","No","No",127,83,127,124,122,83,81,86
+"Waifad","Male",2000-11-12,22,20.76525683,78.52304905,"Higher Secondary","No","Yes","No","Yes",600,50.8,150,64,120,"Middle","High perceived stress","Yes","No",114,73,114,115,113,73,68,68
+"Anji","Female",2005-12-23,16,20.77784599,78.66958931,"Secondary","No","No","No","No",480,45,151.6,76,112,"Highest","Moderate stress","No","No",97,73,97,94,93,73,71,68
+"Waifad","Female",1993-01-15,29,20.76727693,78.52477392,"Higher Secondary","No","No","No","No",200,61.3,153.2,84,131,"Fourth","Moderate stress","No","No",137,83,137,125,122,83,74,77
+"Anji","Female",2009-06-06,13,20.77949929,78.62260163,"No or primary schooling","No","No","No","No",340,39.3,146.5,80,145,"Second","Low stress","No","No",102,73,102,99,107,73,69,73
+"Waifad","Female",2002-06-29,20,20.77092092,78.50333444,"Higher Secondary","No","No","No","No",100,70.7,154.4,76,189,"Fourth","Moderate stress","No","No",99,85,99,100,95,85,59,56
+"Talegaon","Female",2004-07-10,18,20.69735644,78.54410876,"Secondary","No","No","No","No",100,43.1,152.1,79,196,"Fourth","Moderate stress","No","No",117,75,117,129,118,75,86,88
+"Kharangana","Female",1993-11-30,29,20.71530332,78.66526613,"Higher Secondary","No","No","No","No",480,53.7,155,97,117,"Highest","Moderate stress","Yes","Yes",119,86,119,124,117,86,82,73
+"Anji","Male",1997-07-01,25,20.78321587,78.6719865,"Secondary","No","Yes","Yes","Yes",2400,51,156,64,228,"Second","Moderate stress","No","No",91,56,91,117,97,56,67,72
+"Kharangana","Male",2000-12-30,21,20.72709172,78.63212228,"Higher Secondary","No","No","No","Yes",1440,50.1,169.5,82,138,"Highest","Low stress","No","No",113,68,113,112,99,68,70,66
+"Anji","Male",2008-08-22,14,20.74802374,78.65093232,"No or primary schooling","No","No","No","No",120,32,148,87,124,"Middle","Low stress","No","No",127,79,127,125,116,79,75,74
+"Talegaon","Female",2001-08-01,21,20.69810513,78.54302189,"Higher Secondary","No","No","No","No",120,44.7,156.5,50,130,"Middle","Moderate stress","No","No",108,85,108,105,118,85,85,65
+"Anji","Male",1994-11-15,28,20.85770397,78.50455757,"Higher Secondary","No","Yes","No","Yes",960,56,170.9,110,118,"Highest","Low stress","Yes","No",107,72,107,117,114,72,74,84
+"Talegaon","Female",1993-01-01,29,20.69478303,78.49688662,"Higher Secondary","No","No","No","No",240,38.8,145,75,86,"Lowest","Moderate stress","No","No",129,92,129,118,123,92,84,99
+"Anji","Male",1993-07-24,29,20.858323,78.50443937,"Graduate and above","No","No","No","No",440,72,174.6,87,115,"Highest","Moderate stress","No","No",107,69,107,115,113,69,64,71
+"Talegaon","Male",1998-01-01,24,20.63276915,78.61040541,"Higher Secondary","No","No","No","No",480,93.9,177,76,244,"Second","Moderate stress","No","No",110,68,110,99,95,68,67,61
+"Kharangana","Female",2004-07-16,18,20.69994448,78.66095743,"Secondary","No","No","No","No",240,43.8,158.6,84,151,"Fourth","Low stress","Yes","Yes",118,78,118,120,117,78,69,73
+"Talegaon","Male",1997-12-20,24,20.6635675,78.58679367,"Secondary","No","No","No","No",240,54.8,171.5,75,126,"Highest","Moderate stress","No","No",124,90,124,125,120,90,83,75
+"Kharangana","Female",2007-08-13,15,20.71501084,78.66445629,"No or primary schooling","No","No","No","No",480,60,156.7,83,117,"Fourth","Low stress","Yes","Yes",103,72,103,108,110,72,78,80
+"Talegaon","Male",2003-09-17,19,20.69690799,78.54499147,"Higher Secondary","No","No","No","No",480,49.6,167.2,87,182,"Highest","Moderate stress","No","No",91,61,91,89,93,61,60,64
+"Talegaon","Male",1993-05-15,29,20.67226546,78.6469743,"Secondary","No","Yes","No","Yes",2640,50.1,172.9,77,149,"Middle","Moderate stress","Yes","No",102,71,102,98,94,71,65,64
+"Anji","Male",2000-07-15,22,20.78313681,78.67363217,"Secondary","No","No","Yes","Yes",2400,47.3,155,91,196,"Lowest","Low stress","No","No",105,70,105,141,115,70,68,79
+"Talegaon","Male",1996-05-19,26,20.67762887,78.56239666,"Higher Secondary","No","Yes","No","No",480,48.8,171.6,65,163,"Fourth","Moderate stress","No","No",110,57,110,111,105,57,65,57
+"Kharangana","Male",2010-03-22,12,20.71565714,78.63805869,"No or primary schooling","No","No","No","No",240,38.3,159,64,174,"Highest","Low stress","No","No",99,78,99,102,101,78,75,85
+"Kharangana","Female",1995-09-01,27,20.65548371,78.78327183,"No or primary schooling","No","No","No","Yes",960,66.4,154.1,74,131,"Fourth","High perceived stress","No","Yes",112,66,112,109,111,66,68,59
+"Waifad","Male",1993-08-13,29,20.77129297,78.5027152,"Higher Secondary","No","Yes","No","No",240,49.2,NA,68,100,"Second","Moderate stress","Yes","No",113,88,113,123,128,88,82,96
+"Talegaon","Female",2001-08-28,21,20.70125389,78.54471828,"Higher Secondary","No","No","No","No",120,41.4,150.6,90,140,"Fourth","Moderate stress","Yes","No",115,72,115,114,115,72,68,68
+"Talegaon","Male",2007-12-01,14,20.63529914,78.60984508,"No or primary schooling","No","No","No","No",480,33.2,146,67,172,"Middle","Moderate stress","No","No",87,59,87,90,90,59,70,63
+"Waifad","Female",2004-04-24,18,20.76282603,78.52507536,"Secondary","No","No","No","Yes",960,42,152.2,58,202,"Lowest","Moderate stress","No","No",104,66,104,99,106,66,76,67
+"Waifad","Male",2008-01-08,14,20.74152522,78.53783995,"No or primary schooling","No","Yes","No","Yes",840,41.1,160.5,67,112,"Second","Moderate stress","No","No",107,78,107,109,117,78,80,73
+"Anji","Male",2008-01-21,14,20.7955826,78.63728603,"No or primary schooling","No","No","No","Yes",720,31.9,150,57,111,"Middle","Low stress","No","No",99,86,99,85,86,86,73,75
+"Anji","Female",1994-07-25,28,20.84693609,78.54280478,"Graduate and above","No","No","No","Yes",960,48,157,98,112.04,"Highest","Moderate stress","Yes","No",120,80,120,108,116,80,70,86
+"Talegaon","Female",2008-11-16,14,20.63395923,78.60961199,"No or primary schooling","No","No","No","No",240,58.9,156.4,71,192,"Highest","Moderate stress","No","No",88,62,88,91,92,62,63,58
+"Waifad","Male",2007-07-11,15,20.73336262,78.56021215,"No or primary schooling","No","No","No","No",120,42,150.2,71,168,"Second","Low stress","No","No",111,79,111,110,111,79,77,76
+"Talegaon","Male",2006-08-17,16,20.70508171,78.60624948,"No or primary schooling","No","No","No","No",180,48.3,163.5,76,142,"Fourth","Moderate stress","No","No",103,62,103,109,110,62,70,72
+"Talegaon","Male",2004-04-02,18,20.62885215,78.60950354,"Secondary","No","No","No","No",480,50.7,173,59,100,"Highest","Moderate stress","No","No",105,68,105,102,107,68,64,72
+"Waifad","Female",1994-09-14,28,20.76744167,78.5246675,"Higher Secondary","No","No","No","No",200,46,159.8,70,144,"Fourth","Moderate stress","No","No",91,70,91,78,105,70,65,72
+"Kharangana","Male",1992-09-28,30,20.67475964,78.80306944,"No or primary schooling","No","Yes","No","Yes",720,59.7,166.5,61,149,"Second","Low stress","No","No",112,79,112,117,119,79,78,72
+"Anji","Male",1995-02-23,27,20.78286552,78.67289477,"Higher Secondary","No","No","No","Yes",1920,48.1,164.2,77,108,"Fourth","Moderate stress","No","No",118,85,118,114,116,85,81,83
+"Kharangana","Male",2000-09-06,22,20.62690632,78.74609275,"Higher Secondary","No","No","No","No",120,57.5,175,73,139,"Second","Moderate stress","Yes","Yes",120,97,120,118,107,97,85,79
+"Talegaon","Male",2006-01-01,16,20.65568917,78.54631285,"Secondary","No","No","No","No",120,75,164,107,172,"Fourth","Moderate stress","Yes","No",111,84,111,98,99,84,76,77
+"Anji","Female",2004-02-23,18,20.78098028,78.66810736,"Higher Secondary","No","No","No","No",360,NA,152.3,79,114,"Fourth","High perceived stress","No","No",114,75,114,108,110,75,81,73
+"Anji","Female",2007-05-07,15,20.78636962,78.6102414,"Secondary","No","No","No","No",480,39,155,75,127,"Fourth","Moderate stress","Yes","Yes",98,69,98,104,106,69,68,74
+"Anji","Male",2002-03-16,20,20.843951,78.54001369,"Higher Secondary","No","No","No","No",120,60,169.3,98,114,"Lowest","Low stress","No","No",127,87,127,119,111,87,79,76
+"Anji","Female",1998-10-18,24,20.84574488,78.53960645,"Graduate and above","No","No","No","No",360,43.8,152.5,112,128.54,"Highest","Moderate stress","No","No",100,56,100,115,110,56,74,78
+"Anji","Male",1995-09-01,27,20.78675224,78.61053318,"Secondary","No","Yes","No","No",240,45,165.4,98,118,"Fourth","Low stress","No","No",96,69,96,94,98,69,67,67
+"Kharangana","Female",1992-07-01,30,20.71936513,78.6194549,"Higher Secondary","No","No","No","Yes",960,54.6,159.8,86,142,"Highest","Moderate stress","No","No",108,76,108,105,110,76,69,78
+"Kharangana","Female",1993-01-14,29,20.71861175,78.61800201,"Higher Secondary","No","No","No","No",200,62.7,153,92,176,"Highest","High perceived stress","No","No",119,81,119,116,115,81,75,79
+"Anji","Male",2002-07-29,20,20.77829233,78.61982393,"Secondary","No","No","No","Yes",1440,46.8,173,84,105,"Second","Moderate stress","No","No",107,75,107,99,110,75,78,78
+"Talegaon","Female",2009-11-29,12,20.65396313,78.54599543,"No or primary schooling","No","No","No","No",120,33.2,144.6,83,130,"Second","Low stress","No","No",105,75,105,99,111,75,65,86
+"Talegaon","Female",2008-11-04,13,20.62736703,78.56216073,"No or primary schooling","No","No","No","No",120,37,150,115,106.2,"Fourth","Moderate stress","Yes","Yes",96,61,96,95,96,61,68,70
+"Talegaon","Female",2006-11-30,16,20.67822294,78.56178749,"Secondary","No","No","No","Yes",720,51,154,82,97,"Second","Moderate stress","Yes","Yes",115,78,115,108,110,78,78,78
+"Anji","Male",2004-04-21,18,20.80441107,78.57501018,"Secondary","No","No","No","No",120,65.9,166.5,80,159,"Second","Moderate stress","Yes","No",120,69,120,132,130,69,96,85
+"Talegaon","Female",2006-11-23,15,20.69894907,78.54698218,"No or primary schooling","No","No","No","No",100,62.2,154,76,152,"Second","Moderate stress","Yes","No",115,77,115,129,108,77,91,75
+"Kharangana","Male",1996-05-24,26,20.68236429,78.68307054,"Higher Secondary","No","No","No","No",480,59.1,162,85,155,"Fourth","Moderate stress","Yes","Yes",126,82,126,127,122,82,88,86
+"Anji","Male",1995-10-22,27,20.77862971,78.62304529,"Higher Secondary","No","No","No","No",200,36,150.7,69,177,"Highest","Moderate stress","No","No",124,99,124,120,114,99,94,76
+"Talegaon","Male",2001-12-03,20,20.67161356,78.64506236,"Higher Secondary","No","No","No","Yes",720,53.2,175,82,180,"Highest","Moderate stress","No","No",110,81,110,94,103,81,59,72
+"Talegaon","Female",2003-09-17,19,20.58681934,78.69428294,"Higher Secondary","No","No","No","No",480,73,160,66,181,"Fourth","Moderate stress","Yes","No",114,72,114,112,112,72,70,77
+"Waifad","Female",1994-10-11,28,20.73972768,78.53807638,"Higher Secondary","No","No","No","No",120,45.9,152.6,78,143,"Fourth","Moderate stress","Yes","Yes",113,76,113,110,105,76,79,79
+"Talegaon","Female",1998-10-06,24,20.69632253,78.49801787,"Higher Secondary","No","No","No","No",180,73,152.5,70,140,"Fourth","Moderate stress","No","No",122,73,122,95,119,73,59,67
+"Kharangana","Male",2011-09-29,11,20.68323383,78.6826952,"No or primary schooling","No","No","No","No",120,29,137,82,151,"Lowest","Moderate stress","No","No",96,66,96,101,91,66,78,69
+"Anji","Male",2012-02-22,10,20.78090646,78.67162549,"No or primary schooling","No","No","No","No",120,22.5,136.3,87,121,"Highest","Low stress","No","No",100,66,100,104,117,66,72,68
+"Kharangana","Female",1997-12-24,24,20.68419493,78.74572702,"Higher Secondary","No","No","No","No",240,57.2,162,79,178,"Middle","Moderate stress","Yes","Yes",95,65,95,100,117,65,67,63
+"Waifad","Male",1999-10-15,23,20.75189567,78.48413995,"Higher Secondary","No","Yes","No","Yes",1080,72.7,171,99,119,"Highest","Moderate stress","No","Yes",105,78,105,108,106,78,76,75
+"Talegaon","Male",2007-02-08,15,20.62867392,78.6094161,"No or primary schooling","No","No","No","Yes",720,59.5,177,78,111,"Fourth","Moderate stress","No","No",108,76,108,105,111,76,73,78
+"Anji","Male",2007-02-11,15,20.7845326,78.60941401,"No or primary schooling","No","No","No","No",120,63.2,161,78,141,"Fourth","Moderate stress","No","No",108,71,108,105,127,71,72,88
+"Talegaon","Male",2008-11-11,13,20.6723359,78.64714171,"No or primary schooling","No","No","No","Yes",960,34.7,148,81,190,"Highest","Moderate stress","No","No",136,71,136,125,120,71,75,78
+"Anji","Female",1996-06-06,26,20.83410426,78.50530236,"Secondary","No","No","No","No",480,NA,147,101,128.46,"Middle","Moderate stress","Yes","No",115,95,115,116,119,95,93,79
+"Anji","Male",2003-02-07,19,20.85798198,78.50506273,"Higher Secondary","No","No","No","No",240,45.6,165.3,72,80.3,"Middle","Moderate stress","No","No",110,72,110,101,97,72,69,72
+"Kharangana","Male",1998-10-09,24,20.66124579,78.70896012,"Higher Secondary","No","Yes","No","No",300,59.4,172.3,77,172,"Fourth","Moderate stress","No","No",115,73,115,107,105,73,73,68
+"Anji","Male",2000-08-26,22,20.7480601,78.65088741,"Higher Secondary","No","No","No","No",240,54.2,151,84,107,"Fourth","Low stress","No","No",91,60,91,98,100,60,64,60
+"Waifad","Male",2009-02-02,13,20.73460819,78.56071271,"No or primary schooling","No","No","No","No",120,48,160.2,69,79,"Lowest","Low stress","No","No",113,84,113,115,120,84,84,77
+"Anji","Male",2000-07-22,22,20.84604136,78.53935523,"Graduate and above","No","No","No","No",120,60,160.3,109,128,"Fourth","Moderate stress","No","No",117,65,117,115,118,65,63,86
+"Kharangana","Female",2007-05-14,15,20.67272924,78.80212854,"No or primary schooling","No","No","No","No",200,42.3,150,90,115,"Highest","Moderate stress","No","No",106,68,106,107,100,68,72,72
+"Anji","Male",2002-12-27,19,20.82726296,78.46365461,"Higher Secondary","No","No","No","No",240,85.1,171.4,106,124.71,"Second","Low stress","No","No",106,63,106,102,101,63,63,65
+"Talegaon","Male",1997-03-31,25,20.69718853,78.49833797,"Secondary","No","No","No","Yes",2400,69.5,160.7,67,140,"Second","Moderate stress","No","No",85,56,85,85,80,56,55,58
+"Anji","Male",2010-01-05,12,20.80384639,78.57479224,"No or primary schooling","No","No","No","Yes",720,30.5,140.5,60,150,"Lowest","Moderate stress","No","No",102,78,102,99,99,78,78,75
+"Talegaon","Female",1998-11-18,23,20.60813925,78.67440218,"Higher Secondary","No","No","No","No",480,48,152,84,154,"Highest","High perceived stress","Yes","Yes",118,75,118,114,118,75,82,86
+"Talegaon","Male",1993-06-16,29,20.67463366,78.61205907,"Higher Secondary","No","Yes","No","Yes",2160,60.8,156,71,196,"Middle","Moderate stress","No","No",112,75,112,115,117,75,68,74
+"Anji","Male",2008-04-30,14,20.8459045,78.53982531,"No or primary schooling","No","No","No","No",120,44.1,160,86,114.31,"Highest","Low stress","No","No",128,82,128,116,115,82,82,68
+"Anji","Male",2011-05-14,11,20.89250152,78.51321255,"No or primary schooling","No","No","No","No",240,32.4,144.5,62,98,"Second","Low stress","No","No",101,72,101,102,100,72,84,75
+"Kharangana","Male",1996-10-19,25,20.6569513,78.78436494,"Higher Secondary","No","No","No","Yes",720,71.8,163.7,85,284,"Highest","Low stress","No","No",121,83,121,126,118,83,85,80
+"Waifad","Male",2001-05-18,21,20.76375109,78.52547729,"No or primary schooling","No","No","No","No",240,62.6,170.2,85,163,"Lowest","High perceived stress","Yes","No",115,68,115,112,107,68,73,72
+"Anji","Male",1997-01-29,25,20.77884449,78.66933916,"Higher Secondary","No","No","No","Yes",960,64.1,177.5,85,129,"Highest","Moderate stress","No","No",103,98,103,125,121,98,79,85
+"Waifad","Female",2003-07-27,19,20.77129362,78.50303054,"Higher Secondary","No","No","No","No",120,39.1,147,79,82,"Second","Moderate stress","No","No",100,68,100,99,97,68,63,59
+"Kharangana","Male",2008-03-28,14,20.71978038,78.69095546,"No or primary schooling","No","No","No","No",480,50.9,155.3,92,133,"Lowest","Low stress","No","No",106,77,106,102,106,77,71,66
+"Anji","Male",1999-08-19,23,20.84194875,78.51030994,"Higher Secondary","No","No","No","No",240,60,175.4,112,124,"Fourth","Low stress","No","No",122,91,122,116,110,91,93,84
+"Anji","Female",2008-04-15,14,20.79658789,78.63898969,"No or primary schooling","No","No","No","No",260,37.7,158.3,69,95,"Fourth","Low stress","No","No",113,78,113,118,106,78,70,73
+"Anji","Male",2000-11-30,22,20.83240512,78.52859806,"Higher Secondary","No","No","No","No",480,50,171,121,116,"Fourth","Moderate stress","Yes","No",109,77,109,108,104,77,80,75
+"Anji","Male",2010-08-15,12,20.78047706,78.67196164,"No or primary schooling","No","No","No","Yes",960,35,143.5,91,115,"Highest","Low stress","No","No",102,69,102,105,109,69,73,68
+"Kharangana","Male",2001-02-21,21,20.7165388,78.63873969,"Secondary","No","No","No","No",240,50.5,165,77,165,"Highest","Low stress","No","Yes",86,69,86,102,107,69,88,78
+"Kharangana","Male",2001-09-22,21,20.68334531,78.68193313,"Higher Secondary","No","No","No","No",480,56.7,163,84,121,"Lowest","Moderate stress","Yes","Yes",111,73,111,114,104,73,68,74
+"Anji","Male",1999-12-11,23,20.82695321,78.46450551,"Graduate and above","No","No","No","No",240,61.5,169.8,118,125.63,"Highest","Low stress","No","No",103,70,103,96,99,70,64,69
+"Anji","Female",2012-01-28,10,20.83063239,78.55424137,"No or primary schooling","No","No","No","No",120,30.9,134,64,73,"Second","Moderate stress","No","No",88,66,88,92,98,66,66,65
+"Anji","Female",1995-11-18,27,20.85878809,78.50440966,"Secondary","No","No","No","Yes",960,35.2,144,78,124,"Fourth","Moderate stress","Yes","No",120,98,120,127,102,98,80,79
+"Talegaon","Female",2006-02-05,16,20.62728304,78.65469298,"Secondary","No","No","No","No",480,37.3,151,73,178,"Middle","Moderate stress","No","No",97,65,97,91,93,65,60,64
+"Anji","Male",2012-01-11,10,20.82466914,78.46317154,"No or primary schooling","No","No","No","No",120,NA,NA,64,84.13,"Lowest","Moderate stress","No","No",106,63,106,102,101,63,68,56
+"Waifad","Male",2002-07-22,20,20.78003598,78.47925417,"Graduate and above","No","No","No","Yes",1200,80.8,171,90,100,"Highest","High perceived stress","No","No",122,76,122,124,126,76,83,82
+"Talegaon","Male",1995-10-01,27,20.70039817,78.54466583,"Secondary","No","Yes","No","Yes",720,70.2,170.2,96,209,"Highest","Moderate stress","No","No",101,65,101,102,104,65,70,67
+"Talegaon","Male",2006-09-07,16,20.70009721,78.54772279,"No or primary schooling","No","No","No","Yes",1140,41.2,152.4,86,127,"Second","Moderate stress","No","No",107,78,107,106,117,78,81,85
+"Kharangana","Female",2002-01-06,20,20.65321957,78.75797145,"No or primary schooling","No","No","No","No",240,53.8,159,89,137,"Lowest","Moderate stress","No","No",113,69,113,102,111,69,59,89
+"Talegaon","Male",2004-06-27,18,20.6430603,78.64099182,"Higher Secondary","No","No","No","Yes",1840,48.9,161,83,103,"Middle","Moderate stress","No","No",91,67,91,97,102,67,69,71
+"Anji","Male",2003-04-13,19,20.833118,78.52827845,"Higher Secondary","No","No","No","No",240,56.8,170.3,115,128,"Middle","Moderate stress","No","No",108,72,108,120,107,72,82,85
+"Talegaon","Male",2001-10-13,21,20.62845365,78.5621227,"Secondary","No","Yes","No","Yes",720,84.2,171.5,86,164.3,"Second","High perceived stress","No","No",129,76,129,115,121,76,85,82
+"Anji","Male",2005-08-19,17,20.79670355,78.63900686,"Secondary","No","No","No","Yes",1200,64.6,164.2,105,165,"Highest","Moderate stress","No","No",96,54,96,102,102,54,61,56
+"Anji","Female",1995-03-19,27,20.83282903,78.52845459,"Higher Secondary","No","No","No","No",440,65.3,151.6,122,134,"Highest","Moderate stress","No","No",134,66,134,129,129,66,89,90
+"Waifad","Male",1999-10-08,23,20.73169493,78.55964937,"Higher Secondary","No","Yes","No","No",200,56.3,153.6,66,105,"Lowest","High perceived stress","Yes","No",142,97,142,137,126,97,92,88
+"Talegaon","Male",1999-09-27,23,20.60472757,78.67283577,"Secondary","No","No","No","Yes",1920,80.9,171,96,142,"Middle","Moderate stress","Yes","No",99,76,99,102,118,76,86,91
+"Anji","Female",2003-07-13,19,20.8476472,78.541867,"Higher Secondary","No","No","No","No",240,38.1,153,62,99.08,"Middle","Moderate stress","No","No",106,72,106,102,111,72,58,73
+"Anji","Male",2001-09-07,21,20.82688884,78.46496743,"Higher Secondary","No","No","No","Yes",1440,65.5,173.2,106,99.04,"Middle","Moderate stress","No","No",107,86,107,100,103,86,73,68
+"Talegaon","Female",2008-06-14,14,20.69714274,78.54271022,"No or primary schooling","No","Yes","No","No",180,37.3,155.3,75,90,"Second","Low stress","No","No",103,69,103,102,99,69,70,68
+"Anji","Male",1996-07-09,26,20.77930079,78.67081602,"Secondary","No","No","No","Yes",960,75.1,168.6,114,145,"Fourth","Moderate stress","No","No",104,71,104,101,109,71,82,87
+"Talegaon","Female",1995-06-21,27,20.58664446,78.69527981,"Graduate and above","No","No","No","No",200,50.8,150,70,159,"Fourth","High perceived stress","Yes","No",132,81,132,123,102,81,81,63
+"Anji","Male",2006-05-29,16,20.84243852,78.51074692,"Secondary","No","No","No","No",240,39.4,156.2,104,112,"Middle","Low stress","No","No",105,77,105,120,124,77,93,73
+"Kharangana","Female",2006-07-14,16,20.72445979,78.66084068,"Higher Secondary","No","No","No","Yes",600,39.4,138.5,77,148,"Middle","Moderate stress","Yes","No",101,72,101,94,100,72,74,74
+"Anji","Male",2001-01-31,21,20.78205449,78.67114142,"Graduate and above","No","No","No","No",480,69.4,165,63,179,"Highest","Moderate stress","No","No",117,80,117,106,106,80,76,74
+"Anji","Female",2005-03-08,17,20.77922185,78.67064871,"Higher Secondary","No","No","No","No",480,39.9,155.4,93,130,"Fourth","Moderate stress","No","No",114,66,114,98,87,66,70,55
+"Anji","Female",2003-06-19,19,20.79728571,78.63901369,"Higher Secondary","No","No","No","No",100,56.5,156.9,42,175,"Highest","Moderate stress","No","No",115,81,115,102,92,81,83,76
+"Talegaon","Female",2002-11-03,20,20.63525624,78.60825717,"Higher Secondary","No","No","No","Yes",720,42.1,152.6,58,137,"Middle","Moderate stress","No","No",124,96,124,129,103,96,85,95
