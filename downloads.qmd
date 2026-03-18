@@ -25,8 +25,10 @@ Exercise files contain tasks with blank spaces (`___`) for you to fill in. Solut
 
 | File | Description |
 |---|---|
-| [des-bms-exercise.qmd](day1/session4-des-bms-therapeutic-tree/des-bms-exercise.qmd) | Exercise: Pre-regulation prices, restenosis rates, threshold analysis, NNT |
+| [des-bms-exercise.qmd](day1/session4-des-bms-therapeutic-tree/des-bms-exercise.qmd) | Exercise: Cross-validate R vs Excel, pre-regulation prices, restenosis scenarios, sensitivity analysis |
 | [des-bms-solution.qmd](day1/session4-des-bms-therapeutic-tree/des-bms-solution.qmd) | Solution: Completed tasks with interpretations |
+| [DES-vs-BMS-Decision-Tree-Model.xlsx](day1/session4-des-bms-therapeutic-tree/DES-vs-BMS-Decision-Tree-Model.xlsx) | Excel model: 4-sheet decision tree with all formulas (for cross-validation with R) |
+| [des-bms-rdecision-package.qmd](day1/session4-des-bms-therapeutic-tree/des-bms-rdecision-package.qmd) | Bonus: Same model built with `rdecision` package — includes tree drawing, tornado, PSA, CE plane, CEAC |
 
 ## Day 2 — Markov Model and PSA
 
@@ -34,8 +36,10 @@ Exercise files contain tasks with blank spaces (`___`) for you to fill in. Solut
 
 | File | Description |
 |---|---|
-| [ckd-exercise.qmd](day2/session5-ckd-markov/ckd-exercise.qmd) | Exercise: Time horizon, treatment effect, dialysis cost, two-way sensitivity |
+| [ckd-exercise.qmd](day2/session5-ckd-markov/ckd-exercise.qmd) | Exercise: Cross-validate R vs Excel, time horizon, treatment effect, dialysis cost, two-way sensitivity |
 | [ckd-solution.qmd](day2/session5-ckd-markov/ckd-solution.qmd) | Solution: Completed tasks with interpretations |
+| [CKD-Markov-Model.xlsx](day2/session5-ckd-markov/CKD-Markov-Model.xlsx) | Excel model: Parameters, transition matrices, Markov trace, cost-effectiveness (for cross-validation with R) |
+| [ckd-markov-heemod.qmd](day2/session5-ckd-markov/ckd-markov-heemod.qmd) | Bonus: Same model built with `heemod` package — includes built-in Markov trace, tornado DSA, PSA, CE plane, CEAC |
 
 ### Session 6: Probabilistic Sensitivity Analysis
 

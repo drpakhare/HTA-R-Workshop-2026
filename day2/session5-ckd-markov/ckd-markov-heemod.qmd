@@ -1,0 +1,410 @@
+---
+title: "Session 5 Bonus: CKD Markov Model with heemod"
+subtitle: "The same model rebuilt with a dedicated Markov modelling package"
+format:
+  html:
+    toc: true
+    code-fold: show
+    code-tools: true
+---
+
+## Why a Package?
+
+In the main Session 5, you built a CKD Markov model from scratch — writing matrix multiplication loops, half-cycle correction, and discounting by hand. That transparency is essential for understanding *what* a Markov model does.
+
+But in practice, dedicated packages handle the mechanics for you and add built-in features for sensitivity analysis, plotting, and reporting. For Markov cohort models in R, **heemod** (Health Economic Evaluation MODelling) is the standard package. It was designed specifically for HTA and handles states, transitions, costs, utilities, discounting, half-cycle correction, DSA, and PSA out of the box.
+
+This page rebuilds the identical CKD model using `heemod`, so you can see the same results produced by a different engine — and learn the package workflow you'd use in real projects.
+
+```{r}
+#| label: setup
+#| echo: true
+#| message: false
+#| warning: false
+
+# Install if needed (uncomment once)
+# install.packages("heemod")
+
+library(heemod)
+library(ggplot2)
+```
+
+## 1. Define Parameters
+
+In `heemod`, all model parameters go into a single `define_parameters()` call. This makes it easy to modify them later for sensitivity analysis — the package knows which values are inputs vs calculations.
+
+```{r}
+#| label: parameters
+#| echo: true
+
+param <- define_parameters(
+  # --- Transition Probabilities: Standard Care ---
+  p_12_std = 0.10,    # Early → Moderate
+  p_1d     = 0.02,    # Early → Death (same both arms)
+  p_23_std = 0.12,    # Moderate → Advanced
+  p_2d     = 0.04,    # Moderate → Death (same both arms)
+  p_3d     = 0.15,    # Advanced → Death (same both arms)
+
+  # --- Treatment Effect ---
+  hr = 0.66,           # Hazard ratio (ACE-inhibitor)
+  p_12_int = 1 - (1 - p_12_std)^hr,
+  p_23_int = 1 - (1 - p_23_std)^hr,
+
+  # --- Costs (₹ per year) ---
+  cost_early    = 12000,
+  cost_moderate = 45000,
+  cost_advanced = 350000,
+  cost_ace      = 6000,
+  cost_screen   = 500,
+
+  # --- Utilities ---
+  u_early    = 0.85,
+  u_moderate = 0.72,
+  u_advanced = 0.55,
+  u_death    = 0.00,
+
+  # --- Discount Rate ---
+  dr = 0.03
+)
+```
+
+::: {.callout-tip}
+## heemod Parameters Are Lazy
+Parameters defined with `define_parameters()` can reference each other. The intervention transition probabilities (`p_12_int`, `p_23_int`) are computed from the standard care values and the hazard ratio — just like in the manual approach. If you change `hr`, both intervention probabilities update automatically.
+:::
+
+## 2. Define Health States
+
+Each health state gets its own `define_state()` call specifying the cost and utility per cycle. These are the state rewards — what accrues each year a patient spends in that state.
+
+```{r}
+#| label: states
+#| echo: true
+
+# --- States for STANDARD CARE ---
+s_early_std <- define_state(
+  cost = cost_early,
+  utility = u_early
+)
+
+s_moderate_std <- define_state(
+  cost = cost_moderate,
+  utility = u_moderate
+)
+
+s_advanced_std <- define_state(
+  cost = cost_advanced,
+  utility = u_advanced
+)
+
+s_death <- define_state(
+  cost = 0,
+  utility = u_death
+)
+
+# --- States for INTERVENTION (ACE-inhibitor added to Early & Moderate) ---
+s_early_int <- define_state(
+  cost = cost_early + cost_ace,
+  utility = u_early
+)
+
+s_moderate_int <- define_state(
+  cost = cost_moderate + cost_ace,
+  utility = u_moderate
+)
+
+s_advanced_int <- define_state(
+  cost = cost_advanced,   # ACE-inhibitor usually stopped in advanced CKD
+  utility = u_advanced
+)
+```
+
+## 3. Define Transition Matrices
+
+`define_transition()` builds the matrix row-by-row. The special value `C` means "complement" — heemod automatically computes the diagonal (stay) probability so each row sums to 1.
+
+```{r}
+#| label: transitions
+#| echo: true
+
+# --- Standard Care ---
+tm_std <- define_transition(
+  state_names = c("EarlyCKD", "ModerateCKD", "AdvancedDialysis", "Death"),
+
+  C,          p_12_std, 0,         p_1d,     # From Early
+  0,          C,        p_23_std,  p_2d,     # From Moderate
+  0,          0,        C,         p_3d,     # From Advanced
+  0,          0,        0,         1         # Death (absorbing)
+)
+
+# --- Intervention ---
+tm_int <- define_transition(
+  state_names = c("EarlyCKD", "ModerateCKD", "AdvancedDialysis", "Death"),
+
+  C,          p_12_int, 0,         p_1d,
+  0,          C,        p_23_int,  p_2d,
+  0,          0,        C,         p_3d,
+  0,          0,        0,         1
+)
+
+cat("Standard Care Transition Matrix:\n")
+tm_std
+```
+
+::: {.callout-tip}
+## The `C` Shorthand
+The `C` (complement) value is heemod's most convenient feature. Instead of manually typing `1 - p_12 - p_1d` for the stay probability, you write `C` and the package handles the arithmetic. This eliminates a common source of bugs — forgetting to include all outgoing transitions when computing the "stay" probability.
+:::
+
+## 4. Define Strategies
+
+A strategy combines a transition matrix with its state definitions. Each strategy represents one arm of the analysis.
+
+```{r}
+#| label: strategies
+#| echo: true
+
+strat_standard <- define_strategy(
+  transition = tm_std,
+  EarlyCKD         = s_early_std,
+  ModerateCKD      = s_moderate_std,
+  AdvancedDialysis = s_advanced_std,
+  Death            = s_death
+)
+
+strat_intervention <- define_strategy(
+  transition = tm_int,
+  EarlyCKD         = s_early_int,
+  ModerateCKD      = s_moderate_int,
+  AdvancedDialysis = s_advanced_int,
+  Death            = s_death
+)
+```
+
+## 5. Run the Model
+
+`run_model()` simulates both strategies simultaneously. We specify 20 annual cycles, the cost and effect (utility) variable names, initial state distribution, and the correction method. In heemod, `method = "life-table"` applies half-cycle correction (averaging start and end of each cycle), equivalent to the manual `(trace[t] + trace[t+1]) / 2` we used earlier.
+
+```{r}
+#| label: run-model
+#| echo: true
+
+res <- run_model(
+  standard     = strat_standard,
+  intervention = strat_intervention,
+  parameters   = param,
+  cycles       = 20,
+  cost         = cost,
+  effect       = utility,
+  init         = c(10000, 0, 0, 0),
+  method       = "life-table"
+)
+
+summary(res,
+        threshold = 170000)
+```
+
+::: {.callout-note}
+## One-Time Screening Cost
+The one-time screening cost (₹500 per person = ₹50,00,000 for 10,000 cohort) is not included in the `run_model()` output because it's not a recurring state cost. When comparing with the manual R model, add ₹50,00,000 to the intervention's total cost. In a full analysis, you would handle this with a time-varying cost using `model_time == 1`.
+:::
+
+## 6. Cross-Validation Against Manual R
+
+Let's compare the heemod results with our manual implementation:
+
+```{r}
+#| label: cross-validation
+#| echo: true
+
+# Extract heemod results
+heemod_summary <- summary(res)
+
+cat("=== Cross-Validation ===\n\n")
+cat("Compare these heemod values with the manual R model and Excel:\n\n")
+cat("If all three implementations agree (within rounding),\n")
+cat("the model is verified across independent platforms.\n\n")
+cat("Note: Add ₹50,00,000 one-time screening cost to\n")
+cat("the intervention total for exact comparison.\n")
+```
+
+## 7. Markov Trace Plot
+
+`heemod` provides built-in plotting for the Markov trace — the cohort distribution across states over time.
+
+```{r}
+#| label: fig-markov-trace
+#| echo: true
+#| fig-cap: "heemod built-in Markov trace — cohort distribution over 20 years"
+
+plot(res, type = "counts", panel = "by_strategy") +
+  theme_minimal() +
+  labs(title = "Markov Trace: CKD Progression Over 20 Years",
+       subtitle = "Built-in heemod visualisation")
+```
+
+```{r}
+#| label: fig-state-values
+#| echo: true
+#| fig-cap: "Cost and utility accrual by state over time"
+
+plot(res, type = "values", panel = "by_strategy") +
+  theme_minimal()
+```
+
+## 8. One-Way Deterministic Sensitivity Analysis (DSA)
+
+`define_dsa()` specifies which parameters to vary and their ranges. `run_dsa()` runs the model once per parameter at each extreme. The result is a tornado diagram showing which parameters drive the ICER most.
+
+```{r}
+#| label: dsa
+#| echo: true
+#| fig-cap: "Tornado diagram: one-way DSA on key parameters"
+
+dsa_def <- define_dsa(
+  p_12_std,      0.05,   0.15,     # Early→Moderate: ±50%
+  p_23_std,      0.06,   0.18,     # Moderate→Advanced: ±50%
+  p_3d,          0.10,   0.25,     # Advanced→Death: range
+  hr,            0.50,   0.90,     # Treatment effect: wide range
+  cost_early,    6000,   24000,    # ±100%
+  cost_moderate, 25000,  75000,    # ±range
+  cost_advanced, 150000, 600000,   # Public to private sector
+  cost_ace,      3000,   12000,    # ±100%
+  u_early,       0.75,   0.95,
+  u_moderate,    0.60,   0.85,
+  u_advanced,    0.40,   0.70,
+  dr,            0.00,   0.05
+)
+
+res_dsa <- run_dsa(
+  model   = res,
+  dsa     = dsa_def
+)
+
+plot(res_dsa,
+     result = "icer",
+     type = "difference")
+```
+
+::: {.callout-tip}
+## Reading the Tornado
+The parameter with the longest bar is the most influential on the ICER. If `cost_advanced` (dialysis cost) dominates, that confirms our manual one-way SA finding: the intervention's value is driven primarily by how much dialysis costs it avoids.
+:::
+
+## 9. Probabilistic Sensitivity Analysis (PSA)
+
+PSA simultaneously varies all uncertain parameters across their distributions. `define_psa()` assigns a probability distribution to each parameter, and `run_psa()` draws 1,000 samples.
+
+```{r}
+#| label: psa
+#| echo: true
+
+psa_def <- define_psa(
+  # Transition probabilities: Beta distributions
+  p_12_std ~ binomial(prob = 0.10, size = 100),
+  p_23_std ~ binomial(prob = 0.12, size = 100),
+  p_3d     ~ binomial(prob = 0.15, size = 100),
+  p_1d     ~ binomial(prob = 0.02, size = 200),
+  p_2d     ~ binomial(prob = 0.04, size = 200),
+
+  # Treatment effect: Log-normal for hazard ratio
+  hr ~ lognormal(meanlog = log(0.66), sdlog = 0.15),
+
+  # Costs: Gamma distributions
+  cost_early    ~ gamma(mean = 12000,  sd = 3000),
+  cost_moderate ~ gamma(mean = 45000,  sd = 10000),
+  cost_advanced ~ gamma(mean = 350000, sd = 70000),
+  cost_ace      ~ gamma(mean = 6000,   sd = 1500),
+
+  # Utilities: Beta-like via binomial
+  u_early    ~ binomial(prob = 0.85, size = 100),
+  u_moderate ~ binomial(prob = 0.72, size = 100),
+  u_advanced ~ binomial(prob = 0.55, size = 100)
+)
+
+res_psa <- run_psa(
+  model = res,
+  psa   = psa_def,
+  N     = 1000
+)
+```
+
+## 10. Cost-Effectiveness Plane
+
+The CE plane scatters all 1,000 PSA iterations on an incremental cost vs incremental QALY plot. Points in the south-east quadrant (lower cost, more QALYs) are dominant.
+
+```{r}
+#| label: fig-ce-plane
+#| echo: true
+#| fig-cap: "Cost-effectiveness plane from 1,000 PSA iterations"
+
+plot(res_psa, type = "ce") +
+  theme_minimal() +
+  labs(title = "Cost-Effectiveness Plane",
+       subtitle = "Each dot = one PSA iteration")
+```
+
+## 11. Cost-Effectiveness Acceptability Curve (CEAC)
+
+The CEAC shows the probability that each strategy is cost-effective across a range of WTP thresholds. At India's threshold of ₹1,70,000/QALY, the intervention should have a high probability of being cost-effective.
+
+```{r}
+#| label: fig-ceac
+#| echo: true
+#| fig-cap: "CEAC: probability of cost-effectiveness by WTP threshold"
+
+plot(res_psa, type = "ac",
+     max_wtp = 500000,
+     log_scale = FALSE) +
+  geom_vline(xintercept = 170000, linetype = "dashed", colour = "red") +
+  annotate("text", x = 170000, y = 0.3, label = "WTP = ₹1,70,000\n(1× GDP/capita)",
+           hjust = -0.1, colour = "red", size = 3) +
+  theme_minimal() +
+  labs(title = "Cost-Effectiveness Acceptability Curve",
+       subtitle = "Probability of being cost-effective at each WTP threshold")
+```
+
+## 12. Feature Comparison: Manual R vs heemod
+
+| Feature | Manual R | heemod |
+|---------|----------|--------|
+| **Transparency** | Full — every calculation visible | Medium — internals hidden |
+| **Transition matrix** | Manual `matrix()` construction | `define_transition()` with `C` complement |
+| **Half-cycle correction** | Manual averaging formula | Built-in `method = "life-table"` |
+| **Discounting** | Manual discount factor vector | Built-in via `run_model()` |
+| **Markov trace plot** | Manual ggplot code | `plot(res, type = "counts")` |
+| **One-way DSA** | Manual loop over parameter values | `define_dsa()` + `run_dsa()` + tornado |
+| **PSA** | Manual sampling + simulation loop | `define_psa()` + `run_psa()` |
+| **CE plane** | Manual ggplot scatter | `plot(res_psa, type = "ce")` |
+| **CEAC** | Manual NMB calculation + plot | `plot(res_psa, type = "ac")` |
+| **Time-varying** | Manual `if` statements in loop | Built-in `model_time`, `state_time` |
+| **Learning value** | High — teaches the mechanics | Lower — abstracts the mechanics |
+| **Production use** | Error-prone at scale | Robust, tested, validated |
+
+## 13. When to Use Which
+
+**Use the manual approach when:**
+
+- Teaching or learning Markov model mechanics
+- You need full control over every calculation
+- The model is simple enough that a loop + matrix is sufficient
+- You want to verify a package's output
+
+**Use heemod when:**
+
+- Building production HTA models for decision-makers
+- You need built-in PSA, DSA, and CEAC
+- The model has time-varying transitions or costs
+- You want reproducible, validated output with minimal code
+- You need to present professional sensitivity analysis figures
+
+**Best practice:** Build both, cross-validate, then use heemod for the final analysis.
+
+## Key References
+
+- Filipović-Pierucci A, Zarca K, Durand-Zaleski I. Markov Models for Health Economic Evaluations: The R Package heemod. *arXiv:1702.03252*.
+- heemod CRAN documentation: [https://cran.r-project.org/package=heemod](https://cran.r-project.org/package=heemod)
+- Go AS et al. (2004). Chronic kidney disease and the risks of death and hospitalisation. *NEJM*.
+- Hou FF et al. (2006). ACE inhibitor in progressive renal disease. *NEJM*.
+
+→ **Back to:** [Session 5: CKD Markov Model (Manual)](ckd-markov-model.qmd) | [Exercise](ckd-exercise.qmd)

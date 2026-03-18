@@ -8,8 +8,10 @@ project:
     - "day1/session3-gdm-diagnostic-tree/gdm-diagnostic-tree.qmd"
     - "day1/session3-gdm-diagnostic-tree/slides-session3.qmd"
     - "day1/session4-des-bms-therapeutic-tree/des-bms-decision-tree.qmd"
+    - "day1/session4-des-bms-therapeutic-tree/des-bms-rdecision-package.qmd"
     - "day1/session4-des-bms-therapeutic-tree/slides-session4.qmd"
     - "day2/session5-ckd-markov/ckd-markov-model.qmd"
+    - "day2/session5-ckd-markov/ckd-markov-heemod.qmd"
     - "day2/session5-ckd-markov/slides-session5.qmd"
     - "day2/session6-psa/psa-module.qmd"
     - "day2/session6-psa/slides-session6.qmd"
@@ -28,8 +30,10 @@ project:
     - "day1/session3-gdm-diagnostic-tree/gdm-solution.qmd"
     - "day1/session4-des-bms-therapeutic-tree/des-bms-exercise.qmd"
     - "day1/session4-des-bms-therapeutic-tree/des-bms-solution.qmd"
+    - "day1/session4-des-bms-therapeutic-tree/DES-vs-BMS-Decision-Tree-Model.xlsx"
     - "day2/session5-ckd-markov/ckd-exercise.qmd"
     - "day2/session5-ckd-markov/ckd-solution.qmd"
+    - "day2/session5-ckd-markov/CKD-Markov-Model.xlsx"
     - "day2/session6-psa/psa-exercise.qmd"
     - "day2/session6-psa/psa-solution.qmd"
     - "day3/session8-breast-cancer-psm/breast-cancer-exercise.qmd"
@@ -57,10 +61,14 @@ website:
             href: day1/session3-gdm-diagnostic-tree/gdm-diagnostic-tree.qmd
           - text: "Session 4: DES vs BMS Decision Tree"
             href: day1/session4-des-bms-therapeutic-tree/des-bms-decision-tree.qmd
+          - text: "Session 4 Bonus: rdecision Package"
+            href: day1/session4-des-bms-therapeutic-tree/des-bms-rdecision-package.qmd
       - text: "Day 2"
         menu:
           - text: "Session 5: CKD Markov Model"
             href: day2/session5-ckd-markov/ckd-markov-model.qmd
+          - text: "Session 5 Bonus: heemod Package"
+            href: day2/session5-ckd-markov/ckd-markov-heemod.qmd
           - text: "Session 6: Probabilistic Sensitivity Analysis"
             href: day2/session6-psa/psa-module.qmd
           - text: "Session 7: GenAI for HTA Coding"
