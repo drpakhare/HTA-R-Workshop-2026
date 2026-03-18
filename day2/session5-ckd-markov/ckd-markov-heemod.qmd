@@ -82,40 +82,46 @@ Each health state gets its own `define_state()` call specifying the cost and uti
 #| echo: true
 
 # --- States for STANDARD CARE ---
+# discount() applies 3% annual discounting automatically using model_time
 s_early_std <- define_state(
-  cost = cost_early,
-  utility = u_early
+  cost = discount(cost_early, dr),
+  utility = discount(u_early, dr)
 )
 
 s_moderate_std <- define_state(
-  cost = cost_moderate,
-  utility = u_moderate
+  cost = discount(cost_moderate, dr),
+  utility = discount(u_moderate, dr)
 )
 
 s_advanced_std <- define_state(
-  cost = cost_advanced,
-  utility = u_advanced
+  cost = discount(cost_advanced, dr),
+  utility = discount(u_advanced, dr)
 )
 
 s_death <- define_state(
   cost = 0,
-  utility = u_death
+  utility = discount(u_death, dr)
 )
 
 # --- States for INTERVENTION (ACE-inhibitor added to Early & Moderate) ---
+# model_time == 1 adds the one-time screening cost only in the first cycle
+# discount() wraps each cost/utility component for 3% annual discounting
 s_early_int <- define_state(
-  cost = cost_early + cost_ace,
-  utility = u_early
+  cost = discount(
+    ifelse(model_time == 1, cost_screen, 0) + cost_early + cost_ace,
+    dr
+  ),
+  utility = discount(u_early, dr)
 )
 
 s_moderate_int <- define_state(
-  cost = cost_moderate + cost_ace,
-  utility = u_moderate
+  cost = discount(cost_moderate + cost_ace, dr),
+  utility = discount(u_moderate, dr)
 )
 
 s_advanced_int <- define_state(
-  cost = cost_advanced,   # ACE-inhibitor usually stopped in advanced CKD
-  utility = u_advanced
+  cost = discount(cost_advanced, dr),   # ACE-inhibitor usually stopped in advanced CKD
+  utility = discount(u_advanced, dr)
 )
 ```
 
@@ -183,7 +189,7 @@ strat_intervention <- define_strategy(
 
 ## 5. Run the Model
 
-`run_model()` simulates both strategies simultaneously. We specify 20 annual cycles, the cost and effect (utility) variable names, initial state distribution, and the correction method. In heemod, `method = "life-table"` applies half-cycle correction (averaging start and end of each cycle), equivalent to the manual `(trace[t] + trace[t+1]) / 2` we used earlier.
+`run_model()` simulates both strategies simultaneously. We specify 20 annual cycles, the cost and effect (utility) variable names, initial state distribution, and the correction method. In heemod, `method = "life-table"` applies half-cycle correction (averaging start and end of each cycle), equivalent to the manual `(trace[t] + trace[t+1]) / 2` we used earlier. Note that discounting is handled via `discount()` inside `define_state()`, not in `run_model()` — this lets heemod apply the discount factor to each cycle's values automatically using `model_time`.
 
 ```{r}
 #| label: run-model
@@ -204,9 +210,9 @@ summary(res,
         threshold = 170000)
 ```
 
-::: {.callout-note}
-## One-Time Screening Cost
-The one-time screening cost (₹500 per person = ₹50,00,000 for 10,000 cohort) is not included in the `run_model()` output because it's not a recurring state cost. When comparing with the manual R model, add ₹50,00,000 to the intervention's total cost. In a full analysis, you would handle this with a time-varying cost using `model_time == 1`.
+::: {.callout-tip}
+## One-Time Costs & Discounting via `define_state()`
+Two heemod features work together here. First, `ifelse(model_time == 1, cost_screen, 0)` adds the screening cost (₹500/person) only in cycle 1 — the same `model_time` / `state_time` trick works for any one-off cost (surgery, device implantation, initial diagnostics). Second, `discount(value, dr)` applies 3% annual discounting automatically using `model_time` — this replaces the manual discount factor vector. Both features are embedded in `define_state()`, keeping `run_model()` clean.
 :::
 
 ## 6. Cross-Validation Against Manual R
@@ -224,8 +230,8 @@ cat("=== Cross-Validation ===\n\n")
 cat("Compare these heemod values with the manual R model and Excel:\n\n")
 cat("If all three implementations agree (within rounding),\n")
 cat("the model is verified across independent platforms.\n\n")
-cat("Note: Add ₹50,00,000 one-time screening cost to\n")
-cat("the intervention total for exact comparison.\n")
+cat("The one-time screening cost is already included via\n")
+cat("model_time == 1 in the intervention's Early CKD state.\n")
 ```
 
 ## 7. Markov Trace Plot
@@ -371,12 +377,13 @@ plot(res_psa, type = "ac",
 | **Transparency** | Full — every calculation visible | Medium — internals hidden |
 | **Transition matrix** | Manual `matrix()` construction | `define_transition()` with `C` complement |
 | **Half-cycle correction** | Manual averaging formula | Built-in `method = "life-table"` |
-| **Discounting** | Manual discount factor vector | Built-in via `run_model()` |
+| **Discounting** | Manual discount factor vector | `discount(value, rate)` in `define_state()` |
 | **Markov trace plot** | Manual ggplot code | `plot(res, type = "counts")` |
 | **One-way DSA** | Manual loop over parameter values | `define_dsa()` + `run_dsa()` + tornado |
 | **PSA** | Manual sampling + simulation loop | `define_psa()` + `run_psa()` |
 | **CE plane** | Manual ggplot scatter | `plot(res_psa, type = "ce")` |
 | **CEAC** | Manual NMB calculation + plot | `plot(res_psa, type = "ac")` |
+| **One-time costs** | Manual addition outside the loop | `ifelse(model_time == 1, cost, 0)` in `define_state()` |
 | **Time-varying** | Manual `if` statements in loop | Built-in `model_time`, `state_time` |
 | **Learning value** | High — teaches the mechanics | Lower — abstracts the mechanics |
 | **Production use** | Error-prone at scale | Robust, tested, validated |
