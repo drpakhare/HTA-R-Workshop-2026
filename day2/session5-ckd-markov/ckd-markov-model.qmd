@@ -769,27 +769,101 @@ kable(results_summary, align = "lrrrr",
 #| label: icer-interpretation
 #| echo: true
 
-# ICER interpretation
+# -------------------------------------------------------
+# ICER interpretation — handle the negative ICER carefully
+# -------------------------------------------------------
+# A negative ICER can mean TWO very different things:
+#   1. inc_cost < 0 AND inc_qaly > 0 → DOMINANT (saves money, gains health)
+#   2. inc_cost > 0 AND inc_qaly < 0 → DOMINATED (costs more, loses health)
+# Both give a negative ratio, but the conclusions are opposite!
+# This is why many HTA guidelines recommend AGAINST relying on the ICER alone
+# and instead use Net Monetary Benefit (NMB).
+
 icer_formatted <- format(round(icer), big.mark = ",")
 
-interpretation <- if (icer < 0) {
-  "DOMINANT — the intervention is less costly AND more effective"
-} else if (icer < wtp_india) {
-  paste0("Highly cost-effective (ICER < WTP threshold of ₹", format(wtp_india, big.mark = ","), ")")
-} else if (icer < 3 * wtp_india) {
-  "Cost-effective (ICER < 3× GDP per capita)"
+interpretation <- if (inc_cost < 0 & inc_qaly > 0) {
+  "DOMINANT — the intervention saves costs AND improves health"
+} else if (inc_cost > 0 & inc_qaly < 0) {
+  "DOMINATED — the intervention costs more AND worsens health"
+} else if (inc_cost > 0 & inc_qaly > 0) {
+  # Standard ICER quadrant (NE): compare to WTP
+  if (icer < wtp_india) {
+    paste0("Cost-effective (ICER < WTP of ₹", format(wtp_india, big.mark = ","), ")")
+  } else {
+    "NOT cost-effective at conventional thresholds"
+  }
 } else {
-  "NOT cost-effective at conventional thresholds"
+  # inc_cost < 0, inc_qaly < 0 (SW quadrant): intervention cheaper but worse
+  paste0("Trade-off: saves money but loses QALYs (ICER = ₹", icer_formatted, ")")
 }
 
 kable(data.frame(
-  Metric = c("ICER", "WTP Threshold (1× GDP/capita)", "Conclusion"),
-  Value = c(paste0("₹", icer_formatted, " per QALY gained"),
+  Metric = c("Incremental Cost", "Incremental QALYs", "ICER",
+             "WTP Threshold (1× GDP/capita)", "Conclusion"),
+  Value = c(paste0("₹", format(round(inc_cost / n_cohort), big.mark = ","), " per patient"),
+            paste0(round(inc_qaly / n_cohort, 4), " per patient"),
+            paste0("₹", icer_formatted, " per QALY gained"),
             paste0("₹", format(wtp_india, big.mark = ",")),
             interpretation),
   check.names = FALSE
 ), caption = "Cost-effectiveness conclusion")
 ```
+
+::: {.callout-warning}
+## Why a Negative ICER Is Ambiguous
+
+The ICER is a *ratio*: ΔCost ÷ ΔQALYs. A negative ratio appears when the numerator and denominator have opposite signs — but that happens in **two** situations:
+
+| | ΔQALYs > 0 (better) | ΔQALYs < 0 (worse) |
+|---|---|---|
+| **ΔCost > 0 (costlier)** | NE quadrant: standard ICER | SE quadrant: **DOMINATED** |
+| **ΔCost < 0 (cheaper)** | NW quadrant: **DOMINANT** | SW quadrant: trade-off |
+
+Both DOMINANT and DOMINATED produce a negative ICER, but the conclusions are opposite. **Always check the signs of ΔCost and ΔQALYs separately** — never rely on the ICER sign alone. This is exactly why the Net Monetary Benefit (NMB) was developed: it gives an unambiguous single number.
+:::
+
+### Net Monetary Benefit (NMB)
+
+The NMB converts QALYs into monetary terms using the WTP threshold, then subtracts costs. A positive incremental NMB means the intervention is cost-effective — no sign ambiguity.
+
+$$\text{NMB} = (\text{WTP} \times \text{QALYs}) - \text{Cost}$$
+
+$$\Delta\text{NMB} = \text{NMB}_{\text{intervention}} - \text{NMB}_{\text{standard}} = (\text{WTP} \times \Delta\text{QALYs}) - \Delta\text{Cost}$$
+
+If ΔNMB > 0 → cost-effective. If ΔNMB < 0 → not cost-effective. **No quadrant confusion.**
+
+```{r}
+#| label: nmb-calculation
+#| echo: true
+
+# Net Monetary Benefit per patient
+nmb_std <- (wtp_india * total_qaly_std / n_cohort) - (total_cost_std / n_cohort)
+nmb_int <- (wtp_india * total_qaly_int / n_cohort) - (total_cost_int / n_cohort)
+inc_nmb <- nmb_int - nmb_std
+
+# Equivalently: WTP × ΔQALYs − ΔCost
+inc_nmb_check <- wtp_india * (inc_qaly / n_cohort) - (inc_cost / n_cohort)
+
+kable(data.frame(
+  Metric = c("NMB Standard Care", "NMB Intervention",
+             "Incremental NMB (ΔNMB)", "Decision"),
+  Value = c(
+    paste0("₹", format(round(nmb_std), big.mark = ",")),
+    paste0("₹", format(round(nmb_int), big.mark = ",")),
+    paste0("₹", format(round(inc_nmb), big.mark = ",")),
+    if (inc_nmb > 0) "ADOPT — positive ΔNMB" else "REJECT — negative ΔNMB"
+  ),
+  check.names = FALSE
+), caption = paste0("Net Monetary Benefit analysis (WTP = ₹", format(wtp_india, big.mark = ","), "/QALY)"))
+```
+
+::: {.callout-tip}
+## When to Use NMB vs ICER
+
+The **ICER** is great for communication — "the intervention costs ₹X per QALY gained" is intuitive. But for **decision-making**, NMB is safer: it's always unambiguous, and it's essential for probabilistic sensitivity analysis (PSA) where you need to compare across thousands of iterations — you can't average ICERs, but you can average NMBs.
+
+**Rule of thumb:** Report the ICER in your results, but use NMB for the actual decision and for sensitivity analysis.
+:::
 
 ```{r}
 #| label: fig-qaly-breakdown
@@ -993,7 +1067,7 @@ text(max(hr_range), wtp_india / 1000, "WTP (1× GDP/capita)",
 
 ::: {.callout-tip}
 ## What This Tells Us
-The ICER is most sensitive to dialysis cost — the more expensive dialysis is, the more money the intervention saves by keeping patients out of that state. The treatment effect also matters: as the hazard ratio approaches 1.0 (no effect), the ICER rises steeply.
+The ICER is most sensitive to dialysis cost — the more expensive dialysis is, the more money the intervention saves by keeping patients out of that state. The treatment effect also matters: as the hazard ratio approaches 1.0 (no effect), the ICER rises steeply. Notice that all ICERs here remain negative (dominant) — in PSA, where ICERs can flip between quadrants across iterations, we'd use NMB instead.
 :::
 
 ## 16. Cross-Validation Checkpoint
@@ -1042,8 +1116,9 @@ You built a complete **Markov cohort model** — the most common model type in H
 5. **Markov trace** — raw counts table + area chart
 6. **Half-cycle correction** — averaging cycle start/end for accuracy
 7. **Discounting** — applying time preference at 3% per year
-8. **ICER** — incremental cost per QALY gained
-9. **One-way sensitivity analysis** — testing robustness to key assumptions
+8. **ICER** — incremental cost per QALY gained, with careful sign handling
+9. **NMB** — Net Monetary Benefit for unambiguous decision-making
+10. **One-way sensitivity analysis** — testing robustness to key assumptions
 
 In R, the core simulation is a single line: `trace[cycle + 1, ] <- trace[cycle, ] %*% tm` — matrix multiplication handles all transitions at once.
 
