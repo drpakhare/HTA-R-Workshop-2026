@@ -6,6 +6,7 @@ project:
     - "day1/session1-why-r-hta/*.qmd"
     - "day1/session2-r-orientation/*.qmd"
     - "day1/session3-gdm-diagnostic-tree/gdm-diagnostic-tree.qmd"
+    - "day1/session3-gdm-diagnostic-tree/gdm-rdecision-package.qmd"
     - "day1/session3-gdm-diagnostic-tree/slides-session3.qmd"
     - "day1/session4-des-bms-therapeutic-tree/des-bms-decision-tree.qmd"
     - "day1/session4-des-bms-therapeutic-tree/des-bms-rdecision-package.qmd"
@@ -28,6 +29,7 @@ project:
   resources:
     - "day1/session3-gdm-diagnostic-tree/gdm-exercise.qmd"
     - "day1/session3-gdm-diagnostic-tree/gdm-solution.qmd"
+    - "day1/session3-gdm-diagnostic-tree/GDM-Screening-Model.xlsx"
     - "day1/session4-des-bms-therapeutic-tree/des-bms-exercise.qmd"
     - "day1/session4-des-bms-therapeutic-tree/des-bms-solution.qmd"
     - "day1/session4-des-bms-therapeutic-tree/DES-vs-BMS-Decision-Tree-Model.xlsx"
@@ -60,6 +62,8 @@ website:
             href: day1/session2-r-orientation/r-orientation.qmd
           - text: "Session 3: GDM Diagnostic Tree"
             href: day1/session3-gdm-diagnostic-tree/gdm-diagnostic-tree.qmd
+          - text: "Session 3 Bonus: rdecision Package"
+            href: day1/session3-gdm-diagnostic-tree/gdm-rdecision-package.qmd
           - text: "Session 4: DES vs BMS Decision Tree"
             href: day1/session4-des-bms-therapeutic-tree/des-bms-decision-tree.qmd
           - text: "Session 4 Bonus: rdecision Package"

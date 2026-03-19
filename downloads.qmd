@@ -20,6 +20,9 @@ Exercise files contain tasks with blank spaces (`___`) for you to fill in. Solut
 |---|---|
 | [gdm-exercise.qmd](day1/session3-gdm-diagnostic-tree/gdm-exercise.qmd) | Exercise: Modify prevalence, OGTT cost, DIPSI sensitivity, run sensitivity analysis |
 | [gdm-solution.qmd](day1/session3-gdm-diagnostic-tree/gdm-solution.qmd) | Solution: Completed tasks with interpretations |
+| [GDM-Screening-Model.xlsx](day1/session3-gdm-diagnostic-tree/GDM-Screening-Model.xlsx) | Excel model: 3 screening strategies with all formulas (for cross-validation with R) |
+| [GDM-Worksheet.docx](day1/session3-gdm-diagnostic-tree/GDM-Worksheet.docx) | Pen-and-paper worksheet: Diagnostic tree concepts by hand (test accuracy, costs, QALYs, ICER, NMB) |
+| [gdm-rdecision-package.qmd](day1/session3-gdm-diagnostic-tree/gdm-rdecision-package.qmd) | Bonus: Same model built with `rdecision` package — includes PSA, CE plane, CEAC |
 
 ### Session 4: DES vs BMS Therapeutic Decision Tree
 
@@ -28,6 +31,7 @@ Exercise files contain tasks with blank spaces (`___`) for you to fill in. Solut
 | [des-bms-exercise.qmd](day1/session4-des-bms-therapeutic-tree/des-bms-exercise.qmd) | Exercise: Cross-validate R vs Excel, pre-regulation prices, restenosis scenarios, sensitivity analysis |
 | [des-bms-solution.qmd](day1/session4-des-bms-therapeutic-tree/des-bms-solution.qmd) | Solution: Completed tasks with interpretations |
 | [DES-vs-BMS-Decision-Tree-Model.xlsx](day1/session4-des-bms-therapeutic-tree/DES-vs-BMS-Decision-Tree-Model.xlsx) | Excel model: 4-sheet decision tree with all formulas (for cross-validation with R) |
+| [DES-BMS-Worksheet.docx](day1/session4-des-bms-therapeutic-tree/DES-BMS-Worksheet.docx) | Pen-and-paper worksheet: Decision tree concepts by hand (pathway counts, MACE, costs, ICER, NMB) |
 | [des-bms-rdecision-package.qmd](day1/session4-des-bms-therapeutic-tree/des-bms-rdecision-package.qmd) | Bonus: Same model built with `rdecision` package — includes tree drawing, tornado, PSA, CE plane, CEAC |
 
 ## Day 2 — Markov Model and PSA
