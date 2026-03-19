@@ -137,6 +137,22 @@ shinyApp(ui = ui, server = server)
 
 When a user moves the slider, `input$n` updates automatically. The server detects this change and re-runs the code that creates `output$scatterplot`. The new plot appears in the browser without requiring a page refresh.
 
+## Try the Live Apps
+
+All four apps are deployed on Posit Connect Cloud. Open them in your browser — no R installation needed:
+
+| App | Live Link |
+|-----|-----------|
+| GDM Diagnostic Decision Tree | [Open App](https://019cf9b2-a07c-c07e-5962-1551244e5a72.share.connect.posit.cloud/) |
+| DES vs BMS Therapeutic Decision Tree | [Open App](https://019cf9b5-46ac-590e-4233-0f24f96d7257.share.connect.posit.cloud/) |
+| CKD Markov Model (with PSA) | [Open App](https://019cf9b3-3d70-a837-f435-c349bbc8cb98.share.connect.posit.cloud/) |
+| Breast Cancer PSM | [Open App](https://019cf9b6-102e-3d69-c6d2-15e4a916bfb4.share.connect.posit.cloud/) |
+
+::: {.callout-tip}
+## What to Explore
+Try adjusting the sliders and observe how the ICER, NMB, and visualisations update in real time. In the Markov app, click "Run PSA" to generate a CE plane and CEAC from 1,000 Monte Carlo iterations.
+:::
+
 ## Understanding the Provided Templates
 
 The four Shiny apps in this workshop follow this same basic structure. Each one has:

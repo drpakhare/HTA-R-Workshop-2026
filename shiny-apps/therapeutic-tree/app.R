@@ -259,54 +259,64 @@ server <- function(input, output) {
   })
 
   output$threshold_plot <- renderPlot({
-    # Threshold analysis: at what DES cost are the two strategies equivalent?
-    # This is a simplified break-even analysis
+    # Break-even: at what DES stent price do total strategy costs equal?
+    # DES total = PCI + stent_price + DAPT_DES + followup + resten_DES + mace_DES
+    # BMS total is fixed from current parameters
 
-    bms_results <- calc_outcomes()
-    bms_total <- bms_results$Total_Cost[2]
+    results <- calc_outcomes()
+    bms_total <- results$Total_Cost[2]
 
-    # Restenosis and MACE costs are the same
-    restenosis_mace_cost_des <- input$p_restenosis_des * input$cost_repeat_revasc +
-                                input$p_mace_des * input$cost_mace
+    # DES non-stent costs (everything except the stent itself)
+    des_fixed <- input$cost_pci_procedure +
+                 input$cost_dapt_des +
+                 input$cost_followup +
+                 input$p_restenosis_des * input$cost_repeat_revasc +
+                 input$p_mace_des * input$cost_mace
 
-    # Break-even DES stent cost
-    breakeven_des_cost <- bms_total - restenosis_mace_cost_des
+    # Break-even: des_fixed + stent_price = bms_total
+    breakeven_price <- bms_total - des_fixed
+    current_price <- input$cost_des_stent
 
-    # Create a range of DES costs
-    des_cost_range <- seq(5000, 100000, by = 2500)
+    # Sweep DES stent price
+    price_range <- seq(0, 150000, by = 1000)
+    des_totals <- des_fixed + price_range
 
-    des_total_costs <- des_cost_range + restenosis_mace_cost_des
-    bms_cost_constant <- rep(bms_total, length(des_cost_range))
-
-    threshold_df <- data.frame(
-      DES_Stent_Cost = des_cost_range,
-      DES_Total = des_total_costs,
-      BMS_Total = bms_cost_constant
+    plot_df <- data.frame(
+      DES_Price = rep(price_range, 2),
+      Total_Cost = c(des_totals, rep(bms_total, length(price_range))),
+      Strategy = rep(c("DES (varies with stent price)", "BMS (fixed)"), each = length(price_range))
     )
 
-    ggplot(threshold_df, aes(x = DES_Stent_Cost)) +
-      geom_line(aes(y = DES_Total, color = "DES Strategy"), size = 1) +
-      geom_line(aes(y = BMS_Total, color = "BMS Strategy"), size = 1) +
-      geom_vline(xintercept = breakeven_des_cost, linetype = "dashed", color = "gray50") +
-      geom_label(aes(x = breakeven_des_cost, y = bms_total + 50000),
-                 label = paste("Break-even:\n₹", format(round(breakeven_des_cost, 0), big.mark = ",")),
-                 size = 3.5) +
-      scale_x_continuous(labels = function(x) paste("₹", format(x, big.mark = ","))) +
-      scale_y_continuous(labels = function(x) paste("₹", format(x, big.mark = ","))) +
-      scale_color_manual(values = c("DES Strategy" = "#2E86AB", "BMS Strategy" = "#A23B72")) +
-      labs(title = "Break-Even Analysis: Cost of DES Stent",
-           subtitle = paste("DES becomes cost-equivalent to BMS at ₹",
-                           format(round(breakeven_des_cost, 0), big.mark = ",")),
-           x = "DES Stent Cost",
-           y = "Total Cost per Patient",
-           color = "Strategy") +
+    ggplot(plot_df, aes(x = DES_Price, y = Total_Cost, colour = Strategy)) +
+      geom_line(linewidth = 1.2) +
+      # Break-even point
+      geom_vline(xintercept = breakeven_price, linetype = "dashed", colour = "grey40") +
+      geom_point(data = data.frame(x = breakeven_price, y = bms_total),
+                 aes(x = x, y = y), colour = "black", size = 4, inherit.aes = FALSE) +
+      annotate("label", x = breakeven_price, y = bms_total + 15000,
+               label = paste0("Break-even\n", intToUtf8(8377),
+                              format(round(breakeven_price), big.mark = ",")),
+               size = 3.5, fill = "white") +
+      # Current NPPA price
+      geom_vline(xintercept = current_price, linetype = "dotted", colour = "#e15759") +
+      annotate("text", x = current_price, y = max(des_totals) * 0.95,
+               label = paste0("NPPA 2025\n", intToUtf8(8377),
+                              format(current_price, big.mark = ",")),
+               colour = "#e15759", size = 3, hjust = -0.1) +
+      scale_colour_manual(values = c("DES (varies with stent price)" = "#4e79a7",
+                                      "BMS (fixed)" = "#e15759")) +
+      scale_x_continuous(labels = function(x) paste0(intToUtf8(8377), format(x, big.mark = ","))) +
+      scale_y_continuous(labels = function(x) paste0(intToUtf8(8377), format(x, big.mark = ","))) +
+      labs(title = "Break-Even Analysis: DES Stent Price",
+           subtitle = ifelse(current_price < breakeven_price,
+                             paste0("Current price (", intToUtf8(8377), format(current_price, big.mark = ","),
+                                    ") is BELOW break-even \u2192 DES saves money"),
+                             paste0("Current price (", intToUtf8(8377), format(current_price, big.mark = ","),
+                                    ") is ABOVE break-even \u2192 DES costs more")),
+           x = "DES Stent Price", y = "Total Strategy Cost per Patient", colour = "") +
       theme_minimal() +
-      theme(
-        plot.title = element_text(face = "bold", size = 14),
-        legend.position = "bottom",
-        panel.grid.major = element_line(color = "lightgray"),
-        text = element_text(size = 11)
-      )
+      theme(plot.title = element_text(face = "bold"),
+            legend.position = "bottom")
   })
 }
 
