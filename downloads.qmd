@@ -39,6 +39,7 @@ Exercise files contain tasks with blank spaces (`___`) for you to fill in. Solut
 | [ckd-exercise.qmd](day2/session5-ckd-markov/ckd-exercise.qmd) | Exercise: Cross-validate R vs Excel, time horizon, treatment effect, dialysis cost, two-way sensitivity |
 | [ckd-solution.qmd](day2/session5-ckd-markov/ckd-solution.qmd) | Solution: Completed tasks with interpretations |
 | [CKD-Markov-Model.xlsx](day2/session5-ckd-markov/CKD-Markov-Model.xlsx) | Excel model: Parameters, transition matrices, Markov trace, cost-effectiveness (for cross-validation with R) |
+| [Markov-Worksheet.docx](day2/session5-ckd-markov/Markov-Worksheet.docx) | Pen-and-paper worksheet: Markov modelling concepts by hand (transition matrix, matrix multiplication, HCC, ICER) |
 | [ckd-markov-heemod.qmd](day2/session5-ckd-markov/ckd-markov-heemod.qmd) | Bonus: Same model built with `heemod` package — includes built-in Markov trace, tornado DSA, PSA, CE plane, CEAC |
 
 ### Session 6: Probabilistic Sensitivity Analysis
@@ -56,6 +57,8 @@ Exercise files contain tasks with blank spaces (`___`) for you to fill in. Solut
 |---|---|
 | [breast-cancer-exercise.qmd](day3/session8-breast-cancer-psm/breast-cancer-exercise.qmd) | Exercise: Time horizon, biosimilar pricing, 9-week regimen, distribution comparison |
 | [breast-cancer-solution.qmd](day3/session8-breast-cancer-psm/breast-cancer-solution.qmd) | Solution: Completed tasks with interpretations |
+| [Breast-Cancer-PSM.xlsx](day3/session8-breast-cancer-psm/Breast-Cancer-PSM.xlsx) | Excel model: Survival curves, state occupancy, cost-effectiveness with all formulas (for cross-validation with R) |
+| [PSM-Worksheet.docx](day3/session8-breast-cancer-psm/PSM-Worksheet.docx) | Pen-and-paper worksheet: PSM concepts by hand (state occupancy, area-under-curve, ICER, NMB) |
 
 ### Session 9: PSA for the Breast Cancer Model
 

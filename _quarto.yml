@@ -38,6 +38,7 @@ project:
     - "day2/session6-psa/psa-solution.qmd"
     - "day3/session8-breast-cancer-psm/breast-cancer-exercise.qmd"
     - "day3/session8-breast-cancer-psm/breast-cancer-solution.qmd"
+    - "day3/session8-breast-cancer-psm/Breast-Cancer-PSM.xlsx"
     - "day3/session9-psa-psm/psa-psm-exercise.qmd"
     - "day3/session9-psa-psm/psa-psm-solution.qmd"
     - "shiny-apps/**"

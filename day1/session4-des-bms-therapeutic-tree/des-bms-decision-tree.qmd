@@ -238,7 +238,7 @@ digraph des_bms {
   graph [rankdir=LR, bgcolor='transparent', fontname='Helvetica', nodesep=0.4]
   node [fontname='Helvetica', fontsize=10]
 
-  D [label='PCI Stent\nChoice', shape=square, style=filled, fillcolor='#4e79a7', fontcolor='white', width=1.2]
+  D [label='PCI STENT\nChoice', shape=square, style=filled, fillcolor='#4e79a7', fontcolor='white', width=1.2]
 
   DES [label='DES\n₹38,933', shape=box, style='filled,rounded', fillcolor='#4e79a7', fontcolor='white']
   BMS [label='BMS\n₹10,693', shape=box, style='filled,rounded', fillcolor='#e15759', fontcolor='white']
@@ -498,7 +498,7 @@ cost_long <- pivot_longer(cost_breakdown, cols = c(DES, BMS),
 ggplot(cost_long, aes(x = Stent, y = Cost, fill = Category)) +
   geom_col(position = "stack") +
   scale_fill_manual(values = c("Initial PCI + Stent" = "#4e79a7",
-                                "Medications (5yr)" = "#59a14f",
+                                "Medications (5yr)" = "pink",
                                 "Restenosis Mgmt" = "#f28e2b",
                                 "MACE Mgmt" = "#e15759")) +
   labs(x = "Stent Type", y = "Cost per Patient (₹)",
