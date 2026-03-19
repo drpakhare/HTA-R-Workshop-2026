@@ -306,21 +306,39 @@ Higher MACE in BMS arm → Lower QALYs in BMS.
 
 inc_cost <- total_cost_des - total_cost_bms
 inc_qaly <- total_qaly_des - total_qaly_bms
-
 icer <- inc_cost / inc_qaly
 
-# Interpret against India's WTP thresholds
-wtp_1gdp <- 170000   # ~1x GDP per capita
-wtp_3gdp <- 510000   # ~3x GDP per capita
-
-if (icer < wtp_1gdp) {
-  cat("DES is HIGHLY cost-effective")
-} else if (icer < wtp_3gdp) {
-  cat("DES is cost-effective")
+# 4-quadrant interpretation (always check signs!)
+if (inc_cost < 0 & inc_qaly > 0) {
+  cat("DES is DOMINANT (cheaper AND better)")
+} else if (inc_cost > 0 & inc_qaly < 0) {
+  cat("DES is DOMINATED")
+} else if (inc_cost > 0 & inc_qaly > 0) {
+  if (icer < 170000) cat("Cost-effective") else cat("Not CE")
 } else {
-  cat("DES is NOT cost-effective")
+  cat("Trade-off")
 }
 ```
+
+## Net Monetary Benefit (NMB)
+
+Recall from Session 3: **NMB = WTP × QALYs − Cost**
+
+. . .
+
+```{r}
+#| echo: true
+#| eval: false
+
+nmb_des <- wtp * total_qaly_des - total_cost_des
+nmb_bms <- wtp * total_qaly_bms - total_cost_bms
+inc_nmb <- nmb_des - nmb_bms
+# Positive ΔNMB → adopt DES
+```
+
+. . .
+
+If DES is **dominant** (negative ΔCost, positive ΔQALYs), ΔNMB is always positive — no ambiguity.
 
 ## Number Needed to Treat (NNT)
 
@@ -395,8 +413,20 @@ A therapeutic decision tree is **another reusable template**:
 - **Treatment choice** (two or more strategies)
 - **Probability branches** (success, complication, outcome rates)
 - **Cost & QALY tracking** through each pathway
-- **ICER comparison** against WTP threshold
+- **ICER with 4-quadrant interpretation** + **NMB**
 
 . . .
 
 Just like diagnostics, but for **treatment and intervention** decisions.
+
+## Bonus: rdecision Package
+
+The same DES vs BMS model rebuilt with `rdecision`:
+
+- Object-oriented tree with `DecisionNode`, `ChanceNode`, `LeafNode`
+- Built-in **tornado DSA** and **PSA** (1,000 iterations)
+- **CE plane + CEAC** for decision uncertainty
+
+. . .
+
+→ See the **Session 4 Bonus** page on the workshop website.

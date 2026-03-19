@@ -90,109 +90,108 @@ digraph genai_flow {
 - Validating whether your model is correct
 - Replacing peer review or expert input
 
-## The Art of Prompting: Weak vs Strong
+## The Key Principle: Package-Based Prompting
 
-**Weak prompt:**
-> "Write R code for a cost-effectiveness model"
+You've seen both approaches in this workshop:
 
-. . .
-
-**Strong prompt:**
-> "I need R code for a **4-state Markov model** (Mild, Moderate, Severe, Death) with **annual cycles over 20 years**. **Intervention:** new drug reduces Mild→Moderate transition by 30% (HR 0.70). **Costs per year:** Mild = ₹10,000, Moderate = ₹50,000, Severe = ₹200,000. **Utilities:** Mild = 0.85, Moderate = 0.70, Severe = 0.50. **Calculate:** discounted costs, QALYs, and ICER (3% discount rate) for both strategies."
+- **Session 5:** Manual Markov from scratch (matrix multiplication, HCC, discounting by hand)
+- **Session 5 Bonus:** Same model with `heemod` — package handled everything
 
 . . .
 
-**The difference:** Context. The AI needs to know your model's *structure, comparators, parameters, and outputs*.
+When using AI: **always tell it which package to use.**
 
-## Pattern 1: Build a New Model
+. . .
+
+A naive prompt → raw loops with hidden bugs.
+
+A package-constrained prompt → validated engine does the heavy lifting.
+
+## The Golden Rule
+
+Always include this sentence in your prompt:
+
+. . .
+
+> **"Use the [package name] package. Do not write manual loops."**
+
+. . .
+
+| Model Type | Package |
+|---|---|
+| Decision Tree | `rdecision` |
+| Markov | `heemod` |
+| PSM | `flexsurv` + manual wrapper |
+| DSA/PSA | Same as base case package |
+| CE Visualization | `BCEA` or `dampack` |
+
+## The Staged Workflow
+
+**Step 1:** Prepare parameter file in Excel (your single source of truth)
+
+. . .
+
+**Step 2:** Prompt for base case → "Attached my parameter file. Use heemod."
+
+. . .
+
+**Step 3:** Validate — cross-check against hand calculations
+
+. . .
+
+**Step 4:** Prompt for DSA + PSA → "Base case works. Add sensitivity analysis."
+
+. . .
+
+**Step 5:** Prompt for Shiny app → "Wrap validated model in interactive dashboard."
+
+## Stage 2: The Base Case Prompt
 
 ```
-"I need R code for a budget impact analysis of introducing a new
-diabetes drug in India. Target population: 50,000 patients.
-New drug: ₹15,000/year, standard drug: ₹8,000/year.
-Market uptake: 10% year 1, 25% year 2, 40% year 3.
-New drug reduces hospitalisations by 20%.
-Current rate: 15% per year, cost per hospitalisation: ₹75,000.
-Calculate total budget impact for years 1-3 and create a bar chart."
-```
-
-## Pattern 2: Modify Existing Code
-
-```
-"I have R code that runs a 4-state Markov model for CKD.
-I want to modify it to:
-(1) add a 5th state 'Transplant' between Advanced and Death
-(2) add transition probability 0.05 from Advanced→Transplant
-(3) set Transplant cost to ₹500,000 year 1, ₹100,000 after
-(4) set Transplant utility to 0.75.
-Here is my current code: [paste code]"
-```
-
-## Pattern 3: Debug Errors
-
-```
-"I'm running this R code for a Markov model and getting the error:
-'Error in trace[cycle + 1, ] <- trace[cycle, ] %*% tm :
-replacement has length 5, should be 4'.
-
-Here is my code: [paste code]
-
-What's wrong and how do I fix it?"
+I've attached my parameter file (Excel).
+Build a Markov cost-effectiveness model using the
+heemod package. Do NOT write manual matrix
+multiplication. Report ICER with 4-quadrant
+interpretation and NMB. Use kable() and ggplot2.
 ```
 
 . . .
 
-This is often the **most immediately useful** application of AI.
+The parameter file carries the detail. The prompt just says what to do with it.
 
-## Pattern 4: Create Visualizations
+## Stage 4: DSA + PSA Prompt
 
 ```
-"I have a data frame 'psa_results' with columns: inc_cost, inc_qaly,
-iteration (1 to 5000). Create a cost-effectiveness plane using ggplot2:
-- Scatter points in blue with alpha = 0.4
-- WTP threshold line at ₹170,000 per QALY (red, dashed)
-- Labels for all four quadrants
-- Indian Rupee formatting for y-axis
-- Clean minimal theme"
+The base case works. Now add sensitivity analysis
+using the same model object.
+
+DSA: use define_dsa() with low/high from my file.
+PSA: use define_psa() with distributions from my file.
+Report mean incremental NMB, P(cost-effective).
+Do NOT average ICERs — use NMB instead.
 ```
 
-## Example: AI-Generated Budget Impact Code
+## Stage 5: Shiny App Prompt
 
-The AI might generate:
-
-```r
-# Budget Impact Analysis
-n_pop <- 50000
-cost_new <- 15000
-cost_current <- 8000
-uptake <- c(0.10, 0.25, 0.40)
-hosp_rate <- 0.15
-hosp_reduction <- 0.20
-cost_hosp <- 75000
-
-results <- data.frame(Year = 1:3)
-results$Cost_New <- n_pop * uptake * cost_new
-results$Cost_Current <- n_pop * (1 - uptake) * cost_current
-results$Hosp_New <- n_pop * uptake * hosp_rate * (1 - hosp_reduction) * cost_hosp
-results$Hosp_Current <- n_pop * (1 - uptake) * hosp_rate * cost_hosp
-results$Budget_Impact <- (results$Cost_New + results$Hosp_New) -
-                         (results$Cost_Current + results$Hosp_Current)
+```
+I have a validated Markov model built with heemod.
+Create a Shiny app with:
+- Sidebar: sliders for key parameters + "Run PSA" button
+- Tab 1: Base case (table + trace plot), updates reactively
+- Tab 2: Tornado diagram, updates reactively
+- Tab 3: PSA (CE plane + CEAC), updates on button click
 ```
 
-## Step 2: You Review and Validate
+## Validate Before You Trust
 
 **Critical questions to ask:**
 
 . . .
 
-- **Are the formulas correct?** Trace through manually for Year 1.
-- **Are assumptions implemented right?** Does the drug effect apply only to new drug patients?
-- **Are there edge cases?** What if uptake > 100%?
-- **Do results make clinical sense?** Is the budget impact direction reasonable?
-
-. . .
-
-**Never trust AI-generated code without reviewing it.**
+- **Does it use the right package?** If you see `for (cycle in 1:n)` instead of `define_transition()`, push back.
+- **Do results match your manual model?** Cross-validate at default parameters.
+- **Are distributions parameterized correctly?** Beta needs α/β, not mean/SD.
+- **Is the ICER interpretation correct?** Check all 4 quadrants, not just `icer < wtp`.
 
 ## Common Pitfall 1: Wrong Distribution Parameterization
 
@@ -241,48 +240,58 @@ trace_hcc <- (trace[1:n_cycles, ] + trace[2:(n_cycles + 1), ]) / 2
 
 Accounts for the fact that patients spend time both in their current and next state during each cycle.
 
-## Common Pitfall 3: Incorrect Discounting
+## Common Pitfall 3: Wrong HR for Survival Models
 
-AI might discount from year 0 instead of year 1, or discount only costs (not QALYs).
+A real bug we found in this workshop:
 
 . . .
 
-**Correct approach:**
+- **Proportional hazards (correct):** `S(t) = exp(-(λ × HR) × t^γ)` — scales hazard
+- **AFT (different model):** `S(t) = exp(-λ × (HR × t)^γ)` — scales time
+
+. . .
+
+Both valid, but give different results when γ ≠ 1. Always specify "proportional hazards, not AFT."
+
+## Common Pitfall 4: Averaging ICERs in PSA
+
+AI-generated PSA code often reports "mean ICER" across iterations.
+
+. . .
+
+**Problem:** A few iterations with near-zero ΔQALYs produce extreme ICERs that distort the average.
+
+. . .
+
+**Solution:** Always use **NMB-based reporting** in PSA:
 
 ```r
-discount_factors <- 1 / (1 + 0.03)^(0:(n_cycles - 1))
-discounted_costs <- cycle_costs * discount_factors
-discounted_qalys <- cycle_qalys * discount_factors
+inc_nmb <- wtp * inc_qaly - inc_cost  # Per iteration
+mean(inc_nmb)                         # Safe to average
+mean(inc_nmb > 0)                     # P(cost-effective)
 ```
 
-. . .
-
-**Both costs AND QALYs** must be discounted, starting from year 1 (or year 0 depending on convention).
-
-## Common Pitfall 4: Hallucinated Functions
+## Common Pitfall 5: Hallucinated Functions
 
 AI sometimes invents R functions or packages that don't exist.
 
 . . .
 
-**If you see a function you don't recognize:**
-
 ```r
 ?function_name  # Try this in the R console
 ```
 
-. . .
-
-If it returns "no documentation found," the function is fake. Ask AI: "This function doesn't exist in R. What should I use instead?"
+If it returns "no documentation found," the function is fake.
 
 ## A Sensible Workflow
 
-1. **Start with workshop templates** — the .qmd files here are your foundation
-2. **Modify parameters directly** — most adaptations only need number changes
-3. **Use AI for structural changes** — adding a state, changing model type, new visualizations
-4. **ALWAYS validate** — run with known inputs, check against hand calculations
-5. **Use AI for debugging** — paste errors and get explanations
-6. **Save working code** — build your own template library
+1. **Prepare parameter file** in Excel — single source of truth
+2. **Prompt for base case** — short prompt, attach the file, name the package
+3. **Validate** — cross-check against hand calculations or Excel
+4. **Prompt for DSA + PSA** — once base case is solid
+5. **Prompt for Shiny app** — once everything is validated
+6. **Use AI for debugging** — paste errors and get explanations
+7. **Save working code** — it becomes your template for next time
 
 ## Available AI Tools for HTA Coding
 
@@ -299,20 +308,17 @@ If it returns "no documentation found," the function is fake. Ask AI: "This func
 
 ## Key Takeaway
 
-::::{.key-insight}
+**Your parameter file + validated package + AI coding = production-ready model**
 
-**AI accelerates but does not automate HTA work.**
+. . .
 
-Your expertise determines:
-- Model structure
-- Parameter choices
-- Clinical interpretation
+Your expertise determines: model structure, parameter choices, clinical interpretation.
 
-AI helps translate that expertise into **working R code more quickly**.
+AI helps translate that into working R code — **faster, not better**.
 
-Think of AI as a **very fast but occasionally unreliable research assistant** — brilliant at R syntax, but knows nothing about your clinical question.
+. . .
 
-::::
+Think of AI as a **very fast but literal-minded colleague**: it will do exactly what you ask, so ask precisely.
 
 ## Final Thought
 

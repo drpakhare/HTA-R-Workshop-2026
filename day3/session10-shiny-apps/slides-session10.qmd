@@ -69,18 +69,27 @@ Emphasize the value: interactivity + transparency. Stakeholders see exactly how 
 
 ## The 4 Shiny Apps in This Workshop
 
-1. **GDM Diagnostic Tree** — Gestational diabetes screening strategies
-2. **DES vs BMS** — Drug-eluting vs bare metal stents
-3. **CKD Markov Model** — Chronic kidney disease progression
-4. **Breast Cancer PSM** — Trastuzumab cost-effectiveness (Session 8)
+1. **GDM Diagnostic Tree** — 3 strategies, NMB ranking, real tornado DSA
+2. **DES vs BMS** — NPPA 2025 pricing, cost breakdown, break-even analysis
+3. **CKD Markov Model** — Trace plots, tornado DSA, **PSA with CE plane + CEAC**
+4. **Breast Cancer PSM** — Weibull survival, distribution comparison, NMB
 
 . . .
 
 Each is **complete, ready-to-run, and easy to modify.**
 
-:::notes
-Introduce the four templates. Each covers a different model type taught in the workshop.
-:::
+## Try the Live Apps Now
+
+| App | Link |
+|-----|------|
+| GDM Diagnostic Tree | [Open](https://019cf9b2-a07c-c07e-5962-1551244e5a72.share.connect.posit.cloud/) |
+| DES vs BMS | [Open](https://019cf9b5-46ac-590e-4233-0f24f96d7257.share.connect.posit.cloud/) |
+| CKD Markov (with PSA) | [Open](https://019cf9b3-3d70-a837-f435-c349bbc8cb98.share.connect.posit.cloud/) |
+| Breast Cancer PSM | [Open](https://019cf9b6-102e-3d69-c6d2-15e4a916bfb4.share.connect.posit.cloud/) |
+
+. . .
+
+**Try:** Adjust sliders → watch ICER/NMB update. In the Markov app, click "Run PSA" for CE plane + CEAC.
 
 ## Anatomy of a Shiny App
 

@@ -294,15 +294,21 @@ ggplot(ce_data, aes(x = inc_qaly, y = inc_cost, colour = ce_at_threshold)) +
                       labels = c("TRUE" = "Cost-effective", "FALSE" = "Not CE"),
                       name = "") +
   scale_y_continuous(labels = function(x) paste0("₹", format(round(x/1e6, 1), nsmall=1), "M")) +
+  geom_hline(yintercept = 0, colour = "grey40", linewidth = 0.4) +
+  geom_vline(xintercept = 0, colour = "grey40", linewidth = 0.4) +
+  annotate("text", x = 4, y = -3e5, label = "DOMINANT\n(cheaper + better)",
+           colour = "#2ecc71", size = 3, fontface = "bold") +
+  annotate("text", x = -0.5, y = 6e5, label = "DOMINATED",
+           colour = "#e74c3c", size = 3, fontface = "bold") +
   labs(x = "Incremental QALYs", y = "Incremental Cost (₹)",
-       title = "CE Plane: Points above the line are not cost-effective",
-       caption = "Each point = one iteration") +
+       title = "CE Plane — 4 Quadrants",
+       caption = "Each point = one PSA iteration") +
   theme_minimal() +
   theme(legend.position = "bottom")
 ```
 
 :::notes
-The CE plane shows the relationship between incremental cost and effect. The WTP line separates cost-effective (below) from not CE (above). Most points cluster below the line.
+The CE plane shows all 4 quadrants. SE = dominant, NE = standard trade-off (compare to WTP), NW = dominated, SW = cheaper but worse. The WTP line separates CE from not CE in the NE quadrant.
 :::
 
 ## Cost-Effectiveness Acceptability Curve (CEAC)
@@ -352,10 +358,12 @@ The CEAC shows how decision confidence changes with the WTP threshold. At the In
 :::{.callout-important}
 **What PSA tells decision-makers:**
 
-1. **Median/mean ICER** is our best point estimate
-2. **95% CrI** shows the plausible range
-3. **CEAC at our WTP** shows the probability the intervention is cost-effective
-4. **Wide credible intervals** mean decision is uncertain
+1. **Mean incremental NMB** — unambiguous single number (positive = adopt)
+2. **P(cost-effective)** — probability ΔNMB > 0 at given WTP
+3. **95% CrI** — plausible range of costs/QALYs
+4. **Wide intervals** = decision uncertainty → may need more evidence
+
+**Use NMB, not mean ICER** — a few extreme iterations distort ICER averages.
 :::
 
 . . .
@@ -447,21 +455,16 @@ Provide concrete numbers to anchor the discussion. The credible intervals show s
 
 ## Key Takeaways
 
-✓ PSA applies the **same methodology** to PSM as to Markov models
-
-✓ Sample parameters → run model → collect results → summarize
-
-✓ **CEAC shows probability of cost-effectiveness** at each WTP threshold
-
-✓ **CE plane visualizes cost vs effect** trade-offs for each iteration
-
-✓ **Wide credible intervals = decision uncertainty**
-
-✓ Survival parameters typically drive the most ICER uncertainty
+1. PSA applies the **same methodology** to PSM as to Markov
+2. Sample → run → collect → summarize (model-agnostic)
+3. **Report NMB** (not mean ICER) for PSA summaries
+4. **CEAC** shows P(cost-effective) across WTP thresholds
+5. **CE plane** with 4 quadrant labels shows scatter of outcomes
+6. Survival parameters (HRs) typically drive most uncertainty
 
 . . .
 
-Next: Build interactive Shiny apps so stakeholders can explore the model themselves (Session 10)
+Next: Build interactive Shiny apps (Session 10)
 
 :::notes
 Wrap up the session. Key takeaway: PSA quantifies decision uncertainty and allows us to communicate that honestly to decision-makers.

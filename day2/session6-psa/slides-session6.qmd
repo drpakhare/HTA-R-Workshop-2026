@@ -258,13 +258,15 @@ for (i in 1:5000) {
   # Store outcomes
   results_df[i, "inc_cost"] <- result$inc_cost
   results_df[i, "inc_qaly"] <- result$inc_qaly
-  results_df[i, "icer"] <- result$inc_cost / result$inc_qaly
+  results_df[i, "inc_nmb"]  <- wtp * result$inc_qaly - result$inc_cost
 }
 ```
 
 . . .
 
-**Outcome:** Data frame with 5,000 rows, each with different inc_cost, inc_qaly, ICER
+**Outcome:** 5,000 rows of inc_cost, inc_qaly, and **incremental NMB**.
+
+**Why NMB, not ICER?** A few iterations with near-zero ΔQALYs produce extreme ICERs that distort the average. NMB has no such problem.
 
 ## Cost-Effectiveness Plane Explained
 
@@ -281,10 +283,10 @@ The **CE plane** plots all 5,000 PSA iterations as points:
 :::{.column width="40%"}
 
 **Four quadrants:**
-- **Bottom-right:** Dominant (better + cheaper)
-- **Top-right:** Cost-effective if below WTP line
-- **Top-left:** Dominated (worse + costly)
-- **Bottom-left:** Dominated (worse + cheaper)
+- **Bottom-right (SE):** DOMINANT (better + cheaper)
+- **Top-right (NE):** Cost-effective if below WTP line
+- **Top-left (NW):** DOMINATED (worse + costlier)
+- **Bottom-left (SW):** Trade-off (cheaper but worse)
 
 :::
 
@@ -304,9 +306,11 @@ Points below the line are cost-effective; above are not.
 
 . . .
 
-**Method:** For each WTP threshold, calculate:
+**Method:** For each WTP threshold, calculate using **NMB**:
 
-$$\text{Prob}_{\text{CE}} = \frac{\text{# iterations with ICER < WTP}}{\text{total iterations}}$$
+$$\text{Prob}_{\text{CE}} = \frac{\text{# iterations with } \Delta\text{NMB} > 0}{\text{total iterations}}$$
+
+where ΔNMB = WTP × ΔQALYs − ΔCost (equivalent to ICER < WTP but works in all quadrants)
 
 . . .
 

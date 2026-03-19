@@ -303,25 +303,36 @@ inc_cost <- total_cost_intervention - total_cost_control
 inc_qaly <- total_qaly_intervention - total_qaly_control
 icer <- inc_cost / inc_qaly
 
-cat("Incremental Cost: ₹", format(round(inc_cost), big.mark=","), "\n")
-cat("Incremental QALYs:", round(inc_qaly, 3), "\n")
-cat("ICER: ₹", format(round(icer), big.mark=","), "/QALY\n\n")
+wtp <- 170000
 
-# Compare with WTP
-wtp_1gdp <- 170000  # ~1× GDP per capita for India
-if (icer < wtp_1gdp) {
-  cat("✓ COST-EFFECTIVE at 1× GDP per capita (₹1,70,000/QALY)\n")
-} else {
-  cat("✗ Not cost-effective at conventional thresholds\n")
-}
+# 4-quadrant interpretation (same as Session 5)
+if (inc_cost < 0 & inc_qaly > 0) {
+  cat("DOMINANT (cheaper AND better)\n")
+} else if (inc_cost > 0 & inc_qaly < 0) {
+  cat("DOMINATED\n")
+} else if (inc_cost > 0 & inc_qaly > 0) {
+  if (icer < wtp) cat("Cost-effective\n") else cat("Not CE\n")
+} else { cat("Trade-off\n") }
+
+# NMB
+inc_nmb <- wtp * inc_qaly - inc_cost
+cat("ΔNMB: ₹", format(round(inc_nmb), big.mark=","), "\n")
 ```
+
+## ICER and NMB Results
+
+**ICER ≈ ₹1,02,000/QALY** — cost-effective at WTP = ₹1,70,000
+
+. . .
+
+**ΔNMB ≈ ₹1,11,000** — positive → ADOPT
 
 . . .
 
 **Published estimate** (Shrestha et al. 2020): ₹1,34,413–₹1,78,877 per QALY
 
 :::notes
-This is the bottom line: incremental cost divided by incremental QALY. We compare against Indian WTP thresholds to inform the decision.
+Always check ΔCost and ΔQALYs signs separately. NMB gives an unambiguous answer. The ICER falls near the threshold — PSA in Session 9 will quantify decision uncertainty.
 :::
 
 ## Critical: Extrapolation Beyond Trial Data
@@ -425,23 +436,24 @@ Sum up the findings. The ICER is around the 1× GDP per capita threshold, so it'
 
 ## Key Takeaways
 
-✓ PSM separates PFS and OS directly from trial data
+1. PSM separates PFS and OS directly from trial data
+2. State occupancy: PF = PFS, PD = OS − PFS, Dead = 1 − OS
+3. HCC, discounting, ICER, NMB — same as Markov (Session 5)
+4. **Extrapolation choice matters enormously** — always test multiple distributions
+5. Apply HR by scaling λ (**proportional hazards**, not AFT)
 
-✓ State occupancy comes from the OS − PFS area relationship
+## Bonus Materials
 
-✓ Costs and QALYs accumulate by integrating under the curves
-
-✓ **Extrapolation choice (Weibull vs exponential vs log-logistic) matters enormously**
-
-✓ Always do structural sensitivity analysis on survival distributions
+- **Excel companion** — Breast-Cancer-PSM.xlsx for cross-validation
+- **Pen-and-paper worksheet** — PSM concepts by hand (state occupancy, HCC, ICER, NMB)
 
 . . .
 
-Next: Quantify parameter uncertainty with PSA (Session 9)
+→ See the **Downloads** page on the workshop website.
 
-:::notes
-Key messages. The PSM is the standard oncology approach globally. The extrapolation issue is critical and often underappreciated. PSA will show us how uncertain the ICER really is.
-:::
+---
+
+Next: Quantify parameter uncertainty with PSA (Session 9)
 
 ## References
 
