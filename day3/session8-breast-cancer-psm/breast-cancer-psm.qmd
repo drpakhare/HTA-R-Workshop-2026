@@ -201,28 +201,29 @@ prop_pf_intervention   <- pfs_intervention
 prop_pd_intervention   <- os_intervention - pfs_intervention
 prop_dead_intervention <- 1 - os_intervention
 
-cat("=== State Occupancy at Key Time Points ===\n\n")
-cat("CONTROL (Chemo alone):\n")
-cat("  Year 5:  PF =", round(prop_pf_control[6], 3),
-    "  PD =", round(prop_pd_control[6], 3),
-    "  Dead =", round(prop_dead_control[6], 3), "\n")
-cat("  Year 10: PF =", round(prop_pf_control[11], 3),
-    "  PD =", round(prop_pd_control[11], 3),
-    "  Dead =", round(prop_dead_control[11], 3), "\n")
-cat("  Year 20: PF =", round(prop_pf_control[21], 3),
-    "  PD =", round(prop_pd_control[21], 3),
-    "  Dead =", round(prop_dead_control[21], 3), "\n\n")
+library(knitr)
 
-cat("TRASTUZUMAB + CHEMO:\n")
-cat("  Year 5:  PF =", round(prop_pf_intervention[6], 3),
-    "  PD =", round(prop_pd_intervention[6], 3),
-    "  Dead =", round(prop_dead_intervention[6], 3), "\n")
-cat("  Year 10: PF =", round(prop_pf_intervention[11], 3),
-    "  PD =", round(prop_pd_intervention[11], 3),
-    "  Dead =", round(prop_dead_intervention[11], 3), "\n")
-cat("  Year 20: PF =", round(prop_pf_intervention[21], 3),
-    "  PD =", round(prop_pd_intervention[21], 3),
-    "  Dead =", round(prop_dead_intervention[21], 3), "\n")
+# State occupancy at key time points
+occ_table <- data.frame(
+  Year = c(5, 10, 20, 5, 10, 20),
+  Strategy = c(rep("Chemo Alone", 3), rep("Trastuzumab + Chemo", 3)),
+  `Progression-Free` = c(
+    round(prop_pf_control[6], 3), round(prop_pf_control[11], 3), round(prop_pf_control[21], 3),
+    round(prop_pf_intervention[6], 3), round(prop_pf_intervention[11], 3), round(prop_pf_intervention[21], 3)
+  ),
+  `Progressed Disease` = c(
+    round(prop_pd_control[6], 3), round(prop_pd_control[11], 3), round(prop_pd_control[21], 3),
+    round(prop_pd_intervention[6], 3), round(prop_pd_intervention[11], 3), round(prop_pd_intervention[21], 3)
+  ),
+  Dead = c(
+    round(prop_dead_control[6], 3), round(prop_dead_control[11], 3), round(prop_dead_control[21], 3),
+    round(prop_dead_intervention[6], 3), round(prop_dead_intervention[11], 3), round(prop_dead_intervention[21], 3)
+  ),
+  check.names = FALSE
+)
+
+kable(occ_table, align = "clrrr",
+      caption = "State occupancy (proportion) at key time points")
 ```
 
 ## State Occupancy at Key Timepoints
@@ -305,12 +306,14 @@ ggplot(state_data, aes(x = Time, y = Proportion, fill = State)) +
 
 ## Calculating Costs and QALYs
 
+You already know these steps from the Markov model in Session 5: half-cycle correction, discounting, and cost/QALY accumulation. The only difference is that the "trace" comes from survival curves rather than matrix multiplication.
+
 ```{r}
 #| label: costs-qalys
 #| echo: true
 
 # --- Half-cycle corrected state occupancy ---
-# Average proportion between start and end of each cycle
+# Same idea as Session 5: average proportion between start and end of each cycle
 hcc_pf_control   <- (prop_pf_control[1:n_cycles] + prop_pf_control[2:(n_cycles+1)]) / 2
 hcc_pd_control   <- (prop_pd_control[1:n_cycles] + prop_pd_control[2:(n_cycles+1)]) / 2
 
@@ -344,14 +347,19 @@ qaly_per_cycle_intervention <- hcc_pf_intervention * utility_pf +
 total_qaly_control <- sum(qaly_per_cycle_control * discount_factors)
 total_qaly_intervention <- sum(qaly_per_cycle_intervention * discount_factors)
 
-cat("=== Results (per patient) ===\n\n")
-cat("CONTROL (Chemo alone):\n")
-cat("  Total discounted cost: ₹", format(round(total_cost_control), big.mark = ","), "\n")
-cat("  Total discounted QALYs:", round(total_qaly_control, 3), "\n\n")
-
-cat("TRASTUZUMAB + CHEMO:\n")
-cat("  Total discounted cost: ₹", format(round(total_cost_intervention), big.mark = ","), "\n")
-cat("  Total discounted QALYs:", round(total_qaly_intervention, 3), "\n")
+kable(data.frame(
+  Strategy = c("Chemo Alone", "Trastuzumab + Chemo"),
+  `Discounted Cost (₹)` = c(
+    paste0("₹", format(round(total_cost_control), big.mark = ",")),
+    paste0("₹", format(round(total_cost_intervention), big.mark = ","))
+  ),
+  `Discounted QALYs` = c(
+    round(total_qaly_control, 3),
+    round(total_qaly_intervention, 3)
+  ),
+  check.names = FALSE
+), align = "lrr",
+   caption = "Discounted costs and QALYs per patient")
 ```
 
 ## ICER Calculation
@@ -360,28 +368,107 @@ cat("  Total discounted QALYs:", round(total_qaly_intervention, 3), "\n")
 #| label: icer
 #| echo: true
 
+library(knitr)
+
 inc_cost <- total_cost_intervention - total_cost_control
 inc_qaly <- total_qaly_intervention - total_qaly_control
 icer <- inc_cost / inc_qaly
 
-cat("=== Incremental Cost-Effectiveness ===\n\n")
-cat("Incremental cost: ₹", format(round(inc_cost), big.mark = ","), "\n")
-cat("Incremental QALYs:", round(inc_qaly, 3), "\n")
-cat("ICER: ₹", format(round(icer), big.mark = ","), "per QALY gained\n\n")
+# WTP threshold
+wtp_india <- 170000
+```
 
-# Compare with published Indian estimates
-cat("Published Indian ICER (Shrestha et al. 2020):\n")
-cat("  ₹1,34,413 to ₹1,78,877 per QALY (1-year trastuzumab)\n\n")
+### Results Summary
 
-# WTP assessment
-wtp_1gdp <- 170000
-if (icer < wtp_1gdp) {
-  cat("→ Cost-effective at 1x GDP per capita (₹1,70,000/QALY)\n")
-} else if (icer < 3 * wtp_1gdp) {
-  cat("→ Cost-effective at 3x GDP per capita (₹5,10,000/QALY)\n")
+```{r}
+#| label: results-table
+#| echo: true
+
+kable(data.frame(
+  Strategy = c("Chemo Alone", "Trastuzumab + Chemo", "Incremental"),
+  `Total Cost (₹)` = c(
+    paste0("₹", format(round(total_cost_control), big.mark = ",")),
+    paste0("₹", format(round(total_cost_intervention), big.mark = ",")),
+    paste0("₹", format(round(inc_cost), big.mark = ","))
+  ),
+  `Total QALYs` = c(
+    round(total_qaly_control, 3),
+    round(total_qaly_intervention, 3),
+    round(inc_qaly, 3)
+  ),
+  check.names = FALSE
+), align = "lrr",
+   caption = "Cost-effectiveness results (20-year horizon, 3% discounting, per patient)")
+```
+
+### ICER Interpretation
+
+```{r}
+#| label: icer-interpretation
+#| echo: true
+
+# -------------------------------------------------------
+# Handle the ICER carefully — check signs, not just the ratio
+# -------------------------------------------------------
+# Recall from Session 5: a negative ICER can mean DOMINANT or DOMINATED.
+# Always check ΔCost and ΔQALYs separately.
+
+interpretation <- if (inc_cost < 0 & inc_qaly > 0) {
+  "DOMINANT — saves costs AND improves health"
+} else if (inc_cost > 0 & inc_qaly < 0) {
+  "DOMINATED — costs more AND worsens health"
+} else if (inc_cost > 0 & inc_qaly > 0) {
+  if (icer < wtp_india) {
+    paste0("Cost-effective (ICER < WTP of ₹", format(wtp_india, big.mark = ","), ")")
+  } else if (icer < 3 * wtp_india) {
+    paste0("Cost-effective at 3× GDP/capita (₹", format(3 * wtp_india, big.mark = ","), ")")
+  } else {
+    "NOT cost-effective at conventional thresholds"
+  }
 } else {
-  cat("→ Not cost-effective at conventional thresholds\n")
+  "Trade-off: saves money but loses QALYs"
 }
+
+kable(data.frame(
+  Metric = c("Incremental Cost", "Incremental QALYs", "ICER",
+             "WTP Threshold (1× GDP/capita)",
+             "Published Indian ICER (Shrestha et al. 2020)", "Conclusion"),
+  Value = c(
+    paste0("₹", format(round(inc_cost), big.mark = ",")),
+    round(inc_qaly, 3),
+    paste0("₹", format(round(icer), big.mark = ","), " per QALY gained"),
+    paste0("₹", format(wtp_india, big.mark = ",")),
+    "₹1,34,413 to ₹1,78,877 per QALY",
+    interpretation
+  ),
+  check.names = FALSE
+), caption = "Cost-effectiveness conclusion")
+```
+
+### Net Monetary Benefit (NMB)
+
+As we learned in Session 5, the ICER can be ambiguous when it's negative. The **Net Monetary Benefit** gives an unambiguous answer: positive ΔNMB = adopt.
+
+```{r}
+#| label: nmb
+#| echo: true
+
+# NMB = WTP × QALYs − Cost
+nmb_control      <- wtp_india * total_qaly_control - total_cost_control
+nmb_intervention <- wtp_india * total_qaly_intervention - total_cost_intervention
+inc_nmb          <- nmb_intervention - nmb_control
+
+kable(data.frame(
+  Metric = c("NMB Chemo Alone", "NMB Trastuzumab + Chemo",
+             "Incremental NMB (ΔNMB)", "Decision"),
+  Value = c(
+    paste0("₹", format(round(nmb_control), big.mark = ",")),
+    paste0("₹", format(round(nmb_intervention), big.mark = ",")),
+    paste0("₹", format(round(inc_nmb), big.mark = ",")),
+    if (inc_nmb > 0) "ADOPT — positive ΔNMB" else "REJECT — negative ΔNMB"
+  ),
+  check.names = FALSE
+), caption = paste0("Net Monetary Benefit (WTP = ₹", format(wtp_india, big.mark = ","), "/QALY)"))
 ```
 
 ## The Crucial Role of Extrapolation
@@ -457,16 +544,18 @@ pf_years_intervention <- sum(hcc_pf_intervention)
 pd_years_control <- sum(hcc_pd_control)
 pd_years_intervention <- sum(hcc_pd_intervention)
 
-cat("=== Life-Year and QALY Breakdown (undiscounted, per patient) ===\n\n")
-cat("                     Chemo Alone    Trastuzumab\n")
-cat("Total life-years:   ", round(ly_control, 2), "          ",
-    round(ly_intervention, 2), "\n")
-cat("Years in PF:        ", round(pf_years_control, 2), "          ",
-    round(pf_years_intervention, 2), "\n")
-cat("Years in PD:        ", round(pd_years_control, 2), "          ",
-    round(pd_years_intervention, 2), "\n")
-cat("LY gained:          ", round(ly_intervention - ly_control, 2), "\n")
-cat("PF years gained:    ", round(pf_years_intervention - pf_years_control, 2), "\n")
+kable(data.frame(
+  Metric = c("Total life-years", "Years in PF", "Years in PD",
+             "LY gained (intervention − control)", "PF years gained"),
+  `Chemo Alone` = c(round(ly_control, 2), round(pf_years_control, 2),
+                     round(pd_years_control, 2), "—", "—"),
+  Trastuzumab = c(round(ly_intervention, 2), round(pf_years_intervention, 2),
+                   round(pd_years_intervention, 2),
+                   round(ly_intervention - ly_control, 2),
+                   round(pf_years_intervention - pf_years_control, 2)),
+  check.names = FALSE
+), align = "lrr",
+   caption = "Life-year and QALY breakdown (undiscounted, per patient)")
 ```
 
 ## Life-Years by Health State
@@ -496,15 +585,21 @@ ggplot(ly_data, aes(x = Strategy, y = Years, fill = State)) +
 
 ## What You Just Did
 
-You built a **partitioned survival model** — the standard approach for oncology HTA worldwide. The key concepts were:
+You built a **partitioned survival model** — the standard approach for oncology HTA worldwide. Building on the Markov foundations from Session 5, the key *new* concepts were:
 
-1. **Survival curve fitting** — using parametric distributions (Weibull) to represent PFS and OS
-2. **State partitioning** — deriving health state occupancy from the relationship between OS and PFS
-3. **Area-under-the-curve** — total costs and QALYs come from integrating over the survival curves
-4. **Half-cycle correction** — applied as in the Markov model
-5. **Extrapolation** — extending curves beyond trial data, with different distributions giving different answers
+1. **Survival curve fitting** — using Weibull distributions to represent PFS and OS (replaces the transition matrix)
+2. **State partitioning** — deriving health state occupancy directly from the relationship PD(t) = OS(t) − PFS(t)
+3. **Area-under-the-curve** — the PSM equivalent of the Markov trace
+4. **Extrapolation** — extending curves beyond trial data, where distribution choice alone can swing the ICER by tens of thousands of rupees
 
-The PSM approach is conceptually simpler than a Markov model for oncology because you work directly with trial survival data. However, it has limitations — it cannot easily model treatment switching, it assumes independence of PFS and OS transitions, and the extrapolation choice is often the single most influential assumption.
+And the concepts that carried over unchanged from Session 5: half-cycle correction, discounting, ICER with proper 4-quadrant interpretation, and NMB for unambiguous decision-making.
+
+The PSM is conceptually simpler than a Markov model for oncology because you work directly with trial survival data. However, it has limitations — it cannot easily model treatment switching, it assumes independence of PFS and OS transitions, and the extrapolation choice is often the single most influential assumption.
+
+::: {.callout-note}
+## PSM vs Markov: When to Use Which
+Use **PSM** when you have good survival curve data from trials and the disease has a natural PF → PD → Dead trajectory (most solid tumors). Use **Markov** when you need to model complex transitions (e.g., relapse → remission → relapse), treatment switching, or when time-in-state matters for transition probabilities. Many real-world HTA submissions use both and cross-validate.
+:::
 
 ## Key References
 

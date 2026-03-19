@@ -59,8 +59,8 @@ psm_model <- function(
 
   S_os_ctrl <- function(t) exp(-os_lambda_ctrl * t^os_gamma_ctrl)
   S_pfs_ctrl <- function(t) exp(-pfs_lambda_ctrl * t^pfs_gamma_ctrl)
-  S_os_trast <- function(t) exp(-os_lambda_ctrl * (hr_os * t)^os_gamma_ctrl)
-  S_pfs_trast <- function(t) exp(-pfs_lambda_ctrl * (hr_pfs * t)^pfs_gamma_ctrl)
+  S_os_trast <- function(t) exp(-(os_lambda_ctrl * hr_os) * t^os_gamma_ctrl)
+  S_pfs_trast <- function(t) exp(-(pfs_lambda_ctrl * hr_pfs) * t^pfs_gamma_ctrl)
 
   df <- tibble(
     time = times,

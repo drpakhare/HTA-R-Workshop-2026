@@ -127,9 +127,9 @@ psm_model <- function(
   S_os_ctrl <- function(t) exp(-os_lambda_ctrl * t^os_gamma_ctrl)
   S_pfs_ctrl <- function(t) exp(-pfs_lambda_ctrl * t^pfs_gamma_ctrl)
 
-  # Trastuzumab arm applies HRs
-  S_os_trast <- function(t) exp(-os_lambda_ctrl * (hr_os * t)^os_gamma_ctrl)
-  S_pfs_trast <- function(t) exp(-pfs_lambda_ctrl * (hr_pfs * t)^pfs_gamma_ctrl)
+  # Trastuzumab arm: scale lambda by HR (proportional hazards, matching Session 8)
+  S_os_trast <- function(t) exp(-(os_lambda_ctrl * hr_os) * t^os_gamma_ctrl)
+  S_pfs_trast <- function(t) exp(-(pfs_lambda_ctrl * hr_pfs) * t^pfs_gamma_ctrl)
 
   ## State occupancy (trapezoid rule approximation)
   df <- tibble(
@@ -315,25 +315,58 @@ cat("PSA complete!\n")
 ## PSA Results Summary
 
 ```{r}
-# Summary statistics
-cat("=== PSA Results Summary ===\n\n")
+#| label: psa-summary
+#| echo: true
 
-cat("ICER (₹/QALY):\n")
-cat("  Mean: ₹", format(round(mean(psa_results$icer, na.rm = TRUE), 0), big.mark = ","), "\n", sep = "")
-cat("  Median: ₹", format(round(median(psa_results$icer, na.rm = TRUE), 0), big.mark = ","), "\n", sep = "")
-cat("  2.5th percentile: ₹", format(round(quantile(psa_results$icer, 0.025, na.rm = TRUE), 0), big.mark = ","), "\n", sep = "")
-cat("  97.5th percentile: ₹", format(round(quantile(psa_results$icer, 0.975, na.rm = TRUE), 0), big.mark = ","), "\n", sep = "")
+library(knitr)
 
-cat("\nIncremental Cost (₹):\n")
-cat("  Mean: ₹", format(round(mean(psa_results$inc_cost), 0), big.mark = ","), "\n", sep = "")
-cat("  95% CrI: [₹", format(round(quantile(psa_results$inc_cost, 0.025), 0), big.mark = ","),
-    ", ₹", format(round(quantile(psa_results$inc_cost, 0.975), 0), big.mark = ","), "]\n", sep = "")
+wtp_threshold <- 170000
 
-cat("\nIncremental QALY:\n")
-cat("  Mean: ", round(mean(psa_results$inc_qaly), 3), "\n", sep = "")
-cat("  95% CrI: [", round(quantile(psa_results$inc_qaly, 0.025), 3),
-    ", ", round(quantile(psa_results$inc_qaly, 0.975), 3), "]\n", sep = "")
+# Compute NMB for each iteration (unambiguous, unlike ICER)
+psa_results <- psa_results %>%
+  mutate(
+    inc_nmb = wtp_threshold * inc_qaly - inc_cost
+  )
+
+# Summary table
+psa_summary <- data.frame(
+  Metric = c(
+    "Mean Incremental Cost",
+    "  95% CrI",
+    "Mean Incremental QALYs",
+    "  95% CrI",
+    "Mean ICER",
+    "Median ICER",
+    "Mean Incremental NMB",
+    "  95% CrI",
+    paste0("P(cost-effective) at WTP = ₹", format(wtp_threshold, big.mark = ",")),
+    "P(dominant)"
+  ),
+  Value = c(
+    paste0("₹", format(round(mean(psa_results$inc_cost)), big.mark = ",")),
+    paste0("[₹", format(round(quantile(psa_results$inc_cost, 0.025)), big.mark = ","),
+           " to ₹", format(round(quantile(psa_results$inc_cost, 0.975)), big.mark = ","), "]"),
+    round(mean(psa_results$inc_qaly), 3),
+    paste0("[", round(quantile(psa_results$inc_qaly, 0.025), 3),
+           " to ", round(quantile(psa_results$inc_qaly, 0.975), 3), "]"),
+    paste0("₹", format(round(mean(psa_results$icer, na.rm = TRUE)), big.mark = ",")),
+    paste0("₹", format(round(median(psa_results$icer, na.rm = TRUE)), big.mark = ",")),
+    paste0("₹", format(round(mean(psa_results$inc_nmb)), big.mark = ",")),
+    paste0("[₹", format(round(quantile(psa_results$inc_nmb, 0.025)), big.mark = ","),
+           " to ₹", format(round(quantile(psa_results$inc_nmb, 0.975)), big.mark = ","), "]"),
+    paste0(round(mean(psa_results$inc_nmb > 0) * 100, 1), "%"),
+    paste0(round(mean(psa_results$inc_cost < 0 & psa_results$inc_qaly > 0) * 100, 1), "%")
+  ),
+  check.names = FALSE
+)
+
+kable(psa_summary, caption = paste0("PSA summary (", n_iterations, " iterations)"))
 ```
+
+::: {.callout-tip}
+## Why NMB in PSA?
+Recall from Session 5: you can't meaningfully average ICERs across PSA iterations — a few extreme values (near-zero denominators) can distort the mean. The **incremental NMB** (ΔNMB = WTP × ΔQALYs − ΔCost) has no such problem. A positive mean ΔNMB means the intervention is cost-effective on average. The CEAC below is also based on NMB: at each WTP, it counts what fraction of iterations have ΔNMB > 0.
+:::
 
 ## ICER Distribution
 
@@ -452,15 +485,15 @@ p_ceac <- ggplot(ceac_df, aes(x = wtp, y = prob_ce)) +
 print(p_ceac)
 ```
 
-## Key findings
+## Key Findings
 
-1. **ICER distribution**: The PSA reveals considerable uncertainty in the ICER. The 95% credible interval is wide, reflecting parameter uncertainty.
+1. **NMB over ICER for PSA**: The mean incremental NMB gives an unambiguous answer — positive means adopt. Unlike the ICER, NMB can be safely averaged and compared across iterations without distortion from extreme values.
 
-2. **Cost-effectiveness at ₹170,000/QALY**: We can calculate the exact probability that trastuzumab is cost-effective at the 1× GDP per capita threshold.
+2. **Cost-effectiveness at ₹170,000/QALY**: The P(cost-effective) directly answers the decision-maker's question: "Given our uncertainty, how confident can we be that this is a good investment?"
 
-3. **Uncertainty drivers**: Survival uncertainty (reflected in the hazard ratio distributions) has the largest impact on ICER uncertainty. Cost uncertainty, while substantial, has smaller effect.
+3. **Uncertainty drivers**: Survival uncertainty (hazard ratio distributions) drives most of the ICER/NMB spread. Cost uncertainty is substantial but has a smaller effect — this tells us where to invest in better data.
 
-4. **Decision robustness**: The wide credible interval suggests decision-makers should recognize decision uncertainty when recommending or funding the intervention.
+4. **Decision robustness**: If P(cost-effective) > 80%, the evidence is strong. If 50–80%, there's meaningful decision uncertainty. Below 50%, the intervention is probably not cost-effective at that WTP.
 
 ## Comparison with Session 6 PSA
 
