@@ -10,22 +10,22 @@ ui <- fluidPage(
       h3("Treatment Effects (Hazard Ratios)"),
 
       sliderInput("hr_os", "HR for Overall Survival:",
-                  min = 0.4, max = 1.0, value = 0.75, step = 0.05),
+                  min = 0.4, max = 1.0, value = 0.70, step = 0.05),
 
       sliderInput("hr_pfs", "HR for Progression-Free Survival:",
-                  min = 0.3, max = 1.0, value = 0.60, step = 0.05),
+                  min = 0.3, max = 1.0, value = 0.50, step = 0.05),
 
       hr(),
       h3("Cost Parameters (₹)"),
 
       sliderInput("cost_trastuzumab_y1", "Trastuzumab cost, Year 1 (12 months):",
-                  min = 100000, max = 600000, value = 350000, step = 50000),
+                  min = 100000, max = 600000, value = 420000, step = 50000),
 
       sliderInput("cost_trastuzumab_oy", "Trastuzumab cost, Other years (annual):",
-                  min = 50000, max = 300000, value = 150000, step = 25000),
+                  min = 5000, max = 300000, value = 25000, step = 25000),
 
       sliderInput("cost_pd", "Annual cost, Progressive Disease state (₹):",
-                  min = 50000, max = 300000, value = 150000, step = 25000),
+                  min = 50000, max = 300000, value = 180000, step = 25000),
 
       sliderInput("cost_ae", "Cost of Adverse Events (per patient):",
                   min = 10000, max = 100000, value = 50000, step = 10000),
@@ -34,10 +34,19 @@ ui <- fluidPage(
       h3("Quality of Life (Utilities)"),
 
       sliderInput("util_pfs", "Utility in PFS state:",
-                  min = 0.6, max = 1.0, value = 0.85, step = 0.05),
+                  min = 0.6, max = 1.0, value = 0.80, step = 0.05),
 
       sliderInput("util_pd", "Utility in PD state:",
-                  min = 0.3, max = 0.8, value = 0.50, step = 0.05),
+                  min = 0.3, max = 0.8, value = 0.55, step = 0.05),
+
+      hr(),
+      h3("Survival Curve Shape (Weibull)"),
+
+      sliderInput("os_gamma", "OS shape parameter (gamma):",
+                  min = 0.8, max = 1.5, value = 1.15, step = 0.05),
+
+      sliderInput("pfs_gamma", "PFS shape parameter (gamma):",
+                  min = 0.8, max = 1.5, value = 1.05, step = 0.05),
 
       hr(),
       h3("Model Parameters"),
@@ -47,6 +56,12 @@ ui <- fluidPage(
 
       sliderInput("discount_rate", "Annual discount rate:",
                   min = 0.00, max = 0.10, value = 0.03, step = 0.01),
+
+      hr(),
+      h3("Cost-Effectiveness Threshold"),
+
+      sliderInput("wtp_threshold", "WTP Threshold (₹/QALY):",
+                  min = 50000, max = 500000, value = 170000, step = 10000),
 
       width = 3
     ),
@@ -97,22 +112,27 @@ server <- function(input, output) {
     horizon <- input$time_horizon
     discount <- input$discount_rate
 
-    # Baseline survival parameters (simplified exponential survival curves)
-    # These represent OS and PFS for control arm
-    lambda_os_control <- 0.08  # Annual hazard for OS in control
-    lambda_pfs_control <- 0.15 # Annual hazard for PFS in control
+    # Weibull shape parameters
+    os_gamma <- input$os_gamma
+    pfs_gamma <- input$pfs_gamma
 
-    # Treatment arm: adjusted by HRs
+    # Baseline survival parameters (Weibull model)
+    # These represent OS and PFS for control arm
+    lambda_os_control <- 0.045  # Baseline hazard for OS in control
+    lambda_pfs_control <- 0.12  # Baseline hazard for PFS in control
+
+    # Treatment arm: adjusted by HRs (proportional hazards)
     lambda_os_treatment <- lambda_os_control * hr_os
     lambda_pfs_treatment <- lambda_pfs_control * hr_pfs
 
-    # Calculate survival probabilities at each time point
+    # Calculate survival probabilities at each time point using Weibull
+    # S(t) = exp(-lambda * t^gamma)
     time_points <- 0:horizon
-    s_pfs_control <- exp(-lambda_pfs_control * time_points)
-    s_pfs_treatment <- exp(-lambda_pfs_treatment * time_points)
+    s_pfs_control <- exp(-lambda_pfs_control * time_points ^ pfs_gamma)
+    s_pfs_treatment <- exp(-lambda_pfs_treatment * time_points ^ pfs_gamma)
 
-    s_os_control <- exp(-lambda_os_control * time_points)
-    s_os_treatment <- exp(-lambda_os_treatment * time_points)
+    s_os_control <- exp(-lambda_os_control * time_points ^ os_gamma)
+    s_os_treatment <- exp(-lambda_os_treatment * time_points ^ os_gamma)
 
     # Partitioned survival: state occupancy
     # PFS state: alive and progression-free
@@ -171,7 +191,9 @@ server <- function(input, output) {
       lambda_os_control = lambda_os_control,
       lambda_os_treatment = lambda_os_treatment,
       lambda_pfs_control = lambda_pfs_control,
-      lambda_pfs_treatment = lambda_pfs_treatment
+      lambda_pfs_treatment = lambda_pfs_treatment,
+      os_gamma = os_gamma,
+      pfs_gamma = pfs_gamma
     )
   })
 
@@ -282,6 +304,7 @@ server <- function(input, output) {
 
   output$icer_table <- renderTable({
     psm_results <- calc_psm()
+    wtp <- input$wtp_threshold
 
     inc_cost <- psm_results$cost_treatment - psm_results$cost_control
     inc_qaly <- psm_results$qaly_treatment - psm_results$qaly_control
@@ -293,20 +316,31 @@ server <- function(input, output) {
       icer_text <- "Undefined"
     }
 
+    # Calculate NMB
+    nmb <- wtp * inc_qaly - inc_cost
+
     icer_df <- data.frame(
       Comparison = "Treatment vs Control",
       Incremental_Cost = paste("₹", format(round(inc_cost, 0), big.mark = ",")),
       Incremental_QALYs = format(round(inc_qaly, 2), nsmall = 2),
       ICER = icer_text,
+      NMB = paste("₹", format(round(nmb, 0), big.mark = ",")),
       stringsAsFactors = FALSE
     )
 
     if (inc_cost < 0 & inc_qaly > 0) {
-      icer_df$Interpretation <- "Treatment Dominant"
+      icer_df$Interpretation <- "DOMINANT (cheaper + better)"
     } else if (inc_cost > 0 & inc_qaly < 0) {
-      icer_df$Interpretation <- "Control Dominant"
+      icer_df$Interpretation <- "DOMINATED (costlier + worse)"
+    } else if (inc_cost > 0 & inc_qaly > 0) {
+      icer_val <- inc_cost / inc_qaly
+      if (icer_val < wtp) {
+        icer_df$Interpretation <- "Cost-effective"
+      } else {
+        icer_df$Interpretation <- "Not cost-effective"
+      }
     } else {
-      icer_df$Interpretation <- "Trade-off"
+      icer_df$Interpretation <- "Trade-off (cheaper but worse)"
     }
 
     icer_df
@@ -315,40 +349,45 @@ server <- function(input, output) {
   output$distribution_comparison <- renderPlot({
     psm_results <- calc_psm()
 
-    # Compare Weibull and Exponential fitting
-    # For demonstration, fit both to the OS curve
+    # Compare Weibull, Exponential, and Log-logistic distributions
+    # For OS curve
     time_pts <- psm_results$time_points
     s_os_control <- psm_results$s_os_control
+    lambda <- psm_results$lambda_os_control
+    gamma <- psm_results$os_gamma
 
     # Exponential: S(t) = exp(-lambda*t)
-    s_exponential <- exp(-psm_results$lambda_os_control * time_pts)
+    s_exponential <- exp(-lambda * time_pts)
 
-    # Weibull approximation with shape parameter
-    shape <- 1.2
-    scale <- 1 / (psm_results$lambda_os_control ^ (1 / shape))
-    s_weibull <- exp(-(time_pts / scale) ^ shape)
+    # Weibull: S(t) = exp(-lambda * t^gamma)
+    s_weibull <- exp(-lambda * time_pts ^ gamma)
+
+    # Log-logistic: S(t) = 1 / (1 + (lambda * t)^gamma)
+    s_loglogistic <- 1 / (1 + (lambda * time_pts) ^ gamma)
 
     dist_df <- data.frame(
-      Time = rep(time_pts, 3),
-      Survival = c(s_os_control, s_exponential, s_weibull),
-      Distribution = rep(c("Baseline Data", "Exponential Fit", "Weibull Fit"),
+      Time = rep(time_pts, 4),
+      Survival = c(s_os_control, s_exponential, s_weibull, s_loglogistic),
+      Distribution = rep(c("Baseline (Weibull)", "Exponential", "Weibull", "Log-logistic"),
                         each = length(time_pts))
     )
 
     ggplot(dist_df, aes(x = Time, y = Survival, color = Distribution, linetype = Distribution)) +
       geom_line(size = 1.2) +
       scale_color_manual(values = c(
-        "Baseline Data" = "#2E86AB",
-        "Exponential Fit" = "#F18F01",
-        "Weibull Fit" = "#A23B72"
+        "Baseline (Weibull)" = "#2E86AB",
+        "Exponential" = "#F18F01",
+        "Weibull" = "#A23B72",
+        "Log-logistic" = "#1B998B"
       )) +
       scale_linetype_manual(values = c(
-        "Baseline Data" = "solid",
-        "Exponential Fit" = "dashed",
-        "Weibull Fit" = "dotted"
+        "Baseline (Weibull)" = "solid",
+        "Exponential" = "dashed",
+        "Weibull" = "dotted",
+        "Log-logistic" = "twodash"
       )) +
       scale_y_continuous(labels = scales::percent) +
-      labs(title = "Distribution Fitting: Exponential vs Weibull",
+      labs(title = "Distribution Comparison: Exponential, Weibull, and Log-logistic",
            subtitle = "Comparison of OS survival distributions",
            x = "Time (years)",
            y = "Overall Survival Probability",

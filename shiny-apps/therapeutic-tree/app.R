@@ -10,10 +10,10 @@ ui <- fluidPage(
       h3("Stent Cost Parameters (₹)"),
 
       sliderInput("cost_des_stent", "Cost of DES stent:",
-                  min = 10000, max = 80000, value = 50000, step = 5000),
+                  min = 10000, max = 80000, value = 38933, step = 5000),
 
       sliderInput("cost_bms_stent", "Cost of BMS stent:",
-                  min = 5000, max = 30000, value = 15000, step = 2000),
+                  min = 5000, max = 30000, value = 10693, step = 2000),
 
       hr(),
       h3("Clinical Event Probabilities"),
@@ -25,19 +25,40 @@ ui <- fluidPage(
                   min = 0.05, max = 0.40, value = 0.20, step = 0.01),
 
       sliderInput("p_mace_des", "P(MACE | DES):",
-                  min = 0.05, max = 0.25, value = 0.12, step = 0.01),
+                  min = 0.05, max = 0.25, value = 0.08, step = 0.01),
 
       sliderInput("p_mace_bms", "P(MACE | BMS):",
-                  min = 0.10, max = 0.35, value = 0.18, step = 0.01),
+                  min = 0.10, max = 0.35, value = 0.15, step = 0.01),
 
       hr(),
-      h3("Additional Costs (₹)"),
+      h3("Procedure and Additional Costs (₹)"),
+
+      sliderInput("cost_pci_procedure", "PCI procedure cost:",
+                  min = 50000, max = 200000, value = 120000, step = 10000),
+
+      sliderInput("cost_dapt_des", "DAPT cost, DES (annual):",
+                  min = 2000, max = 20000, value = 8000, step = 1000),
+
+      sliderInput("cost_dapt_bms", "DAPT cost, BMS (annual):",
+                  min = 1000, max = 10000, value = 3000, step = 500),
+
+      sliderInput("cost_followup", "Annual follow-up cost:",
+                  min = 1000, max = 20000, value = 5000, step = 1000),
+
+      hr(),
+      h3("Event Costs (₹)"),
 
       sliderInput("cost_repeat_revasc", "Cost of repeat revascularization:",
                   min = 10000, max = 100000, value = 50000, step = 5000),
 
       sliderInput("cost_mace", "Cost of MACE (hospitalization, intervention):",
                   min = 50000, max = 500000, value = 200000, step = 25000),
+
+      hr(),
+      h3("Cost-Effectiveness Threshold"),
+
+      sliderInput("wtp_threshold", "WTP Threshold (₹/QALY):",
+                  min = 50000, max = 500000, value = 170000, step = 10000),
 
       width = 3
     ),
@@ -79,7 +100,13 @@ server <- function(input, output) {
     p_mace_des <- input$p_mace_des
     p_mace_bms <- input$p_mace_bms
 
-    # Additional costs
+    # Procedure and maintenance costs
+    cost_pci <- input$cost_pci_procedure
+    cost_dapt_des <- input$cost_dapt_des
+    cost_dapt_bms <- input$cost_dapt_bms
+    cost_followup <- input$cost_followup
+
+    # Event costs
     cost_repeat_revasc <- input$cost_repeat_revasc
     cost_mace <- input$cost_mace
 
@@ -87,21 +114,30 @@ server <- function(input, output) {
     # In a full model, MACE and restenosis would reduce utility
     utility <- 1.0
 
-    # DES Strategy
-    cost_des_strategy <- cost_des +
+    # DES Strategy (includes PCI procedure, stent, DAPT, follow-up, and event costs)
+    cost_des_strategy <- cost_pci +
+                        cost_des +
+                        cost_dapt_des +
+                        cost_followup +
                         p_restenosis_des * cost_repeat_revasc +
                         p_mace_des * cost_mace
     qaly_des <- utility * (1 - 0.05 * p_mace_des) # Small utility decrement for MACE
 
-    # BMS Strategy
-    cost_bms_strategy <- cost_bms +
+    # BMS Strategy (includes PCI procedure, stent, DAPT, follow-up, and event costs)
+    cost_bms_strategy <- cost_pci +
+                        cost_bms +
+                        cost_dapt_bms +
+                        cost_followup +
                         p_restenosis_bms * cost_repeat_revasc +
                         p_mace_bms * cost_mace
     qaly_bms <- utility * (1 - 0.05 * p_mace_bms)
 
     data.frame(
       Strategy = c("DES", "BMS"),
+      PCI_Cost = c(cost_pci, cost_pci),
       Stent_Cost = c(cost_des, cost_bms),
+      DAPT_Cost = c(cost_dapt_des, cost_dapt_bms),
+      Followup_Cost = c(cost_followup, cost_followup),
       Restenosis_Cost = c(p_restenosis_des * cost_repeat_revasc,
                          p_restenosis_bms * cost_repeat_revasc),
       MACE_Cost = c(p_mace_des * cost_mace,
@@ -125,6 +161,7 @@ server <- function(input, output) {
 
   output$incremental_table <- renderTable({
     results <- calc_outcomes()
+    wtp <- input$wtp_threshold
 
     # Calculate incremental cost-effectiveness (DES vs BMS)
     inc_cost <- results$Total_Cost[1] - results$Total_Cost[2]
@@ -137,20 +174,31 @@ server <- function(input, output) {
       icer_text <- "Undefined (equal effectiveness)"
     }
 
+    # Calculate NMB
+    nmb <- wtp * inc_qaly - inc_cost
+
     inc_df <- data.frame(
       Comparison = "DES vs BMS",
       Incremental_Cost = paste("₹", format(round(inc_cost, 0), big.mark = ",")),
       Incremental_QALY = format(round(inc_qaly, 4), nsmall = 4),
       ICER = icer_text,
+      NMB = paste("₹", format(round(nmb, 0), big.mark = ",")),
       stringsAsFactors = FALSE
     )
 
     if (inc_cost < 0 & inc_qaly > 0) {
-      inc_df$Interpretation <- "DES Dominant"
+      inc_df$Interpretation <- "DOMINANT (DES cheaper + better)"
     } else if (inc_cost > 0 & inc_qaly < 0) {
-      inc_df$Interpretation <- "BMS Dominant"
+      inc_df$Interpretation <- "DOMINATED (DES costlier + worse)"
+    } else if (inc_cost > 0 & inc_qaly > 0) {
+      icer_val <- inc_cost / inc_qaly
+      if (icer_val < wtp) {
+        inc_df$Interpretation <- "Cost-effective"
+      } else {
+        inc_df$Interpretation <- "Not cost-effective"
+      }
     } else {
-      inc_df$Interpretation <- "Trade-off"
+      inc_df$Interpretation <- "Trade-off (cheaper but worse)"
     }
 
     inc_df
@@ -159,25 +207,45 @@ server <- function(input, output) {
   output$cost_breakdown <- renderPlot({
     results <- calc_outcomes()
 
-    # Prepare data for stacked bar chart
+    # Prepare data for stacked bar chart with all cost components
     cost_data <- data.frame(
-      Strategy = c("DES", "DES", "DES", "BMS", "BMS", "BMS"),
-      Component = c("Stent", "Restenosis", "MACE", "Stent", "Restenosis", "MACE"),
-      Cost = c(results$Stent_Cost[1],
+      Strategy = c("DES", "DES", "DES", "DES", "DES", "DES", "DES",
+                   "BMS", "BMS", "BMS", "BMS", "BMS", "BMS", "BMS"),
+      Component = c("PCI Procedure", "Stent", "DAPT", "Follow-up", "Restenosis", "MACE", "Margin",
+                    "PCI Procedure", "Stent", "DAPT", "Follow-up", "Restenosis", "MACE", "Margin"),
+      Cost = c(results$PCI_Cost[1],
+               results$Stent_Cost[1],
+               results$DAPT_Cost[1],
+               results$Followup_Cost[1],
                results$Restenosis_Cost[1],
                results$MACE_Cost[1],
+               pmax(0, results$Total_Cost[1] - (results$PCI_Cost[1] + results$Stent_Cost[1] +
+                                                 results$DAPT_Cost[1] + results$Followup_Cost[1] +
+                                                 results$Restenosis_Cost[1] + results$MACE_Cost[1])),
+               results$PCI_Cost[2],
                results$Stent_Cost[2],
+               results$DAPT_Cost[2],
+               results$Followup_Cost[2],
                results$Restenosis_Cost[2],
-               results$MACE_Cost[2])
+               results$MACE_Cost[2],
+               pmax(0, results$Total_Cost[2] - (results$PCI_Cost[2] + results$Stent_Cost[2] +
+                                                 results$DAPT_Cost[2] + results$Followup_Cost[2] +
+                                                 results$Restenosis_Cost[2] + results$MACE_Cost[2])))
     )
 
     cost_data$Component <- factor(cost_data$Component,
-                                  levels = c("Stent", "Restenosis", "MACE"))
+                                  levels = c("PCI Procedure", "Stent", "DAPT", "Follow-up", "Restenosis", "MACE", "Margin"))
 
     ggplot(cost_data, aes(x = Strategy, y = Cost, fill = Component)) +
       geom_col(position = "stack") +
       scale_y_continuous(labels = function(x) paste("₹", format(x, big.mark = ","))) +
-      scale_fill_manual(values = c("Stent" = "#1B998B", "Restenosis" = "#F77F00", "MACE" = "#D62828")) +
+      scale_fill_manual(values = c("PCI Procedure" = "#2E86AB",
+                                    "Stent" = "#1B998B",
+                                    "DAPT" = "#06A77D",
+                                    "Follow-up" = "#A23B72",
+                                    "Restenosis" = "#F77F00",
+                                    "MACE" = "#D62828",
+                                    "Margin" = "#E8E8E8")) +
       labs(title = "Cost Breakdown by Component",
            x = "Stent Type",
            y = "Cost (₹)") +
