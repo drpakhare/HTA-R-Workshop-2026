@@ -23,13 +23,13 @@ Beyond interactivity, Shiny apps provide transparency and reproducibility. Every
 
 This workshop includes four complete, ready-to-use Shiny app templates, each implementing a different type of HTA model:
 
-1. **GDM Diagnostic Decision Tree** - A model for screening and diagnosis of gestational diabetes, comparing universal screening, risk-based screening, and no screening strategies.
+1. **GDM Diagnostic Decision Tree** — Universal vs risk-based vs no screening for gestational diabetes. Features NMB ranking, real tornado DSA, and CE plane.
 
-2. **DES vs BMS Therapeutic Decision Tree** - A comparison of two drug-eluting stent (DES) versus bare metal stent (BMS) strategies for coronary intervention, analyzing costs, restenosis rates, and major adverse cardiac events.
+2. **DES vs BMS Therapeutic Decision Tree** — Drug-eluting vs bare metal stents with NPPA 2025 pricing. Features cost breakdown, break-even analysis, and NMB.
 
-3. **CKD Markov Model** - A 4-state Markov model tracking patients through chronic kidney disease stages, with treatment effects and long-term cost-effectiveness analysis.
+3. **CKD Markov Model (with PSA)** — 4-state Markov model with treatment effects, tornado DSA, and **1,000-iteration PSA** producing CE plane with 4-quadrant labels and CEAC.
 
-4. **Breast Cancer Partitioned Survival Model** - A partitioned survival model comparing treatment strategies for breast cancer, with hazard ratios for overall survival and progression-free survival.
+4. **Breast Cancer Partitioned Survival Model** — Weibull survival curves with trastuzumab hazard ratios, distribution comparison (Weibull vs Exponential vs Log-logistic), and NMB.
 
 ## How to Run a Shiny App Locally
 

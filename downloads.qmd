@@ -81,7 +81,7 @@ These are standalone R Shiny applications. To run them:
 
 | App | Description |
 |---|---|
-| [Diagnostic Tree app.R](shiny-apps/diagnostic-tree/app.R) | Interactive GDM screening model with parameter sliders |
-| [Therapeutic Tree app.R](shiny-apps/therapeutic-tree/app.R) | Interactive DES vs BMS model with cost breakdown charts |
-| [Markov Model app.R](shiny-apps/markov-model/app.R) | Interactive CKD Markov model with trace plots |
-| [Partitioned Survival app.R](shiny-apps/partitioned-survival/app.R) | Interactive breast cancer PSM with survival curve fitting |
+| [Diagnostic Tree app.R](shiny-apps/diagnostic-tree/app.R) | GDM screening: 3 strategies, NMB ranking, real tornado DSA, CE plane |
+| [Therapeutic Tree app.R](shiny-apps/therapeutic-tree/app.R) | DES vs BMS: cost breakdown, break-even analysis, NMB |
+| [Markov Model app.R](shiny-apps/markov-model/app.R) | CKD Markov: trace plots, tornado DSA, **PSA with CE plane + CEAC** |
+| [Partitioned Survival app.R](shiny-apps/partitioned-survival/app.R) | Breast cancer PSM: Weibull survival, distribution comparison, NMB |

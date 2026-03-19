@@ -254,6 +254,31 @@ icer_univ_vs_risk <- (total_cost_universal - total_cost_risk) /
                      (total_qaly_universal - total_qaly_risk)
 ```
 
+## Interpreting the ICER — 4 Quadrants
+
+A negative ICER can mean **two opposite things**:
+
+| | ΔQALYs > 0 (better) | ΔQALYs < 0 (worse) |
+|---|---|---|
+| **ΔCost > 0** | NE: compare to WTP | **DOMINATED** |
+| **ΔCost < 0** | **DOMINANT** | Trade-off |
+
+. . .
+
+**Always check the signs of ΔCost and ΔQALYs separately!**
+
+## Net Monetary Benefit (NMB)
+
+NMB removes the ICER ambiguity. Positive ΔNMB = adopt.
+
+$$\text{NMB} = \text{WTP} \times \text{QALYs} - \text{Cost}$$
+
+. . .
+
+**Highest NMB = optimal strategy** — works for any number of comparators.
+
+No more pairwise ICER confusion with 3+ strategies.
+
 ## Key Insight: Trade-offs
 
 **Universal screening:**
@@ -275,13 +300,12 @@ icer_univ_vs_risk <- (total_cost_universal - total_cost_risk) /
 
 ## What You Just Did
 
-Without writing any code from scratch, you followed a complete **diagnostic decision tree analysis**:
-
 1. ✓ Defined clinical question using Indian epidemiological data
 2. ✓ Structured decision tree with three screening strategies
 3. ✓ Populated it with parameters from published Indian literature
-4. ✓ Calculated costs, QALYs, and ICERs for each strategy
-5. ✓ Visualised results on cost-effectiveness plane
+4. ✓ Calculated costs, QALYs, ICERs with 4-quadrant interpretation
+5. ✓ Computed NMB ranking across all strategies
+6. ✓ Visualised results on cost-effectiveness plane
 
 ## The Power of R
 
@@ -308,3 +332,15 @@ A diagnostic decision tree is a **reusable template**:
 . . .
 
 Every diagnostic HTA follows this structure — just with different parameters.
+
+## Bonus: rdecision Package
+
+The same GDM model rebuilt with the `rdecision` package:
+
+- **Object-oriented tree** — DecisionNode, ChanceNode, LeafNode
+- **Built-in PSA** — Monte Carlo simulation with 1,000 iterations
+- **CE plane + CEAC** — decision uncertainty visualised
+
+. . .
+
+→ See the **Session 3 Bonus** page on the workshop website.
