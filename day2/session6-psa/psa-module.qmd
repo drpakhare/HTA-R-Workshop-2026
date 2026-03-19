@@ -527,6 +527,8 @@ cat("PSA complete.\n")
 ```{r}
 #| label: psa-summary-ckd
 
+library(knitr)
+
 # Calculate summary statistics
 mean_icer <- mean(psa_results$icer)
 median_icer <- median(psa_results$icer)
@@ -536,18 +538,31 @@ upper_ci_icer <- quantile(psa_results$icer, 0.975)
 mean_inc_cost <- mean(psa_results$inc_cost)
 mean_inc_qaly <- mean(psa_results$inc_qaly)
 
-cat("======================================\n")
-cat("CKD Markov Model PSA Results (5,000 iterations)\n")
-cat("======================================\n\n")
+# Create summary table
+summary_table <- data.frame(
+  Metric = c(
+    "Mean Incremental Cost",
+    "Mean Incremental QALY",
+    "Mean ICER",
+    "Median ICER",
+    "95% Credible Interval (Lower)",
+    "95% Credible Interval (Upper)",
+    "WTP Threshold"
+  ),
+  Value = c(
+    paste0("₹", format(round(mean_inc_cost), big.mark = ",")),
+    format(round(mean_inc_qaly, 2), big.mark = ","),
+    paste0("₹", format(round(mean_icer), big.mark = ","), "/QALY"),
+    paste0("₹", format(round(median_icer), big.mark = ","), "/QALY"),
+    paste0("₹", format(round(lower_ci_icer), big.mark = ",")),
+    paste0("₹", format(round(upper_ci_icer), big.mark = ",")),
+    "₹170,000/QALY"
+  )
+)
 
-cat("Mean Incremental Cost:    ", format(round(mean_inc_cost), big.mark=","), " ₹\n")
-cat("Mean Incremental QALY:    ", format(round(mean_inc_qaly, 2), big.mark=","), "\n")
-cat("Mean ICER:                ", format(round(mean_icer), big.mark=","), " ₹/QALY\n")
-cat("Median ICER:              ", format(round(median_icer), big.mark=","), " ₹/QALY\n")
-cat("95% Credible Interval:    ₹", format(round(lower_ci_icer), big.mark=","),
-    " to ₹", format(round(upper_ci_icer), big.mark=","), "\n\n")
-
-cat("WTP Threshold:            ₹170,000 per QALY\n")
+kable(summary_table,
+      caption = "CKD Markov Model PSA Results (5,000 iterations)",
+      format = "html")
 ```
 
 ```{r}
@@ -676,9 +691,34 @@ ceac_plot <- ggplot(ceac_data, aes(x = wtp, y = prob_cost_effective)) +
 print(ceac_plot)
 
 # Calculate probability at the ₹170,000 threshold
-prob_ce_at_170k <- mean((psa_results$inc_qaly * 170000 - psa_results$inc_cost) > 0)
-cat("\n\nAt WTP = ₹170,000/QALY:\n")
-cat(sprintf("Probability that intervention is cost-effective: %.1f%%\n", prob_ce_at_170k * 100))
+wtp_threshold <- 170000
+nmb_at_threshold <- psa_results$inc_qaly * wtp_threshold - psa_results$inc_cost
+prob_ce_at_170k <- mean(nmb_at_threshold > 0)
+mean_nmb_at_170k <- mean(nmb_at_threshold)
+lower_ci_nmb <- quantile(nmb_at_threshold, 0.025)
+upper_ci_nmb <- quantile(nmb_at_threshold, 0.975)
+
+# Create summary table for NMB at WTP threshold
+nmb_summary <- data.frame(
+  Metric = c(
+    "Willingness-to-Pay Threshold",
+    "Mean Net Monetary Benefit (NMB)",
+    "Probability Cost-Effective",
+    "95% CI for NMB (Lower)",
+    "95% CI for NMB (Upper)"
+  ),
+  Value = c(
+    paste0("₹", format(wtp_threshold, big.mark = ",")),
+    paste0("₹", format(round(mean_nmb_at_170k), big.mark = ",")),
+    paste0(sprintf("%.1f%%", prob_ce_at_170k * 100)),
+    paste0("₹", format(round(lower_ci_nmb), big.mark = ",")),
+    paste0("₹", format(round(upper_ci_nmb), big.mark = ","))
+  )
+)
+
+kable(nmb_summary,
+      caption = "Net Monetary Benefit Analysis at WTP = ₹170,000/QALY",
+      format = "html")
 ```
 
 ## PSA Applied to DES vs BMS Decision Tree
@@ -912,11 +952,45 @@ ceac_plot_des_bms <- ggplot(ceac_data_des_bms, aes(x = wtp, y = prob_cost_effect
 library(gridExtra)
 grid.arrange(ce_plane_des_bms, ceac_plot_des_bms, ncol = 2)
 
-# Summary
+# Summary table
+mean_icer_des_bms <- mean(psa_des_bms$icer)
+median_icer_des_bms <- median(psa_des_bms$icer)
+lower_ci_icer_des_bms <- quantile(psa_des_bms$icer, 0.025)
+upper_ci_icer_des_bms <- quantile(psa_des_bms$icer, 0.975)
+
+mean_inc_cost_des_bms <- mean(psa_des_bms$inc_cost)
+mean_inc_qaly_des_bms <- mean(psa_des_bms$inc_qaly)
+
 prob_des_ce_at_170k <- mean((psa_des_bms$inc_qaly * 170000 - psa_des_bms$inc_cost) > 0)
-cat("\n\nDES vs BMS at WTP = ₹170,000/QALY:\n")
-cat(sprintf("Mean ICER: ₹%s/QALY\n", format(round(mean(psa_des_bms$icer)), big.mark=",")))
-cat(sprintf("Probability that DES is cost-effective: %.1f%%\n", prob_des_ce_at_170k * 100))
+nmb_des_at_170k <- psa_des_bms$inc_qaly * 170000 - psa_des_bms$inc_cost
+mean_nmb_des_170k <- mean(nmb_des_at_170k)
+
+summary_table_des_bms <- data.frame(
+  Metric = c(
+    "Mean Incremental Cost",
+    "Mean Incremental QALY",
+    "Mean ICER",
+    "Median ICER",
+    "95% Credible Interval (Lower)",
+    "95% Credible Interval (Upper)",
+    "Mean NMB at ₹170,000/QALY",
+    "Probability Cost-Effective at ₹170,000/QALY"
+  ),
+  Value = c(
+    paste0("₹", format(round(mean_inc_cost_des_bms), big.mark = ",")),
+    format(round(mean_inc_qaly_des_bms, 2), big.mark = ","),
+    paste0("₹", format(round(mean_icer_des_bms), big.mark = ","), "/QALY"),
+    paste0("₹", format(round(median_icer_des_bms), big.mark = ","), "/QALY"),
+    paste0("₹", format(round(lower_ci_icer_des_bms), big.mark = ",")),
+    paste0("₹", format(round(upper_ci_icer_des_bms), big.mark = ",")),
+    paste0("₹", format(round(mean_nmb_des_170k), big.mark = ",")),
+    paste0(sprintf("%.1f%%", prob_des_ce_at_170k * 100))
+  )
+)
+
+kable(summary_table_des_bms,
+      caption = "DES vs BMS PSA Results (5,000 iterations)",
+      format = "html")
 ```
 
 ## What You Just Did

@@ -614,14 +614,22 @@ result <- calc_icer(
 wtp_1gdp <- 170000    # ~1× GDP per capita India
 wtp_3gdp <- 510000    # ~3× GDP per capita
 
-interpretation <- if (result$icer < 0) {
+interpretation <- if (result$inc_cost < 0 && result$inc_qaly > 0) {
   "DES is **DOMINANT** (less costly AND more effective)"
-} else if (result$icer < wtp_1gdp) {
-  "DES is **HIGHLY cost-effective** (ICER < 1× GDP per capita)"
-} else if (result$icer < wtp_3gdp) {
-  "DES is **cost-effective** (ICER < 3× GDP per capita)"
+} else if (result$inc_cost > 0 && result$inc_qaly < 0) {
+  "DES is **DOMINATED** (more costly AND less effective)"
+} else if (result$inc_cost < 0 && result$inc_qaly < 0) {
+  "DES is **dominated on cost** but less effective (rare dominance scenario)"
+} else if (result$inc_cost > 0 && result$inc_qaly > 0) {
+  if (result$icer < wtp_1gdp) {
+    "DES is **HIGHLY cost-effective** (ICER < 1× GDP per capita)"
+  } else if (result$icer < wtp_3gdp) {
+    "DES is **cost-effective** (ICER < 3× GDP per capita)"
+  } else {
+    "DES is **NOT cost-effective** at conventional WTP thresholds"
+  }
 } else {
-  "DES is **NOT cost-effective** at conventional WTP thresholds"
+  "Undefined scenario — check calculations"
 }
 
 # Display as a clean summary table
@@ -640,6 +648,63 @@ kable(icer_table, col.names = c("", ""),
       caption = "Incremental cost-effectiveness: DES vs BMS",
       align = c("l", "l"))
 ```
+
+### Net Monetary Benefit (NMB) Analysis
+
+The **Net Monetary Benefit** offers an alternative perspective on cost-effectiveness. Rather than expressing value as a ratio, NMB converts QALYs into monetary units using the WTP threshold, then subtracts costs. A positive NMB means the intervention is worth adopting; a negative NMB means rejection.
+
+**Formula:** NMB = (WTP × QALYs) − Cost
+
+```{r}
+#| label: nmb-analysis
+#| echo: true
+
+# Define WTP thresholds
+wtp_india <- 170000    # 1× GDP per capita (₹)
+
+# Per-patient costs and QALYs (from earlier sections)
+cost_per_patient_des <- total_cost_des / n_cohort
+cost_per_patient_bms <- total_cost_bms / n_cohort
+qaly_per_patient_des <- total_qaly_des / n_cohort
+qaly_per_patient_bms <- total_qaly_bms / n_cohort
+
+# Calculate NMB for each strategy
+nmb_des <- wtp_india * qaly_per_patient_des - cost_per_patient_des
+nmb_bms <- wtp_india * qaly_per_patient_bms - cost_per_patient_bms
+
+# Incremental NMB (ΔNMB)
+inc_nmb <- nmb_des - nmb_bms
+
+# Decision rule
+nmb_decision <- if (inc_nmb > 0) {
+  "**ADOPT DES** — positive incremental NMB"
+} else if (inc_nmb < 0) {
+  "**REJECT DES** — negative incremental NMB (stick with BMS)"
+} else {
+  "**INDIFFERENT** — ΔNMB = 0"
+}
+
+# Display as table
+nmb_table <- data.frame(
+  Metric = c("NMB: DES per patient",
+             "NMB: BMS per patient",
+             "Incremental NMB (ΔNMB)",
+             "Decision"),
+  Value = c(paste0("₹", format(round(nmb_des), big.mark = ",")),
+            paste0("₹", format(round(nmb_bms), big.mark = ",")),
+            paste0("₹", format(round(inc_nmb), big.mark = ",")),
+            nmb_decision)
+)
+
+kable(nmb_table, col.names = c("", ""),
+      caption = paste0("Net Monetary Benefit at WTP = ₹", format(wtp_india, big.mark = ","), "/QALY"),
+      align = c("l", "l"))
+```
+
+::: {.callout-note}
+## NMB as a decision tool
+NMB and ICER will always agree on the direction of the decision — if DES is cost-effective by ICER, ΔNMB will be positive. But NMB has a practical advantage: it's in currency units, not a ratio. Policy makers can directly ask: "How much net health gain does this intervention create, valued in monetary terms?" A health system with a fixed budget might adopt the intervention that maximizes total NMB for all patients, not just the one with the lowest ICER.
+:::
 
 ```{r}
 #| label: fig-nnt

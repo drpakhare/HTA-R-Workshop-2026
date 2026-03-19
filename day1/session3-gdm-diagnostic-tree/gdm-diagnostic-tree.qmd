@@ -498,11 +498,13 @@ p2 <- ggplot(adverse_data, aes(x = Strategy, y = Cost_Per_Woman, fill = Strategy
 grid.arrange(p1, p2, ncol = 2)
 ```
 
-## Calculating ICERs
+## ICER and Net Monetary Benefit
 
 ```{r}
 #| label: icers
 #| echo: true
+
+library(knitr)
 
 # --- ICER Calculations ---
 # Using no screening as the reference comparator
@@ -522,22 +524,77 @@ inc_cost_univ_vs_risk <- total_cost_universal - total_cost_risk
 inc_qaly_univ_vs_risk <- total_qaly_universal - total_qaly_risk
 icer_univ_vs_risk <- inc_cost_univ_vs_risk / inc_qaly_univ_vs_risk
 
-cat("=== Incremental Cost-Effectiveness Ratios ===\n\n")
-cat("Risk-Based vs No Screening:\n")
-cat("  Incremental cost: ₹", format(round(inc_cost_risk_vs_none), big.mark = ","), "\n")
-cat("  Incremental QALYs:", round(inc_qaly_risk_vs_none, 2), "\n")
-cat("  ICER: ₹", format(round(icer_risk_vs_none), big.mark = ","), "per QALY\n\n")
+# WTP threshold
+wtp_india <- 170000
 
-cat("Universal vs No Screening:\n")
-cat("  Incremental cost: ₹", format(round(inc_cost_univ_vs_none), big.mark = ","), "\n")
-cat("  Incremental QALYs:", round(inc_qaly_univ_vs_none, 2), "\n")
-cat("  ICER: ₹", format(round(icer_univ_vs_none), big.mark = ","), "per QALY\n\n")
+# --- 4-quadrant ICER interpretation ---
+interpret_icer <- function(dc, dq, wtp) {
+  if (dc < 0 & dq > 0) return("DOMINANT")
+  if (dc > 0 & dq < 0) return("DOMINATED")
+  if (dc > 0 & dq > 0) return(if (dc/dq < wtp) "Cost-effective" else "Not CE")
+  return("Trade-off (cheaper but worse)")
+}
 
-cat("Universal vs Risk-Based:\n")
-cat("  Incremental cost: ₹", format(round(inc_cost_univ_vs_risk), big.mark = ","), "\n")
-cat("  Incremental QALYs:", round(inc_qaly_univ_vs_risk, 2), "\n")
-cat("  ICER: ₹", format(round(icer_univ_vs_risk), big.mark = ","), "per QALY\n")
+# Summary table
+kable(data.frame(
+  Comparison = c("Risk-Based vs No Screening",
+                 "Universal vs No Screening",
+                 "Universal vs Risk-Based"),
+  `Incr Cost/woman (₹)` = c(
+    paste0("₹", format(round(inc_cost_risk_vs_none / n_cohort), big.mark = ",")),
+    paste0("₹", format(round(inc_cost_univ_vs_none / n_cohort), big.mark = ",")),
+    paste0("₹", format(round(inc_cost_univ_vs_risk / n_cohort), big.mark = ","))
+  ),
+  `Incr QALYs/woman` = c(
+    round(inc_qaly_risk_vs_none / n_cohort, 4),
+    round(inc_qaly_univ_vs_none / n_cohort, 4),
+    round(inc_qaly_univ_vs_risk / n_cohort, 4)
+  ),
+  `ICER (₹/QALY)` = c(
+    paste0("₹", format(round(icer_risk_vs_none), big.mark = ",")),
+    paste0("₹", format(round(icer_univ_vs_none), big.mark = ",")),
+    paste0("₹", format(round(icer_univ_vs_risk), big.mark = ","))
+  ),
+  Conclusion = c(
+    interpret_icer(inc_cost_risk_vs_none, inc_qaly_risk_vs_none, wtp_india),
+    interpret_icer(inc_cost_univ_vs_none, inc_qaly_univ_vs_none, wtp_india),
+    interpret_icer(inc_cost_univ_vs_risk, inc_qaly_univ_vs_risk, wtp_india)
+  ),
+  check.names = FALSE
+), align = "lrrrr",
+   caption = paste0("Incremental cost-effectiveness (WTP = ₹", format(wtp_india, big.mark = ","), "/QALY)"))
 ```
+
+### Net Monetary Benefit
+
+The ICER can be ambiguous when negative (DOMINANT and DOMINATED both produce negative ratios). The NMB gives an unambiguous answer: positive ΔNMB = adopt.
+
+```{r}
+#| label: nmb
+#| echo: true
+
+# NMB = WTP × QALYs − Cost (per woman)
+nmb_none <- wtp_india * (total_qaly_none / n_cohort) - (total_cost_none / n_cohort)
+nmb_risk <- wtp_india * (total_qaly_risk / n_cohort) - (total_cost_risk / n_cohort)
+nmb_univ <- wtp_india * (total_qaly_universal / n_cohort) - (total_cost_universal / n_cohort)
+
+kable(data.frame(
+  Strategy = c("No Screening", "Risk-Based Screening", "Universal Screening"),
+  `NMB per woman (₹)` = c(
+    paste0("₹", format(round(nmb_none), big.mark = ",")),
+    paste0("₹", format(round(nmb_risk), big.mark = ",")),
+    paste0("₹", format(round(nmb_univ), big.mark = ","))
+  ),
+  Ranking = rank(-c(nmb_none, nmb_risk, nmb_univ)),
+  check.names = FALSE
+), align = "lrr",
+   caption = paste0("Net Monetary Benefit (WTP = ₹", format(wtp_india, big.mark = ","), "/QALY) — highest NMB is optimal"))
+```
+
+::: {.callout-tip}
+## Reading the NMB Table
+The strategy with the **highest NMB** is the optimal choice at the given WTP threshold. Unlike the ICER (which only compares pairs), NMB ranks all strategies simultaneously — making it easy to identify the best option when there are more than two comparators.
+:::
 
 ## Visualising the Results
 
